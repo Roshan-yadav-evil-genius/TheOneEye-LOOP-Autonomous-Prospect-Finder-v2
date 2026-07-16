@@ -91,14 +91,20 @@ export function OrganizationChatTab() {
       </div>
       
       {store.error && (
-        <div style={{ background: 'var(--color-status-danger)', color: 'var(--color-text-primary)', padding: '8px 12px', borderRadius: 'var(--radius-md)', marginBottom: '12px' }}>
-          {store.error}
+        <div style={{ background: 'var(--color-status-danger)', color: 'white', padding: '8px 12px', borderRadius: 'var(--radius-md)', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>{store.error}</span>
         </div>
       )}
 
       <ChatMessageList messages={store.messages} streaming={store.streaming} />
       
-      <ChatComposer onSend={handleSend} disabled={store.streaming} />
+      <ChatComposer 
+        onSend={handleSend} 
+        onContinue={() => store.retry(orgId)}
+        disabled={store.streaming} 
+        incompleteTurn={store.incompleteTurn}
+        canResume={store.canResume}
+      />
     </div>
   )
 }

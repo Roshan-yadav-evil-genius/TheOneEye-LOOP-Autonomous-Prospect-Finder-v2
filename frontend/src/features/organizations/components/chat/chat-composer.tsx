@@ -1,7 +1,19 @@
 import { useState } from 'react'
 import { Button } from '../../../../shared/components/button'
 
-export function ChatComposer({ onSend, disabled }: { onSend: (msg: string) => void, disabled: boolean }) {
+export function ChatComposer({ 
+  onSend, 
+  onContinue, 
+  disabled, 
+  incompleteTurn = false,
+  canResume = false
+}: { 
+  onSend: (msg: string) => void, 
+  onContinue: () => void, 
+  disabled: boolean, 
+  incompleteTurn?: boolean,
+  canResume?: boolean
+}) {
   const [text, setText] = useState('')
 
   const handleSend = () => {
@@ -10,13 +22,25 @@ export function ChatComposer({ onSend, disabled }: { onSend: (msg: string) => vo
     setText('')
   }
 
+  const handleContinue = () => {
+    if (disabled) return
+    onContinue()
+  }
+
+  const buttonText = incompleteTurn 
+    ? (canResume ? 'Continue' : 'Retry') 
+    : 'Send'
+
+  const showWaitPlaceholder = incompleteTurn
+  const disableInput = disabled || incompleteTurn
+
   return (
     <div style={{ display: 'flex', gap: '8px', marginTop: '16px', alignItems: 'flex-end' }}>
       <textarea
-        value={text}
+        value={showWaitPlaceholder ? '' : text}
         onChange={(e) => setText(e.target.value)}
-        disabled={disabled}
-        placeholder="Type a message..."
+        disabled={disableInput}
+        placeholder={showWaitPlaceholder ? 'Waiting for AI to finish turn...' : 'Type a message...'}
         style={{
           flex: 1,
           padding: '10px 12px',
@@ -28,19 +52,23 @@ export function ChatComposer({ onSend, disabled }: { onSend: (msg: string) => vo
           minHeight: '44px',
           maxHeight: '120px',
           fontFamily: 'inherit',
-          opacity: disabled ? 0.6 : 1,
-          cursor: disabled ? 'not-allowed' : 'text'
+          opacity: disableInput ? 0.6 : 1,
+          cursor: disableInput ? 'not-allowed' : 'text'
         }}
         rows={1}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
-            handleSend()
+            if (incompleteTurn) {
+              handleContinue()
+            } else {
+              handleSend()
+            }
           }
         }}
       />
-      <Button type="button" onClick={handleSend} disabled={disabled || !text.trim()}>
-        Send
+      <Button type="button" onClick={incompleteTurn ? handleContinue : handleSend} disabled={disabled || (!incompleteTurn && !text.trim())}>
+        {buttonText}
       </Button>
     </div>
   )

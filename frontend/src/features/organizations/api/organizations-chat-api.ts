@@ -3,16 +3,21 @@ import { apiClient } from '../../../shared/api/client'
 export interface ChatHistoryMessage {
   role: string
   content: string
+  name?: string
+  args?: Record<string, unknown>
 }
 
 export interface ChatHistoryRead {
   thread_id: string
   messages: ChatHistoryMessage[]
+  can_resume: boolean
 }
 
 export interface ChatStreamRequest {
   message: string
   mode: 'chat' | 'agent'
+  retry?: boolean
+  redo_last?: boolean
 }
 
 export type ChatStreamEvent = 
@@ -21,7 +26,8 @@ export type ChatStreamEvent =
   | { kind: 'tool_call'; id: string; name: string; args: unknown }
   | { kind: 'tool_result'; id: string; name: string; content: string }
   | { kind: 'done'; thread_id: string }
-  | { kind: 'error'; message: string }
+  | { kind: 'incomplete'; can_resume: boolean }
+  | { kind: 'error'; message: string; can_resume?: boolean }
 
 export const organizationsChatApi = {
   getHistory: async (organizationId: string) =>
@@ -102,8 +108,11 @@ export const organizationsChatApi = {
               case 'done':
                 onEvent({ kind: 'done', thread_id: parsed.thread_id })
                 break
+              case 'incomplete':
+                onEvent({ kind: 'incomplete', can_resume: parsed.can_resume })
+                break
               case 'error':
-                onEvent({ kind: 'error', message: parsed.message })
+                onEvent({ kind: 'error', message: parsed.message, can_resume: parsed.can_resume })
                 break
             }
           } catch (e) {

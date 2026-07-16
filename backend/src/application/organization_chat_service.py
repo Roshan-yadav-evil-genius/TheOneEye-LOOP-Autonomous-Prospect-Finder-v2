@@ -21,6 +21,11 @@ class OrgChatService:
         
         async with checkpoint_scope() as checkpointer:
             config = {"configurable": {"thread_id": thread_id}}
+            
+            agent = create_organization_setup_agent(checkpointer)
+            state = await agent.aget_state(config)
+            can_resume = bool(state.next)
+            
             if hasattr(checkpointer, "aget"):
                 checkpoint = await checkpointer.aget(config)
             else:
@@ -30,15 +35,54 @@ class OrgChatService:
             if checkpoint and "channel_values" in checkpoint and "messages" in checkpoint["channel_values"]:
                 raw_messages = checkpoint["channel_values"]["messages"]
                 for msg in raw_messages:
-                    if hasattr(msg, "type") and hasattr(msg, "content"):
-                        if msg.type in ("human", "ai"):
+                    if not hasattr(msg, "type"):
+                        continue
+                        
+                    if msg.type == "human":
+                        messages.append(
+                            ChatHistoryMessage(
+                                role="user", 
+                                content=msg.content if isinstance(msg.content, str) else json.dumps(msg.content)
+                            )
+                        )
+                    elif msg.type == "ai":
+                        content_str = msg.content if isinstance(msg.content, str) else json.dumps(msg.content)
+                        tool_calls = getattr(msg, "tool_calls", [])
+                        
+                        # Only emit if there is actual text content
+                        if msg.content and content_str not in ('""', '"[]"', "[]"):
                             messages.append(
                                 ChatHistoryMessage(
-                                    role="user" if msg.type == "human" else "assistant", 
-                                    content=msg.content if isinstance(msg.content, str) else json.dumps(msg.content)
+                                    role="assistant",
+                                    content=content_str
                                 )
                             )
-            return ChatHistoryRead(thread_id=thread_id, messages=messages)
+                            
+                        # Emit one entry per tool call
+                        for tc in tool_calls:
+                            messages.append(
+                                ChatHistoryMessage(
+                                    role="tool_call",
+                                    content="",
+                                    name=tc.get("name"),
+                                    args=tc.get("args")
+                                )
+                            )
+                    elif msg.type == "tool":
+                        content_str = msg.content
+                        if not isinstance(content_str, str):
+                            try:
+                                content_str = json.dumps(content_str)
+                            except Exception:
+                                content_str = str(content_str)
+                        messages.append(
+                            ChatHistoryMessage(
+                                role="tool_result",
+                                content=content_str,
+                                name=getattr(msg, "name", None)
+                            )
+                        )
+            return ChatHistoryRead(thread_id=thread_id, messages=messages, can_resume=can_resume)
 
     async def clear_chat(self, organization_id: str) -> None:
         thread_id = self._get_thread_id(organization_id)
@@ -83,12 +127,28 @@ class OrgChatService:
                 # verify org exists
                 await self.loop_service.get_organization(organization_id)
                 
+                if request.retry:
+                    state = await agent.aget_state(config)
+                    can_resume = bool(state.next)
+                    if not can_resume:
+                        if request.redo_last and request.message:
+                            input_data = {"messages": [("user", request.message)]}
+                        else:
+                            yield f"event: error\ndata: {json.dumps({'message': 'No pending actions to retry.', 'can_resume': False})}\n\n"
+                            return
+                    else:
+                        input_data = None
+                else:
+                    input_data = {"messages": [("user", request.message)]}
+                
+                disconnected = False
                 async for event in agent.astream_events(
-                    {"messages": [("user", request.message)]},
+                    input_data,
                     config,
                     version="v2"
                 ):
                     if fastapi_request and await fastapi_request.is_disconnected():
+                        disconnected = True
                         break
 
                     kind = event["event"]
@@ -129,8 +189,13 @@ class OrgChatService:
                                 except Exception:
                                     output = str(output)
                             yield f"event: tool_result\ndata: {json.dumps({'id': tool_id, 'name': name, 'content': output})}\n\n"
-                            
-                yield f"event: done\ndata: {json.dumps({'thread_id': thread_id})}\n\n"
+
+                if disconnected:
+                    state = await agent.aget_state(config)
+                    yield f"event: incomplete\ndata: {json.dumps({'can_resume': bool(state.next)})}\n\n"
+                else:
+                    yield f"event: done\ndata: {json.dumps({'thread_id': thread_id})}\n\n"
                 
             except Exception as e:
-                yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+                state = await agent.aget_state(config)
+                yield f"event: error\ndata: {json.dumps({'message': str(e), 'can_resume': bool(state.next)})}\n\n"

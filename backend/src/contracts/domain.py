@@ -338,15 +338,20 @@ class BrainMemoryRead(OrmModel):
 
 
 class ChatStreamRequest(BaseModel):
-    message: str = Field(min_length=1)
+    message: str = Field(min_length=0)
     mode: Literal["chat", "agent"]
+    retry: bool = False
+    redo_last: bool = False
 
 
 class ChatHistoryMessage(BaseModel):
-    role: str
+    role: Literal["user", "assistant", "tool_call", "tool_result"]
     content: str
+    name: str | None = None
+    args: dict[str, Any] | None = None
 
 
 class ChatHistoryRead(BaseModel):
     thread_id: str
     messages: list[ChatHistoryMessage]
+    can_resume: bool = False
