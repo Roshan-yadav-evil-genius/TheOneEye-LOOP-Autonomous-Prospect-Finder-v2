@@ -11,6 +11,7 @@ from api.routers.admin import router as admin_router
 from api.routers.events import router as events_router
 from api.routers.forms import router as forms_router
 from api.routers.loop import router as loop_router
+from api.routers.organization_chat import router as organization_chat_router
 from api.routers.system import router as system_router
 from observability.logging import configure_logging
 from observability.telemetry import configure_tracing, telemetry_middleware
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(loop_router)
     app.include_router(events_router)
     app.include_router(admin_router)
+    app.include_router(organization_chat_router)
     return app
 
 

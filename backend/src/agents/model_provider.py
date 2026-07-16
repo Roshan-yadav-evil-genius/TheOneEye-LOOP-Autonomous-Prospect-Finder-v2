@@ -55,6 +55,7 @@ def resolve_chat_model(settings: Settings | None = None) -> BaseChatModel:
             model_kwargs={"parallel_tool_calls": False},
         )
     if config.model_provider == "ollama":
+        print(config.model_name)
         return ChatOllama(
             model=config.model_name,
             base_url=config.model_base_url or "http://127.0.0.1:11434",

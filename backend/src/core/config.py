@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from core.database_urls import resolve_sqlite_database_url
 
-_BACKEND_ROOT = Path(__file__).resolve().parents[3]
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_SQLITE_URL = "sqlite:///" + str(_BACKEND_ROOT / "instance" / "loop.db")
 
 

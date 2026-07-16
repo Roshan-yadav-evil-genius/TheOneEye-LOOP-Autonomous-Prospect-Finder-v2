@@ -11,10 +11,13 @@ import { Button } from '../../../shared/components/button'
 import { PageHeader } from '../../../shared/components/page-header'
 import { Tabs } from '../../../shared/components/tabs'
 import { OrganizationProductsTab } from '../components/organization-products-tab'
+import { OrganizationChatTab } from '../components/organization-chat-tab'
 import { useOrganizationDetailStore } from '../stores/organization-detail-store'
+import { useOrganizationChatStore } from '../stores/organization-chat-store'
 
 const PRODUCTS_TAB = 'products'
 const DETAILS_TAB = 'details'
+const CHAT_TAB = 'chat'
 
 function toWizardValue(organization: {
   name: string
@@ -35,6 +38,7 @@ function toWizardValue(organization: {
 
 function parseTab(value: string | null, mode: string | null) {
   if (value === DETAILS_TAB || mode === 'edit') return DETAILS_TAB
+  if (value === CHAT_TAB) return CHAT_TAB
   return PRODUCTS_TAB
 }
 
@@ -84,10 +88,19 @@ export function OrganizationDetailPage() {
       next.delete('tab')
       next.delete('mode')
       setMode('view')
+    } else if (nextTab === CHAT_TAB) {
+      next.set('tab', CHAT_TAB)
+      next.delete('mode')
+      setMode('view')
     } else {
       next.set('tab', DETAILS_TAB)
       next.delete('mode')
       setMode('view')
+      
+      if (useOrganizationChatStore.getState().profileDirtyFromChat) {
+        useOrganizationChatStore.getState().clearDirtyFlag()
+        void load(orgId)
+      }
     }
     setSearchParams(next, { replace: true })
   }
@@ -139,6 +152,11 @@ export function OrganizationDetailPage() {
               value: PRODUCTS_TAB,
               label: 'Products',
               content: <OrganizationProductsTab />,
+            },
+            {
+              value: CHAT_TAB,
+              label: 'Chat',
+              content: <OrganizationChatTab />,
             },
             {
               value: DETAILS_TAB,

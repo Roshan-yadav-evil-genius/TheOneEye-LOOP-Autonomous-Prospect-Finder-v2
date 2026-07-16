@@ -335,3 +335,18 @@ class BrainMemoryRead(OrmModel):
     content: str
     evidence_urls: list[str]
     created_at: datetime
+
+
+class ChatStreamRequest(BaseModel):
+    message: str = Field(min_length=1)
+    mode: Literal["chat", "agent"]
+
+
+class ChatHistoryMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatHistoryRead(BaseModel):
+    thread_id: str
+    messages: list[ChatHistoryMessage]
