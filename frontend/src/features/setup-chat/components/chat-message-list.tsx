@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
-import type { ChatUiMessage } from '../../stores/organization-chat-store'
+import type { ChatUiMessage } from '../stores/store-factory'
 import { ReasoningCard } from './reasoning-card'
 import { ToolCallCard } from './tool-call-card'
 import { ToolResultCard } from './tool-result-card'

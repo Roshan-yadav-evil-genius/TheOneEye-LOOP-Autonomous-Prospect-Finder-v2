@@ -10,6 +10,7 @@ import {
   salesStrategyApi,
 } from '../api/sales-strategy-api'
 import { WorkspaceShell } from '../components/workspace-shell'
+import { useStrategyChatStore } from '../stores/strategy-chat-store'
 
 function toViewerValue(strategy: SalesStrategy) {
   const form = (strategy.sales_strategy_form ?? {}) as Record<string, unknown>
@@ -42,11 +43,11 @@ export function StrategyPage() {
   const [strategy, setStrategy] = useState<SalesStrategy | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const loadStrategy = (id: string) => {
     let cancelled = false
     setError(null)
     void salesStrategyApi
-      .getStrategy(strategyId)
+      .getStrategy(id)
       .then((next) => {
         if (!cancelled) setStrategy(next)
       })
@@ -56,6 +57,13 @@ export function StrategyPage() {
     return () => {
       cancelled = true
     }
+  }
+
+  useEffect(() => {
+    const cleanup = loadStrategy(strategyId)
+    // Clear the dirty flag when we render Details since we just loaded fresh data
+    useStrategyChatStore.getState().clearDirtyFlag()
+    return cleanup
   }, [strategyId])
 
   return (
@@ -69,7 +77,7 @@ export function StrategyPage() {
           sections={strategyFormSections}
           themes={strategyFormThemes}
           value={toViewerValue(strategy)}
-          hint="Immutable after creation — operators cannot edit strategy fields here."
+          hint="Immutable after creation — operators cannot edit strategy fields here. Use the Agent Chat to update the strategy."
           actions={
             <span className="muted">
               Company finder attempt {strategy.company_finder_attempt}/

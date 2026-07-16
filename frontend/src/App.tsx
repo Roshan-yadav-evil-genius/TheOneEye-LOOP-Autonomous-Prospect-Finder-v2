@@ -17,6 +17,7 @@ import { RecordsPage } from './features/sales-strategies/pages/records-page'
 import { StrategiesListPage } from './features/sales-strategies/pages/strategies-list-page'
 import { StrategyPage } from './features/sales-strategies/pages/strategy-page'
 import { ThreadsPage } from './features/sales-strategies/pages/threads-page'
+import { StrategyChatPage } from './features/sales-strategies/pages/strategy-chat-page'
 import { OperatorHomePage } from './features/system/components/operator-home-page'
 import { PageShell } from './shared/components/page-shell'
 
@@ -48,6 +49,10 @@ function App() {
         <Route
           path="/orgs/:orgId/sales-strategies/:strategyId/details"
           element={<StrategyPage />}
+        />
+        <Route
+          path="/orgs/:orgId/sales-strategies/:strategyId/chat"
+          element={<StrategyChatPage />}
         />
         <Route
           path="/orgs/:orgId/sales-strategies/:strategyId/strategy"

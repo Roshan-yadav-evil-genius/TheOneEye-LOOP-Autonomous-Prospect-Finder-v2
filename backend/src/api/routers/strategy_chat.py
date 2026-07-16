@@ -6,43 +6,50 @@ from starlette.responses import StreamingResponse
 
 from application.loop_service import LoopService
 from application.setup_chat_service import SetupChatService
-from agents.setup_chat.org_agent import create_organization_setup_agent
+from agents.setup_chat.strategy_agent import create_strategy_setup_agent
 from agents.setup_chat.common import SetupChatToolContext
 from contracts.domain import ChatStreamRequest, ChatHistoryRead
 from persistence.database import get_session
 
-router = APIRouter(prefix="/api/v1", tags=["organization-chat"])
+router = APIRouter(prefix="/api/v1", tags=["strategy-chat"])
 Session = Annotated[AsyncSession, Depends(get_session)]
 
-def chat_service(session: AsyncSession, request: Request, organization_id: str) -> SetupChatService:
+
+def chat_service(session: AsyncSession, request: Request, strategy_id: str) -> SetupChatService:
     loop_service = LoopService(session, getattr(request.state, "request_id", None))
     
-    async def verify_entity() -> None:
-        await loop_service.get_organization(organization_id)
-        
-    thread_id = f"org_{organization_id}_setup_chat"
     tool_context = SetupChatToolContext(
-        organization_id=organization_id,
-        mode="chat", # Set appropriately in stream, but context is updated per stream request later
+        organization_id="", 
+        product_id="",
+        strategy_id=strategy_id,
+        mode="chat",
         service=loop_service,
     )
+
+    async def verify_entity() -> None:
+        strategy = await loop_service.get_strategy(strategy_id)
+        product = await loop_service.get_product(strategy.product_id)
+        tool_context.product_id = product.id
+        tool_context.organization_id = product.organization_id
+        
+    thread_id = f"strategy_{strategy_id}_setup_chat"
     
     return SetupChatService(
         thread_id=thread_id,
         verify_entity=verify_entity,
-        agent_factory=create_organization_setup_agent,
+        agent_factory=create_strategy_setup_agent,
         tool_context=tool_context
     )
 
 
-@router.post("/organizations/{organization_id}/chat/stream")
+@router.post("/sales-strategies/{strategy_id}/chat/stream")
 async def stream_chat(
-    organization_id: str,
+    strategy_id: str,
     data: ChatStreamRequest,
     session: Session,
     request: Request,
 ) -> StreamingResponse:
-    service = chat_service(session, request, organization_id)
+    service = chat_service(session, request, strategy_id)
     service.tool_context.mode = data.mode
     return StreamingResponse(
         service.stream_chat(data, fastapi_request=request),
@@ -51,21 +58,22 @@ async def stream_chat(
     )
 
 
-@router.get("/organizations/{organization_id}/chat/history", response_model=ChatHistoryRead)
+@router.get("/sales-strategies/{strategy_id}/chat/history", response_model=ChatHistoryRead)
 async def get_history(
-    organization_id: str,
+    strategy_id: str,
     session: Session,
     request: Request,
 ) -> ChatHistoryRead:
-    service = chat_service(session, request, organization_id)
+    service = chat_service(session, request, strategy_id)
+    await service.verify_entity()
     return await service.get_history()
 
 
-@router.delete("/organizations/{organization_id}/chat", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/sales-strategies/{strategy_id}/chat", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_chat(
-    organization_id: str,
+    strategy_id: str,
     session: Session,
     request: Request,
 ) -> None:
-    service = chat_service(session, request, organization_id)
+    service = chat_service(session, request, strategy_id)
     await service.clear_chat()

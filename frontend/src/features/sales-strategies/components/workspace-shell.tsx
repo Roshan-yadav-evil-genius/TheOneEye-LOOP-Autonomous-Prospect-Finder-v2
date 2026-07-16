@@ -12,6 +12,7 @@ const tabs = [
   ['contact-finder', 'Contact finder'],
   ['threads', 'Threads'],
   ['details', 'Details'],
+  ['chat', 'Chat'],
 ] as const
 
 export function WorkspaceShell({

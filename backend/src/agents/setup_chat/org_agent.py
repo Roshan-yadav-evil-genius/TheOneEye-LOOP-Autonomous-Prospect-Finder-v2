@@ -5,7 +5,7 @@ from langgraph.prebuilt import create_react_agent
 from langgraph.graph.state import CompiledStateGraph
 
 from agents.model_provider import resolve_chat_model
-from agents.organization_setup.tools import get_all_tools
+from agents.setup_chat.org_tools import get_all_tools
 
 
 def create_organization_setup_agent(checkpointer: Any) -> CompiledStateGraph:

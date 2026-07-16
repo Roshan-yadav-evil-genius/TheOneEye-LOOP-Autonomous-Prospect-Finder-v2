@@ -12,11 +12,14 @@ import { IconLink, PlusIcon } from '../../../shared/components/icon-button'
 import { PageHeader } from '../../../shared/components/page-header'
 import { Tabs } from '../../../shared/components/tabs'
 import { ProductStrategiesTab } from '../components/product-strategies-tab'
+import { ProductChatTab } from '../components/product-chat-tab'
 import { useProductDetailStore } from '../stores/product-detail-store'
+import { useProductChatStore } from '../stores/product-chat-store'
 
 /** Edit is opened from the products list edit icon via `?mode=edit`. */
 
 const DETAILS_TAB = 'details'
+const CHAT_TAB = 'chat'
 const STRATEGIES_TAB = 'strategies'
 
 function toWizardValue(product: {
@@ -37,6 +40,7 @@ function toWizardValue(product: {
 
 function parseTab(value: string | null, mode: string | null) {
   if (value === DETAILS_TAB || mode === 'edit') return DETAILS_TAB
+  if (value === CHAT_TAB) return CHAT_TAB
   return STRATEGIES_TAB
 }
 
@@ -97,10 +101,19 @@ export function ProductDetailPage() {
       next.delete('tab')
       next.delete('mode')
       setMode('view')
+    } else if (nextTab === CHAT_TAB) {
+      next.set('tab', CHAT_TAB)
+      next.delete('mode')
+      setMode('view')
     } else {
       next.set('tab', DETAILS_TAB)
       next.delete('mode')
       setMode('view')
+      
+      if (useProductChatStore.getState().profileDirtyFromChat) {
+        useProductChatStore.getState().clearDirtyFlag()
+        void load(productId)
+      }
     }
     setSearchParams(next, { replace: true })
   }
@@ -159,6 +172,11 @@ export function ProductDetailPage() {
               value: STRATEGIES_TAB,
               label: 'Strategies',
               content: <ProductStrategiesTab />,
+            },
+            {
+              value: CHAT_TAB,
+              label: 'Chat',
+              content: <ProductChatTab />,
             },
             {
               value: DETAILS_TAB,
