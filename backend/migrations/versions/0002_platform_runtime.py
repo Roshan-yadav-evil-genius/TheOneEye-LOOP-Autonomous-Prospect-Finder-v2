@@ -5,7 +5,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from loop_api.persistence import models
+from persistence import models
 
 revision: str = "0002_platform_runtime"
 down_revision: str | None = "0001_initial_sqlite"

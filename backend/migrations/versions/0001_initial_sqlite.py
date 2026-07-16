@@ -2,8 +2,8 @@
 
 from alembic import op
 
-from loop_api.persistence import models  # noqa: F401
-from loop_api.persistence.database import Base
+from persistence import models  # noqa: F401
+from persistence.database import Base
 
 revision = "0001_initial_sqlite"
 down_revision = None
