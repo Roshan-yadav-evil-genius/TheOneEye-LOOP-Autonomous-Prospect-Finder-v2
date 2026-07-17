@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agents.checkpoints import ThreadCheckpointStore
 from application.loop_service import LoopService
 from application.process_service import ProcessService
+from application.chat_history_service import ThreadChatHistoryService
 from contracts.domain import (
+    ChatHistoryRead,
     SalesStrategyProfileUpdate,
     AgentRole,
     AgentRunSummary,
@@ -414,3 +416,7 @@ async def global_threads() -> list[str]:
             rows = await cur.fetchall()
             
     return [row[0] for row in rows]
+
+@router.get("/threads/{thread_id:path}/chat/history", response_model=ChatHistoryRead)
+async def chat_history(thread_id: str) -> object:
+    return await ThreadChatHistoryService.get_history(thread_id)

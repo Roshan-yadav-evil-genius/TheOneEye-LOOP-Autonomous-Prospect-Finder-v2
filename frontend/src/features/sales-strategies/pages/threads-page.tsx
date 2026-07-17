@@ -117,7 +117,11 @@ export function ThreadsPage() {
             <dl className="profile-summary__grid">
               <div className="profile-summary__field">
                 <dt>Thread ID</dt>
-                <dd>{snapshot.thread_id}</dd>
+                <dd>
+                  <a href={`/api/v1/threads/${encodeURIComponent(snapshot.thread_id)}/chat/history`} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>
+                    {snapshot.thread_id}
+                  </a>
+                </dd>
               </div>
               <div className="profile-summary__field">
                 <dt>Available threads</dt>

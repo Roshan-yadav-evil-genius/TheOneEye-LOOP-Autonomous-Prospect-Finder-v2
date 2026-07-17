@@ -41,7 +41,11 @@ export function GlobalThreadsPage() {
           {data.map((threadId) => (
             <tr key={threadId}>
               <td>
-                <span style={{ fontFamily: 'monospace' }}>{threadId}</span>
+                <span style={{ fontFamily: 'monospace' }}>
+                  <a href={`/api/v1/threads/${encodeURIComponent(threadId)}/chat/history`} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>
+                    {threadId}
+                  </a>
+                </span>
               </td>
             </tr>
           ))}
