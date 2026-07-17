@@ -26,7 +26,6 @@ class ThreadChatHistoryService:
             model = resolve_chat_model()
             agent = create_deep_agent(model, checkpointer=checkpointer)
             state = await agent.aget_state(_thread_config(thread_id))
-            print(state)
             can_resume = bool(state.next) if state else False
             messages = []
             
@@ -34,7 +33,8 @@ class ThreadChatHistoryService:
                 raw_messages = state.values["messages"]
                 for msg in raw_messages:
                     msg_dict = message_to_dict(msg)
-                    print(msg_dict)
+                    with open("master.json",'w') as file:
+                        file.write(json.dumps(msg_dict))
                     msg_type = msg_dict.get("type")
                     data = msg_dict.get("data", {})
                     
@@ -49,6 +49,24 @@ class ThreadChatHistoryService:
                     elif msg_type == "ai":
                         content = data.get("content", "")
                         tool_calls = data.get("tool_calls", [])
+                        kwargs = data.get("additional_kwargs", {})
+                        
+                        # Extract reasoning
+                        reasoning = kwargs.get("reasoning_content") or kwargs.get("reasoning")
+                        if not reasoning and isinstance(content, list):
+                            for block in content:
+                                if isinstance(block, dict) and block.get("type") == "reasoning":
+                                    reasoning = block.get("text", "")
+                                    break
+                                
+                        if reasoning:
+                            messages.append(
+                                ChatHistoryMessage(
+                                    role="reasoning",
+                                    content=str(reasoning)
+                                )
+                            )
+
                         content_str = content if isinstance(content, str) else json.dumps(content)
                         
                         if content and content_str not in ('""', '"[]"', "[]"):
@@ -58,7 +76,6 @@ class ThreadChatHistoryService:
                                     content=content_str
                                 )
                             )
-                            
                         for tc in tool_calls:
                             messages.append(
                                 ChatHistoryMessage(

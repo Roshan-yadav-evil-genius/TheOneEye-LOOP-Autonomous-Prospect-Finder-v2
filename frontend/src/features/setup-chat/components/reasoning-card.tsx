@@ -1,10 +1,18 @@
+import ReactMarkdown from 'react-markdown'
+import { sharedMarkdownComponents } from './shared-markdown-components'
+
 export function ReasoningCard({ text }: { text: string }) {
   return (
-    <details className="reasoning-card" style={{ marginBottom: '8px', padding: '8px', background: 'var(--color-bg-elevated)', border: '1px solid var(--color-border-default)', borderRadius: 'var(--radius-md)' }}>
-      <summary style={{ cursor: 'pointer', fontWeight: 500, color: 'var(--color-text-secondary)' }}>Thinking...</summary>
-      <pre style={{ whiteSpace: 'pre-wrap', marginTop: '8px', fontSize: '0.85em', color: 'var(--color-text-primary)', fontFamily: 'monospace' }}>
-        {text}
-      </pre>
+    <details className="reasoning-card" style={{ padding: '8px 12px', background: 'var(--color-bg-subtle)', borderLeft: '3px solid var(--color-accent-primary)', borderRadius: '0 var(--radius-md) var(--radius-md) 0', width: '100%' }}>
+      <summary style={{ cursor: 'pointer', fontWeight: 500, color: 'var(--color-text-secondary)', fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ fontSize: '1.2em', fontStyle: 'normal' }}>💭</span>
+        <span style={{ fontStyle: 'italic' }}>Thinking</span>
+      </summary>
+      <div style={{ marginTop: '8px', fontSize: '0.85em', color: 'var(--color-text-primary)' }}>
+        <ReactMarkdown components={sharedMarkdownComponents as any}>
+          {text}
+        </ReactMarkdown>
+      </div>
     </details>
   )
 }

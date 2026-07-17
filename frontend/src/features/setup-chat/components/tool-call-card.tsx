@@ -1,4 +1,5 @@
 import type { ToolCustomizationRuleRead } from '../api/tool-customization-api'
+import { JsonHighlighter } from './json-highlighter'
 
 export function ToolCallCard({ name, args, rules }: { name: string; args: unknown; rules?: ToolCustomizationRuleRead[] }) {
   const matchedRule = rules?.find(r => name.startsWith(r.tool_name_prefix))
@@ -6,7 +7,7 @@ export function ToolCallCard({ name, args, rules }: { name: string; args: unknow
   const backgroundColor = matchedRule?.request_color || 'var(--color-bg-elevated)'
   
   return (
-    <details className="tool-call-card" style={{ marginBottom: '8px', padding: '8px', background: backgroundColor, border: '1px solid var(--color-border-default)', borderRadius: 'var(--radius-md)' }}>
+    <details className="tool-call-card" style={{ padding: '8px', background: backgroundColor, border: '1px solid var(--color-border-default)', borderRadius: 'var(--radius-md)', width: '100%' }}>
       <summary style={{ cursor: 'pointer', fontWeight: 500, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
         {matchedRule?.icon_url ? (
           <>
@@ -26,9 +27,9 @@ export function ToolCallCard({ name, args, rules }: { name: string; args: unknow
         ) : <span style={{ fontSize: '1.2em' }}>🛠️</span>}
         Call: {name}
       </summary>
-      <pre style={{ whiteSpace: 'pre-wrap', marginTop: '8px', fontSize: '0.85em', color: 'var(--color-text-secondary)', fontFamily: 'monospace' }}>
-        {JSON.stringify(args, null, 2)}
-      </pre>
+      <div style={{ marginTop: '8px', overflowX: 'auto' }}>
+        <JsonHighlighter data={args} />
+      </div>
     </details>
   )
 }

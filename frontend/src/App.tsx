@@ -18,6 +18,7 @@ import { StrategyPage } from './features/sales-strategies/pages/strategy-page'
 import { ThreadsPage } from './features/sales-strategies/pages/threads-page'
 import { StrategyChatPage } from './features/sales-strategies/pages/strategy-chat-page'
 import { GlobalThreadsPage } from './features/system/pages/global-threads-page'
+import { ThreadChatPage } from './features/system/pages/thread-chat-page'
 import { OperatorHomePage } from './features/system/components/operator-home-page'
 import { PageShell } from './shared/components/page-shell'
 
@@ -28,6 +29,7 @@ function App() {
         <Route index element={<OperatorHomePage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/threads" element={<GlobalThreadsPage />} />
+        <Route path="/threads/:threadId" element={<ThreadChatPage />} />
         <Route path="/orgs" element={<OrganizationsPage />} />
         <Route path="/orgs/new" element={<OrganizationWizardPage />} />
         <Route path="/orgs/:orgId" element={<OrganizationDetailPage />} />

@@ -79,6 +79,8 @@ export function createSetupChatStore(api: SetupChatApi): UseBoundStore<StoreApi<
             messages.push({ id: `hist-${i}`, kind: 'tool_call', name: m.name || '', args: m.args || {} })
           } else if (m.role === 'tool_result') {
             messages.push({ id: `hist-${i}`, kind: 'tool_result', name: m.name || '', content: m.content })
+          } else if (m.role === 'reasoning') {
+            messages.push({ id: `hist-${i}`, kind: 'reasoning', text: m.content })
           } else if (m.role === 'user') {
             lastUserMsg = m.content
             const lastMsg = messages[messages.length - 1]

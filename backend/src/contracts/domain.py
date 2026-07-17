@@ -358,7 +358,7 @@ class ChatStreamRequest(BaseModel):
 
 
 class ChatHistoryMessage(BaseModel):
-    role: Literal["user", "assistant", "tool_call", "tool_result"]
+    role: Literal["user", "assistant", "tool_call", "tool_result", "reasoning"]
     content: str
     name: str | None = None
     args: dict[str, Any] | None = None

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { DataTable } from '../../../shared/components/design-system'
 import { PageHeader } from '../../../shared/components/page-header'
@@ -42,9 +43,9 @@ export function GlobalThreadsPage() {
             <tr key={threadId}>
               <td>
                 <span style={{ fontFamily: 'monospace' }}>
-                  <a href={`/api/v1/threads/${encodeURIComponent(threadId)}/chat/history`} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>
+                  <Link to={`/threads/${encodeURIComponent(threadId)}`} style={{ color: 'inherit', textDecoration: 'underline' }}>
                     {threadId}
-                  </a>
+                  </Link>
                 </span>
               </td>
             </tr>

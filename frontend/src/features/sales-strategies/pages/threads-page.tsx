@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 
 import { Button } from '../../../shared/components/button'
 import {
@@ -118,9 +118,9 @@ export function ThreadsPage() {
               <div className="profile-summary__field">
                 <dt>Thread ID</dt>
                 <dd>
-                  <a href={`/api/v1/threads/${encodeURIComponent(snapshot.thread_id)}/chat/history`} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>
+                  <Link to={`/threads/${encodeURIComponent(snapshot.thread_id)}`} style={{ textDecoration: 'underline' }}>
                     {snapshot.thread_id}
-                  </a>
+                  </Link>
                 </dd>
               </div>
               <div className="profile-summary__field">
