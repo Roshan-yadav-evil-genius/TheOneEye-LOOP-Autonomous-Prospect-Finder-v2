@@ -13,3 +13,8 @@ export async function getBuildInfo(): Promise<BuildInfo> {
   const response = await apiClient.get<BuildInfo>('/version')
   return response.data
 }
+
+export async function getGlobalThreads(): Promise<string[]> {
+  const response = await apiClient.get<string[]>('/api/v1/threads')
+  return response.data
+}

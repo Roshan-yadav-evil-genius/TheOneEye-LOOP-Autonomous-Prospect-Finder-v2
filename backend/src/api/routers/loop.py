@@ -1,3 +1,5 @@
+from core.config import get_settings
+import psycopg
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, status
@@ -389,6 +391,26 @@ async def snapshot(strategy_id: str, thread_id: str, session: Session) -> Thread
         thread_id=thread_id,
         effort_prefix=run.effort_prefix,
         available_threads=available,
-        state=state,
         checkpoint_backend="postgresql" if store.database_url else "unavailable",
     )
+
+
+@router.get("/threads", response_model=list[str])
+async def global_threads() -> list[str]:
+    settings = get_settings()
+    conn_string = settings.resolved_threads_database_url
+    
+    if not conn_string:
+        return []
+        
+    async with await psycopg.AsyncConnection.connect(conn_string) as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT DISTINCT thread_id
+                FROM checkpoints
+                """
+            )
+            rows = await cur.fetchall()
+            
+    return [row[0] for row in rows]

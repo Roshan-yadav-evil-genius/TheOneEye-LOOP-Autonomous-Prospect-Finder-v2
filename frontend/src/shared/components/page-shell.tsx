@@ -98,6 +98,12 @@ export function PageShell({ children }: PropsWithChildren) {
           >
             Admin
           </NavLink>
+          <NavLink 
+            to="/threads" 
+            className={({ isActive }) => `premium-nav-link ${isActive ? 'active' : ''}`}
+          >
+            Threads
+          </NavLink>
         </div>
 
         {/* Right section: Powered by, Logo, Theme Toggle */}
