@@ -357,16 +357,9 @@ class ChatStreamRequest(BaseModel):
     redo_last: bool = False
 
 
-class ChatHistoryMessage(BaseModel):
-    role: Literal["user", "assistant", "tool_call", "tool_result", "reasoning"]
-    content: str
-    name: str | None = None
-    args: dict[str, Any] | None = None
-
-
 class ChatHistoryRead(BaseModel):
     thread_id: str
-    messages: list[ChatHistoryMessage]
+    messages: list[dict[str, Any]]
     can_resume: bool = False
 
 

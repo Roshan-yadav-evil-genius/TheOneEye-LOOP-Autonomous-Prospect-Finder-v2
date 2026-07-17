@@ -1,13 +1,6 @@
-export interface ChatHistoryMessage {
-  role: string
-  content: string
-  name?: string
-  args?: Record<string, unknown>
-}
-
 export interface ChatHistoryRead {
   thread_id: string
-  messages: ChatHistoryMessage[]
+  messages: any[]
   can_resume: boolean
 }
 
@@ -21,6 +14,7 @@ export interface ChatStreamRequest {
 export type ChatStreamEvent = 
   | { kind: 'reasoning'; text: string }
   | { kind: 'content'; text: string }
+  | { kind: 'metadata'; metadata: Record<string, any> }
   | { kind: 'tool_call'; id: string; name: string; args: unknown }
   | { kind: 'tool_result'; id: string; name: string; content: string }
   | { kind: 'done'; thread_id: string }
@@ -86,6 +80,9 @@ export const streamChatGeneric = async (
               break
             case 'content':
               onEvent({ kind: 'content', text: parsed.text })
+              break
+            case 'metadata':
+              onEvent({ kind: 'metadata', metadata: parsed })
               break
             case 'tool_call':
               onEvent({ kind: 'tool_call', id: parsed.id, name: parsed.name, args: parsed.args })

@@ -5,8 +5,9 @@ from agents.checkpoint_runtime import checkpoint_scope
 from agents.organization_setup.factory import create_organization_setup_agent
 from agents.organization_setup.tools import OrgChatToolContext
 from application.loop_service import LoopService
-from contracts.domain import ChatStreamRequest, ChatHistoryRead, ChatHistoryMessage
+from contracts.domain import ChatStreamRequest, ChatHistoryRead
 from core.config import get_settings
+from langchain_core.messages import message_to_dict
 
 
 class OrgChatService:
@@ -35,53 +36,8 @@ class OrgChatService:
             if checkpoint and "channel_values" in checkpoint and "messages" in checkpoint["channel_values"]:
                 raw_messages = checkpoint["channel_values"]["messages"]
                 for msg in raw_messages:
-                    if not hasattr(msg, "type"):
-                        continue
-                        
-                    if msg.type == "human":
-                        messages.append(
-                            ChatHistoryMessage(
-                                role="user", 
-                                content=msg.content if isinstance(msg.content, str) else json.dumps(msg.content)
-                            )
-                        )
-                    elif msg.type == "ai":
-                        content_str = msg.content if isinstance(msg.content, str) else json.dumps(msg.content)
-                        tool_calls = getattr(msg, "tool_calls", [])
-                        
-                        # Only emit if there is actual text content
-                        if msg.content and content_str not in ('""', '"[]"', "[]"):
-                            messages.append(
-                                ChatHistoryMessage(
-                                    role="assistant",
-                                    content=content_str
-                                )
-                            )
-                            
-                        # Emit one entry per tool call
-                        for tc in tool_calls:
-                            messages.append(
-                                ChatHistoryMessage(
-                                    role="tool_call",
-                                    content="",
-                                    name=tc.get("name"),
-                                    args=tc.get("args")
-                                )
-                            )
-                    elif msg.type == "tool":
-                        content_str = msg.content
-                        if not isinstance(content_str, str):
-                            try:
-                                content_str = json.dumps(content_str)
-                            except Exception:
-                                content_str = str(content_str)
-                        messages.append(
-                            ChatHistoryMessage(
-                                role="tool_result",
-                                content=content_str,
-                                name=getattr(msg, "name", None)
-                            )
-                        )
+                    messages.append(message_to_dict(msg))
+                    
             return ChatHistoryRead(thread_id=thread_id, messages=messages, can_resume=can_resume)
 
     async def clear_chat(self, organization_id: str) -> None:

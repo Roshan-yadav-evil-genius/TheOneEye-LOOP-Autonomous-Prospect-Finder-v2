@@ -8,9 +8,9 @@ import {
 
 export type ChatUiMessage =
   | { id: string; kind: 'user'; content: string }
-  | { id: string; kind: 'assistant'; content: string }
-  | { id: string; kind: 'reasoning'; text: string }
-  | { id: string; kind: 'tool_call'; name: string; args: unknown }
+  | { id: string; aiMessageId?: string; kind: 'assistant'; content: string; metadata?: Record<string, any> }
+  | { id: string; aiMessageId?: string; kind: 'reasoning'; text: string; metadata?: Record<string, any> }
+  | { id: string; aiMessageId?: string; kind: 'tool_call'; name: string; args: unknown; metadata?: Record<string, any> }
   | { id: string; kind: 'tool_result'; name: string; content: string }
 
 export interface SetupChatStoreState {
@@ -74,22 +74,53 @@ export function createSetupChatStore(api: SetupChatApi): UseBoundStore<StoreApi<
         const messages: ChatUiMessage[] = []
         let lastUserMsg: string | null = null
         
-        history.messages.forEach((m, i) => {
-          if (m.role === 'tool_call') {
-            messages.push({ id: `hist-${i}`, kind: 'tool_call', name: m.name || '', args: m.args || {} })
-          } else if (m.role === 'tool_result') {
-            messages.push({ id: `hist-${i}`, kind: 'tool_result', name: m.name || '', content: m.content })
-          } else if (m.role === 'reasoning') {
-            messages.push({ id: `hist-${i}`, kind: 'reasoning', text: m.content })
-          } else if (m.role === 'user') {
-            lastUserMsg = m.content
+        history.messages.forEach((msgDict: any, i: number) => {
+          const type = msgDict.type
+          const data = msgDict.data || {}
+          
+          if (type === 'human') {
+            const content = typeof data.content === 'string' ? data.content : JSON.stringify(data.content)
+            lastUserMsg = content
             const lastMsg = messages[messages.length - 1]
-            if (lastMsg && lastMsg.kind === 'user' && lastMsg.content === m.content) {
+            if (lastMsg && lastMsg.kind === 'user' && lastMsg.content === content) {
               return
             }
-            messages.push({ id: `hist-${i}`, kind: 'user', content: m.content })
-          } else {
-            messages.push({ id: `hist-${i}`, kind: 'assistant', content: m.content })
+            messages.push({ id: `hist-${i}`, kind: 'user', content })
+          } else if (type === 'ai') {
+            const aiMessageId = msgDict.id || data.id || `hist-${i}`
+            const meta: any = {}
+            if (data.usage_metadata) meta.usage_metadata = data.usage_metadata
+            if (data.response_metadata) meta.response_metadata = data.response_metadata
+            if (aiMessageId) meta.id = aiMessageId
+
+            let reasoning = data.additional_kwargs?.reasoning_content || data.additional_kwargs?.reasoning
+            if (!reasoning && Array.isArray(data.content)) {
+                const rBlock = data.content.find((b: any) => b.type === 'reasoning')
+                if (rBlock) reasoning = rBlock.text
+            }
+            
+            const toolCalls = data.tool_calls || []
+            const contentStr = typeof data.content === 'string' ? data.content : JSON.stringify(data.content)
+            
+            const metadataObj = Object.keys(meta).length > 0 ? meta : undefined
+            
+            if (reasoning) {
+              messages.push({ id: `hist-${i}-rsn`, aiMessageId, kind: 'reasoning', text: reasoning, metadata: metadataObj })
+            }
+            
+            if (contentStr && contentStr !== '""' && contentStr !== '[]' && contentStr !== '"[]"') {
+              messages.push({ id: `hist-${i}-ast`, aiMessageId, kind: 'assistant', content: contentStr, metadata: metadataObj })
+            }
+            
+            toolCalls.forEach((tc: any, tcIdx: number) => {
+              messages.push({ id: `hist-${i}-tc-${tcIdx}`, aiMessageId, kind: 'tool_call', name: tc.name, args: tc.args, metadata: metadataObj })
+            })
+            
+            if (!reasoning && (!contentStr || contentStr === '""' || contentStr === '[]' || contentStr === '"[]"') && toolCalls.length === 0) {
+              messages.push({ id: `hist-${i}-ast`, aiMessageId, kind: 'assistant', content: '', metadata: metadataObj })
+            }
+          } else if (type === 'tool') {
+            messages.push({ id: `hist-${i}-tr`, kind: 'tool_result', name: data.name, content: typeof data.content === 'string' ? data.content : JSON.stringify(data.content) })
           }
         })
         
@@ -140,6 +171,7 @@ export function createSetupChatStore(api: SetupChatApi): UseBoundStore<StoreApi<
 
     _runStream: async (entityId: string, request: ChatStreamRequest) => {
       let currentMessages = get().messages
+      let activeAiTurnId = `turn-${Date.now()}`
       let activeAssistantMsgId = `ast-${Date.now()}`
       let activeReasoningId = `rsn-${Date.now()}`
       
@@ -155,6 +187,11 @@ export function createSetupChatStore(api: SetupChatApi): UseBoundStore<StoreApi<
           }
         } else {
           const reversed = [...currentMessages].reverse()
+          const lastAiMsg = reversed.find(m => (m.kind === 'assistant' || m.kind === 'reasoning' || m.kind === 'tool_call') && m.aiMessageId)
+          if (lastAiMsg && lastAiMsg.kind !== 'user' && lastAiMsg.kind !== 'tool_result' && 'aiMessageId' in lastAiMsg && lastAiMsg.aiMessageId) {
+            activeAiTurnId = lastAiMsg.aiMessageId
+          }
+          
           const lastReasoning = reversed.find(m => m.kind === 'reasoning' || m.kind === 'user' || m.kind === 'tool_result')
           if (lastReasoning?.kind === 'reasoning') {
             activeReasoningId = lastReasoning.id
@@ -185,7 +222,7 @@ export function createSetupChatStore(api: SetupChatApi): UseBoundStore<StoreApi<
                   if (existing && existing.kind === 'reasoning') {
                     return msgs.map(m => m.id === activeReasoningId && m.kind === 'reasoning' ? { ...m, text: m.text + event.text } : m)
                   }
-                  return [...msgs, { id: activeReasoningId, kind: 'reasoning', text: event.text }]
+                  return [...msgs, { id: activeReasoningId, aiMessageId: activeAiTurnId, kind: 'reasoning', text: event.text }]
                 })
                 break
               case 'content':
@@ -194,13 +231,18 @@ export function createSetupChatStore(api: SetupChatApi): UseBoundStore<StoreApi<
                   if (existing && existing.kind === 'assistant') {
                     return msgs.map(m => m.id === activeAssistantMsgId && m.kind === 'assistant' ? { ...m, content: m.content + event.text } : m)
                   }
-                  return [...msgs, { id: activeAssistantMsgId, kind: 'assistant', content: event.text }]
+                  return [...msgs, { id: activeAssistantMsgId, aiMessageId: activeAiTurnId, kind: 'assistant', content: event.text }]
+                })
+                break
+              case 'metadata':
+                appendOrUpdate((msgs) => {
+                  return msgs.map(m => ('aiMessageId' in m && m.aiMessageId === activeAiTurnId) ? { ...m, metadata: { ...m.metadata, ...event.metadata } } as ChatUiMessage : m)
                 })
                 break
               case 'tool_call':
                 appendOrUpdate((msgs) => [
                   ...msgs,
-                  { id: `tc-${event.id}`, kind: 'tool_call', name: event.name, args: event.args }
+                  { id: `tc-${event.id}`, aiMessageId: activeAiTurnId, kind: 'tool_call', name: event.name, args: event.args }
                 ])
                 activeReasoningId = `rsn-${Date.now()}`
                 activeAssistantMsgId = `ast-${Date.now()}`

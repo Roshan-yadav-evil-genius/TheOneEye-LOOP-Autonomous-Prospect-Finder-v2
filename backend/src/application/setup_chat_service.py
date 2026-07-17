@@ -3,8 +3,9 @@ from collections.abc import AsyncGenerator, Callable, Awaitable
 from typing import Any
 
 from agents.checkpoint_runtime import checkpoint_scope
-from contracts.domain import ChatStreamRequest, ChatHistoryRead, ChatHistoryMessage
+from contracts.domain import ChatStreamRequest, ChatHistoryRead
 from core.config import get_settings
+from langchain_core.messages import message_to_dict
 
 
 class SetupChatService:
@@ -37,53 +38,8 @@ class SetupChatService:
             if checkpoint and "channel_values" in checkpoint and "messages" in checkpoint["channel_values"]:
                 raw_messages = checkpoint["channel_values"]["messages"]
                 for msg in raw_messages:
-                    if not hasattr(msg, "type"):
-                        continue
-                        
-                    if msg.type == "human":
-                        messages.append(
-                            ChatHistoryMessage(
-                                role="user", 
-                                content=msg.content if isinstance(msg.content, str) else json.dumps(msg.content)
-                            )
-                        )
-                    elif msg.type == "ai":
-                        content_str = msg.content if isinstance(msg.content, str) else json.dumps(msg.content)
-                        tool_calls = getattr(msg, "tool_calls", [])
-                        
-                        # Only emit if there is actual text content
-                        if msg.content and content_str not in ('""', '"[]"', "[]"):
-                            messages.append(
-                                ChatHistoryMessage(
-                                    role="assistant",
-                                    content=content_str
-                                )
-                            )
-                            
-                        # Emit one entry per tool call
-                        for tc in tool_calls:
-                            messages.append(
-                                ChatHistoryMessage(
-                                    role="tool_call",
-                                    content="",
-                                    name=tc.get("name"),
-                                    args=tc.get("args")
-                                )
-                            )
-                    elif msg.type == "tool":
-                        content_str = msg.content
-                        if not isinstance(content_str, str):
-                            try:
-                                content_str = json.dumps(content_str)
-                            except Exception:
-                                content_str = str(content_str)
-                        messages.append(
-                            ChatHistoryMessage(
-                                role="tool_result",
-                                content=content_str,
-                                name=getattr(msg, "name", None)
-                            )
-                        )
+                    messages.append(message_to_dict(msg))
+                    
             return ChatHistoryRead(thread_id=self.thread_id, messages=messages, can_resume=can_resume)
 
     async def clear_chat(self) -> None:
@@ -161,6 +117,22 @@ class SetupChatService:
                                 if isinstance(content, list):
                                     content = json.dumps(content)
                                 yield f"event: content\ndata: {json.dumps({'text': content})}\n\n"
+                                
+                    elif kind == "on_chat_model_end":
+                        output = data.get("output", {})
+                        # output can be an LLMResult with generations, let's extract the message
+                        if hasattr(output, "generations") and len(output.generations) > 0 and len(output.generations[0]) > 0:
+                            msg = getattr(output.generations[0][0], "message", None)
+                            if msg:
+                                meta = {}
+                                if hasattr(msg, "usage_metadata") and msg.usage_metadata:
+                                    meta["usage_metadata"] = msg.usage_metadata
+                                if hasattr(msg, "response_metadata") and msg.response_metadata:
+                                    meta["response_metadata"] = msg.response_metadata
+                                if hasattr(msg, "id") and msg.id:
+                                    meta["id"] = msg.id
+                                if meta:
+                                    yield f"event: metadata\ndata: {json.dumps(meta)}\n\n"
                                 
                     elif kind == "on_tool_start":
                         name = event.get("name")

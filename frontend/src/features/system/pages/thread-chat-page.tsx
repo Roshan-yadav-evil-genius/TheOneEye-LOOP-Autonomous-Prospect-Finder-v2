@@ -28,21 +28,52 @@ export function ThreadChatPage() {
         if (!mounted) return
 
         const uiMessages: ChatUiMessage[] = []
-        res.data.messages.forEach((m, i) => {
-          if (m.role === 'tool_call') {
-            uiMessages.push({ id: `hist-${i}`, kind: 'tool_call', name: m.name || '', args: m.args || {} })
-          } else if (m.role === 'tool_result') {
-            uiMessages.push({ id: `hist-${i}`, kind: 'tool_result', name: m.name || '', content: m.content })
-          } else if (m.role === 'reasoning') {
-            uiMessages.push({ id: `hist-${i}`, kind: 'reasoning', text: m.content })
-          } else if (m.role === 'user') {
+        res.data.messages.forEach((msgDict: any, i: number) => {
+          const type = msgDict.type
+          const data = msgDict.data || {}
+          
+          if (type === 'human') {
+            const content = typeof data.content === 'string' ? data.content : JSON.stringify(data.content)
             const lastMsg = uiMessages[uiMessages.length - 1]
-            if (lastMsg && lastMsg.kind === 'user' && lastMsg.content === m.content) {
+            if (lastMsg && lastMsg.kind === 'user' && lastMsg.content === content) {
               return
             }
-            uiMessages.push({ id: `hist-${i}`, kind: 'user', content: m.content })
-          } else {
-            uiMessages.push({ id: `hist-${i}`, kind: 'assistant', content: m.content })
+            uiMessages.push({ id: `hist-${i}`, kind: 'user', content })
+          } else if (type === 'ai') {
+            const aiMessageId = msgDict.id || data.id || `hist-${i}`
+            const meta: any = {}
+            if (data.usage_metadata) meta.usage_metadata = data.usage_metadata
+            if (data.response_metadata) meta.response_metadata = data.response_metadata
+            if (aiMessageId) meta.id = aiMessageId
+
+            let reasoning = data.additional_kwargs?.reasoning_content || data.additional_kwargs?.reasoning
+            if (!reasoning && Array.isArray(data.content)) {
+                const rBlock = data.content.find((b: any) => b.type === 'reasoning')
+                if (rBlock) reasoning = rBlock.text
+            }
+            
+            const toolCalls = data.tool_calls || []
+            const contentStr = typeof data.content === 'string' ? data.content : JSON.stringify(data.content)
+            
+            const metadataObj = Object.keys(meta).length > 0 ? meta : undefined
+            
+            if (reasoning) {
+              uiMessages.push({ id: `hist-${i}-rsn`, aiMessageId, kind: 'reasoning', text: reasoning, metadata: metadataObj })
+            }
+            
+            if (contentStr && contentStr !== '""' && contentStr !== '[]' && contentStr !== '"[]"') {
+              uiMessages.push({ id: `hist-${i}-ast`, aiMessageId, kind: 'assistant', content: contentStr, metadata: metadataObj })
+            }
+            
+            toolCalls.forEach((tc: any, tcIdx: number) => {
+              uiMessages.push({ id: `hist-${i}-tc-${tcIdx}`, aiMessageId, kind: 'tool_call', name: tc.name, args: tc.args, metadata: metadataObj })
+            })
+            
+            if (!reasoning && (!contentStr || contentStr === '""' || contentStr === '[]' || contentStr === '"[]"') && toolCalls.length === 0) {
+              uiMessages.push({ id: `hist-${i}-ast`, aiMessageId, kind: 'assistant', content: '', metadata: metadataObj })
+            }
+          } else if (type === 'tool') {
+            uiMessages.push({ id: `hist-${i}-tr`, kind: 'tool_result', name: data.name, content: typeof data.content === 'string' ? data.content : JSON.stringify(data.content) })
           }
         })
 

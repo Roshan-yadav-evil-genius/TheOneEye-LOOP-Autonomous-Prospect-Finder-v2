@@ -1,6 +1,6 @@
 from core.config import get_settings
 import psycopg
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
