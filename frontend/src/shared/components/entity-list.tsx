@@ -2,7 +2,7 @@ import type { KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Badge } from './design-system'
-import { EditIcon, IconLink } from './icon-button'
+import { EditIcon, IconLink, IconButton } from './icon-button'
 
 export function EntityList({ children }: { children: ReactNode }) {
   return <div className="entity-list">{children}</div>
@@ -13,6 +13,7 @@ export function EntityListItem({
   meta,
   to,
   editTo,
+  onEdit,
   editLabel,
   badge,
   badgeTone = 'info',
@@ -22,6 +23,7 @@ export function EntityListItem({
   meta: ReactNode
   to: string
   editTo?: string
+  onEdit?: () => void
   editLabel?: string
   badge?: string
   badgeTone?: 'info' | 'success' | 'danger' | 'warning'
@@ -65,11 +67,17 @@ export function EntityListItem({
         </div>
         <div className="entity-list-item__meta muted">{meta}</div>
       </div>
-      {editTo ? (
+      {editTo || onEdit ? (
         <div className="entity-list-item__actions" onClick={stopEdit}>
-          <IconLink to={editTo} label={editLabel ?? `Edit ${title}`} onClick={stopEdit}>
-            <EditIcon />
-          </IconLink>
+          {editTo ? (
+            <IconLink to={editTo} label={editLabel ?? `Edit ${title}`} onClick={stopEdit}>
+              <EditIcon />
+            </IconLink>
+          ) : (
+            <IconButton label={editLabel ?? `Edit ${title}`} onClick={(e) => { stopEdit(e); onEdit?.(); }}>
+              <EditIcon />
+            </IconButton>
+          )}
         </div>
       ) : null}
     </article>

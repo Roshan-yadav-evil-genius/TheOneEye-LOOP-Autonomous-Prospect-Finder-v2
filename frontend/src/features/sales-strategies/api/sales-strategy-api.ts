@@ -17,6 +17,7 @@ export type RegisterCompanyResult = components['schemas']['RegisterCompanyResult
 export type RegisterContactRequest = components['schemas']['RegisterContactRequest']
 export type RegistrationResult = components['schemas']['RegistrationResult']
 export type CompanyProfileUpdate = components['schemas']['CompanyProfileUpdate']
+export type SalesStrategyProfileUpdate = components['schemas']['SalesStrategyProfileUpdate']
 
 const strategyPath = (strategyId: string) => `/api/v1/sales-strategies/${strategyId}`
 
@@ -27,6 +28,8 @@ export const salesStrategyApi = {
     ).data,
   getStrategy: async (strategyId: string) =>
     (await apiClient.get<SalesStrategy>(`${strategyPath(strategyId)}/strategy`)).data,
+  updateStrategyProfile: async (strategyId: string, data: SalesStrategyProfileUpdate) =>
+    (await apiClient.patch<SalesStrategy>(`${strategyPath(strategyId)}/strategy`, data)).data,
   getBundle: async (strategyId: string) =>
     (await apiClient.get<SalesStrategyBundle>(`${strategyPath(strategyId)}/bundle`)).data,
   getRecords: async (strategyId: string) =>

@@ -9,7 +9,6 @@ import {
 import { OrganizationDetailPage } from './features/organizations/pages/organization-detail-page'
 import { OrganizationsPage } from './features/organizations/pages/organizations-page'
 import { ProductDetailPage } from './features/products/pages/product-detail-page'
-import { ProductEditPage } from './features/products/pages/product-edit-page'
 import { ProductsPage } from './features/products/pages/products-page'
 import { CompanyDetailPage } from './features/sales-strategies/pages/company-detail-page'
 import { ProcessPage } from './features/sales-strategies/pages/process-page'
@@ -33,7 +32,6 @@ function App() {
         <Route path="/orgs/:orgId/products" element={<ProductsPage />} />
         <Route path="/orgs/:orgId/products/new" element={<ProductWizardPage />} />
         <Route path="/orgs/:orgId/products/:productId" element={<ProductDetailPage />} />
-        <Route path="/orgs/:orgId/products/:productId/edit" element={<ProductEditPage />} />
         <Route
           path="/orgs/:orgId/products/:productId/sales-strategies"
           element={<StrategiesListPage />}

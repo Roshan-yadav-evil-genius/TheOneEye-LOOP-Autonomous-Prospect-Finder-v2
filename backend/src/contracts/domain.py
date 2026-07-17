@@ -70,6 +70,11 @@ class ProductRead(OrmModel):
     profile_validated: bool
 
 
+class SalesStrategyProfileUpdate(BaseModel):
+    form: dict[str, Any]
+    name: str | None = None
+
+
 class SalesStrategyCreate(BaseModel):
     sales_strategy_form: dict[str, Any]
     thumbnail_url: str | None = None

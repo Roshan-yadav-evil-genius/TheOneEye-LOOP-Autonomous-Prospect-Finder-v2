@@ -1,11 +1,34 @@
 import { Link } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Button } from '../../../shared/components/button'
 import { EmptyState } from '../../../shared/components/design-system'
 import { EntityList, EntityListItem } from '../../../shared/components/entity-list'
 import { PageHeader } from '../../../shared/components/page-header'
 import { useOrganizationsStore } from '../stores/organizations-store'
+import { EntityEditModal } from '../../forms/components/entity-edit-modal'
+import { organizationTemplate } from '../../forms/form-definitions'
+import { organizationFormSections } from '../../forms/form-field-schema'
+import { organizationFormThemes } from '../../forms/form-themes'
+import { organizationsApi } from '../api/organizations-api'
+
+function toWizardValue(organization: {
+  name: string
+  website: string
+  primary_contact_email: string | null
+  org_form: Record<string, unknown>
+}) {
+  return {
+    identity: {
+      name: organization.name,
+      website: organization.website,
+      primary_contact_email: organization.primary_contact_email ?? '',
+      thumbnail_url: (organization as any).thumbnail_url,
+    },
+    ...organizationTemplate,
+    ...organization.org_form,
+  }
+}
 
 /**
  * Primary row click → organization page (Products tab by default).
@@ -13,10 +36,32 @@ import { useOrganizationsStore } from '../stores/organizations-store'
  */
 export function OrganizationsPage() {
   const { error, load, loading, organizations } = useOrganizationsStore()
+  const [editingOrgId, setEditingOrgId] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     void load()
   }, [load])
+
+  const editingOrg = organizations.find((o) => o.id === editingOrgId)
+
+  const handleSave = async (value: Record<string, unknown>) => {
+    if (!editingOrgId) return
+    setSubmitting(true)
+    setSaveError(null)
+    try {
+      await organizationsApi.updateOrganizationProfile(editingOrgId, {
+        org_form: value,
+      })
+      setEditingOrgId(null)
+      void load()
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Failed to save organization.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <>
@@ -49,7 +94,7 @@ export function OrganizationsPage() {
               key={organization.id}
               title={organization.name}
               to={`/orgs/${organization.id}`}
-              editTo={`/orgs/${organization.id}?tab=details&mode=edit`}
+              onEdit={() => setEditingOrgId(organization.id)}
               editLabel={`Edit ${organization.name}`}
               badge={organization.profile_validated ? 'validated' : 'incomplete'}
               badgeTone={organization.profile_validated ? 'success' : 'warning'}
@@ -59,6 +104,20 @@ export function OrganizationsPage() {
           ))}
         </EntityList>
       )}
+
+      {editingOrg ? (
+        <EntityEditModal
+          open={!!editingOrgId}
+          onOpenChange={(open) => !open && setEditingOrgId(null)}
+          title="organization"
+          sections={organizationFormSections}
+          themes={organizationFormThemes}
+          initialValue={toWizardValue(editingOrg as any)}
+          submitting={submitting}
+          serverError={saveError}
+          onSubmit={handleSave}
+        />
+      ) : null}
     </>
   )
 }

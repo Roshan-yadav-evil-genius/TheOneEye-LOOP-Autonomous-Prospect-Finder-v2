@@ -1298,3 +1298,85 @@ input[type='radio'] {
     max-height: 15rem;
   }
 }
+
+/* Entity Edit Dialog */
+.entity-edit-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 50;
+  width: min(60rem, calc(100vw - 2rem));
+  height: min(40rem, calc(100vh - 2rem));
+  overflow: hidden;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-panel);
+}
+
+.entity-edit-dialog__layout {
+  display: flex;
+  height: 100%;
+}
+
+.entity-edit-dialog__sidebar {
+  width: 16rem;
+  flex: none;
+  border-right: 1px solid var(--color-border-default);
+  background: var(--color-bg-elevated);
+  padding: 1.25rem;
+  overflow-y: auto;
+}
+
+.entity-edit-dialog__header {
+  padding-right: 0;
+  margin-bottom: 1.5rem;
+}
+
+.entity-edit-dialog__nav {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.entity-edit-dialog__nav-item {
+  text-align: left;
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.entity-edit-dialog__nav-item:hover {
+  background: color-mix(in srgb, var(--color-border-default) 50%, transparent);
+  color: var(--color-text-primary);
+}
+
+.entity-edit-dialog__nav-item.active {
+  background: var(--color-accent-primary);
+  color: var(--color-accent-foreground);
+  font-weight: 600;
+}
+
+.entity-edit-dialog__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.entity-edit-dialog__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.entity-edit-dialog__footer {
+  margin-top: 0;
+  padding: 1rem 1.5rem;
+  background: var(--color-bg-surface);
+}

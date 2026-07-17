@@ -2,7 +2,7 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 
 import { FormProfileViewer } from '../../forms/components/form-profile-viewer'
-import { SectionWizard } from '../../forms/components/section-wizard'
+import { EntityEditModal } from '../../forms/components/entity-edit-modal'
 import { organizationTemplate } from '../../forms/form-definitions'
 import { organizationFormSections } from '../../forms/form-field-schema'
 import { organizationFormThemes } from '../../forms/form-themes'
@@ -37,25 +37,22 @@ function toWizardValue(organization: {
   }
 }
 
-function parseTab(value: string | null, mode: string | null) {
-  if (value === DETAILS_TAB || mode === 'edit') return DETAILS_TAB
+function parseTab(value: string | null) {
+  if (value === DETAILS_TAB) return DETAILS_TAB
   if (value === CHAT_TAB) return CHAT_TAB
   return PRODUCTS_TAB
 }
 
 /**
  * Primary click from org list lands here on the Products tab.
- * Edit is opened from the list edit icon via `?tab=details&mode=edit`.
  */
 export function OrganizationDetailPage() {
   const { orgId = '' } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { error, load, loading, organization, reset, save, incrementalSave, saved, submitting } =
+  const { error, load, loading, organization, reset, save, saved, submitting } =
     useOrganizationDetailStore()
-  const tab = parseTab(searchParams.get('tab'), searchParams.get('mode'))
-  const [mode, setMode] = useState<'view' | 'edit'>(
-    searchParams.get('mode') === 'edit' ? 'edit' : 'view',
-  )
+  const tab = parseTab(searchParams.get('tab'))
+  const [editModalOpen, setEditModalOpen] = useState(false)
 
   useEffect(() => {
     reset()
@@ -63,40 +60,30 @@ export function OrganizationDetailPage() {
     return () => reset()
   }, [load, orgId, reset])
 
+  // Clear URL edit mode just in case there's an old link
   useEffect(() => {
-    setMode(searchParams.get('mode') === 'edit' ? 'edit' : 'view')
-  }, [orgId, searchParams])
+    if (searchParams.get('mode') === 'edit') {
+      const next = new URLSearchParams(searchParams)
+      next.delete('mode')
+      setSearchParams(next, { replace: true })
+      setEditModalOpen(true)
+    }
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
-    if (searchParams.get('mode') !== 'edit' || searchParams.get('tab') === DETAILS_TAB) return
-    const next = new URLSearchParams(searchParams)
-    next.set('tab', DETAILS_TAB)
-    setSearchParams(next, { replace: true })
-  }, [orgId, searchParams, setSearchParams])
-
-  useEffect(() => {
-    if (!saved) return
-    setMode('view')
-    const next = new URLSearchParams(searchParams)
-    next.delete('mode')
-    next.set('tab', DETAILS_TAB)
-    setSearchParams(next, { replace: true })
-  }, [saved, searchParams, setSearchParams])
+    if (saved) {
+      setEditModalOpen(false)
+    }
+  }, [saved])
 
   const setTab = (nextTab: string) => {
     const next = new URLSearchParams(searchParams)
     if (nextTab === PRODUCTS_TAB) {
       next.delete('tab')
-      next.delete('mode')
-      setMode('view')
     } else if (nextTab === CHAT_TAB) {
       next.set('tab', CHAT_TAB)
-      next.delete('mode')
-      setMode('view')
     } else {
       next.set('tab', DETAILS_TAB)
-      next.delete('mode')
-      setMode('view')
       
       if (useOrganizationChatStore.getState().profileDirtyFromChat) {
         useOrganizationChatStore.getState().clearDirtyFlag()
@@ -106,11 +93,8 @@ export function OrganizationDetailPage() {
     setSearchParams(next, { replace: true })
   }
 
-  const cancelEdit = () => {
-    setMode('view')
-    const next = new URLSearchParams(searchParams)
-    next.delete('mode')
-    setSearchParams(next, { replace: true })
+  const handleSave = async (value: Record<string, unknown>) => {
+    await save(orgId, value)
   }
 
   return (
@@ -128,9 +112,9 @@ export function OrganizationDetailPage() {
               <IconLink to={`/orgs/${orgId}/products/new`} label="Add product">
                 <PlusIcon />
               </IconLink>
-            ) : mode === 'edit' ? (
-              <Button type="button" variant="ghost" onClick={cancelEdit}>
-                Cancel edit
+            ) : tab === DETAILS_TAB ? (
+              <Button type="button" variant="ghost" onClick={() => setEditModalOpen(true)}>
+                Edit
               </Button>
             ) : null}
           </>
@@ -144,26 +128,26 @@ export function OrganizationDetailPage() {
       {loading || !organization ? (
         !error ? <p className="muted">Loading organization…</p> : null
       ) : (
-        <Tabs
-          label="Organization sections"
-          value={tab}
-          onValueChange={setTab}
-          items={[
-            {
-              value: PRODUCTS_TAB,
-              label: 'Products',
-              content: <OrganizationProductsTab />,
-            },
-            {
-              value: CHAT_TAB,
-              label: 'Chat',
-              content: <OrganizationChatTab />,
-            },
-            {
-              value: DETAILS_TAB,
-              label: 'Details',
-              content:
-                mode === 'view' ? (
+        <>
+          <Tabs
+            label="Organization sections"
+            value={tab}
+            onValueChange={setTab}
+            items={[
+              {
+                value: PRODUCTS_TAB,
+                label: 'Products',
+                content: <OrganizationProductsTab />,
+              },
+              {
+                value: CHAT_TAB,
+                label: 'Chat',
+                content: <OrganizationChatTab />,
+              },
+              {
+                value: DETAILS_TAB,
+                label: 'Details',
+                content: (
                   <FormProfileViewer
                     title="Organization profile"
                     validated={organization.profile_validated}
@@ -171,23 +155,23 @@ export function OrganizationDetailPage() {
                     themes={organizationFormThemes}
                     value={toWizardValue(organization)}
                   />
-                ) : (
-                  <SectionWizard
-                    key={`${organization.id}-edit-${organization.profile_validated}`}
-                    title="organization"
-                    sections={organizationFormSections}
-                    themes={organizationFormThemes}
-                    initialValue={toWizardValue(organization)}
-                    submitLabel="Save organization"
-                    submitting={submitting}
-                    serverError={error}
-                    onSubmit={(value) => save(orgId, value)}
-                    onIncrementalSave={(value) => incrementalSave(orgId, value)}
-                  />
                 ),
-            },
-          ]}
-        />
+              },
+            ]}
+          />
+
+          <EntityEditModal
+            open={editModalOpen}
+            onOpenChange={setEditModalOpen}
+            title="organization"
+            sections={organizationFormSections}
+            themes={organizationFormThemes}
+            initialValue={toWizardValue(organization)}
+            submitting={submitting}
+            serverError={error}
+            onSubmit={handleSave}
+          />
+        </>
       )}
     </>
   )

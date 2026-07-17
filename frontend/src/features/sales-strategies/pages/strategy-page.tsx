@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { FormProfileViewer } from '../../forms/components/form-profile-viewer'
+import { EntityEditModal } from '../../forms/components/entity-edit-modal'
 import { strategyTemplate } from '../../forms/form-definitions'
 import { strategyFormSections } from '../../forms/form-field-schema'
 import { strategyFormThemes } from '../../forms/form-themes'
@@ -11,6 +12,7 @@ import {
 } from '../api/sales-strategy-api'
 import { WorkspaceShell } from '../components/workspace-shell'
 import { useStrategyChatStore } from '../stores/strategy-chat-store'
+import { Button } from '../../../shared/components/button'
 
 function toViewerValue(strategy: SalesStrategy) {
   const form = (strategy.sales_strategy_form ?? {}) as Record<string, unknown>
@@ -43,6 +45,9 @@ export function StrategyPage() {
   const { strategyId = '' } = useParams()
   const [strategy, setStrategy] = useState<SalesStrategy | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const loadStrategy = (id: string) => {
     let cancelled = false
@@ -67,25 +72,64 @@ export function StrategyPage() {
     return cleanup
   }, [strategyId])
 
+  const handleSave = async (value: Record<string, unknown>) => {
+    setSubmitting(true)
+    setSaveError(null)
+    try {
+      const overview = (value.overview as Record<string, unknown>) ?? {}
+      await salesStrategyApi.updateStrategyProfile(strategyId, {
+        form: value,
+        name: typeof overview.name === 'string' && overview.name ? overview.name : null,
+      })
+      setEditModalOpen(false)
+      loadStrategy(strategyId)
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Failed to save strategy.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
-    <WorkspaceShell pageSubtitle="Full strategy profile for this run (immutable).">
+    <WorkspaceShell 
+      pageSubtitle="Full strategy profile for this run."
+      headerActions={
+        strategy ? (
+          <Button type="button" variant="ghost" onClick={() => setEditModalOpen(true)}>
+            Edit
+          </Button>
+        ) : null
+      }
+    >
       {error ? <p role="alert" className="error-banner">{error}</p> : null}
       {!strategy && !error ? <p className="muted">Loading strategy…</p> : null}
       {strategy ? (
-        <FormProfileViewer
-          title="Strategy profile"
-          validated
-          sections={strategyFormSections}
-          themes={strategyFormThemes}
-          value={toViewerValue(strategy)}
-          hint="Immutable after creation — operators cannot edit strategy fields here. Use the Agent Chat to update the strategy."
-          actions={
-            <span className="muted">
-              Company finder attempt {strategy.company_finder_attempt}/
-              {strategy.target_companies}
-            </span>
-          }
-        />
+        <>
+          <FormProfileViewer
+            title="Strategy profile"
+            validated
+            sections={strategyFormSections}
+            themes={strategyFormThemes}
+            value={toViewerValue(strategy)}
+            actions={
+              <span className="muted">
+                Company finder attempt {strategy.company_finder_attempt}/
+                {strategy.target_companies}
+              </span>
+            }
+          />
+          <EntityEditModal
+            open={editModalOpen}
+            onOpenChange={setEditModalOpen}
+            title="sales strategy"
+            sections={strategyFormSections}
+            themes={strategyFormThemes}
+            initialValue={toViewerValue(strategy)}
+            submitting={submitting}
+            serverError={saveError}
+            onSubmit={handleSave}
+          />
+        </>
       ) : null}
     </WorkspaceShell>
   )

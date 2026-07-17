@@ -1546,6 +1546,15 @@ export interface components {
             message: "registered" | "already_in_db" | "already_in_strategy" | "blacklisted";
         };
         /** SalesStrategyBundle */
+        SalesStrategyProfileUpdate: {
+            /** Form */
+            form: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name?: string | null;
+        };
+
         SalesStrategyBundle: {
             organization: components["schemas"]["OrganizationRead"];
             product: components["schemas"]["ProductRead"];

@@ -7,6 +7,7 @@ from agents.checkpoints import ThreadCheckpointStore
 from application.loop_service import LoopService
 from application.process_service import ProcessService
 from contracts.domain import (
+    SalesStrategyProfileUpdate,
     AgentRole,
     AgentRunSummary,
     BlacklistProspectRequest,
@@ -163,12 +164,13 @@ async def get_strategy(strategy_id: str, session: Session, request: Request) -> 
     return await service(session, request).get_strategy(strategy_id)
 
 
-@router.patch("/sales-strategies/{strategy_id}/strategy", status_code=status.HTTP_409_CONFLICT)
-async def immutable_strategy(strategy_id: str) -> None:
-    del strategy_id
-    from application.loop_service import DomainError
-
-    raise DomainError("strategy_immutable", "Sales strategy forms are immutable after creation.")
+@router.patch("/sales-strategies/{strategy_id}/strategy", response_model=SalesStrategyRead)
+async def update_strategy(
+    strategy_id: str, data: SalesStrategyProfileUpdate, session: Session, request: Request
+) -> object:
+    return await service(session, request).update_strategy_profile(
+        strategy_id, form=data.form, name=data.name
+    )
 
 
 @router.get("/sales-strategies/{strategy_id}/bundle", response_model=SalesStrategyBundle)

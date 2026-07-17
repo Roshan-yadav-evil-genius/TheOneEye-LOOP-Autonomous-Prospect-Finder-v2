@@ -2,7 +2,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 
 import { FormProfileViewer } from '../../forms/components/form-profile-viewer'
-import { SectionWizard } from '../../forms/components/section-wizard'
+import { EntityEditModal } from '../../forms/components/entity-edit-modal'
 import { productTemplate } from '../../forms/form-definitions'
 import { productFormSections } from '../../forms/form-field-schema'
 import { productFormThemes } from '../../forms/form-themes'
@@ -15,8 +15,6 @@ import { ProductStrategiesTab } from '../components/product-strategies-tab'
 import { ProductChatTab } from '../components/product-chat-tab'
 import { useProductDetailStore } from '../stores/product-detail-store'
 import { useProductChatStore } from '../stores/product-chat-store'
-
-/** Edit is opened from the products list edit icon via `?mode=edit`. */
 
 const DETAILS_TAB = 'details'
 const CHAT_TAB = 'chat'
@@ -39,8 +37,8 @@ function toWizardValue(product: {
   }
 }
 
-function parseTab(value: string | null, mode: string | null) {
-  if (value === DETAILS_TAB || mode === 'edit') return DETAILS_TAB
+function parseTab(value: string | null) {
+  if (value === DETAILS_TAB) return DETAILS_TAB
   if (value === CHAT_TAB) return CHAT_TAB
   return STRATEGIES_TAB
 }
@@ -48,11 +46,9 @@ function parseTab(value: string | null, mode: string | null) {
 export function ProductDetailPage() {
   const { orgId = '', productId = '' } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { error, load, loading, product, reset, save, incrementalSave, saved, submitting } = useProductDetailStore()
-  const tab = parseTab(searchParams.get('tab'), searchParams.get('mode'))
-  const [mode, setMode] = useState<'view' | 'edit'>(
-    searchParams.get('mode') === 'edit' ? 'edit' : 'view',
-  )
+  const { error, load, loading, product, reset, save, saved, submitting } = useProductDetailStore()
+  const tab = parseTab(searchParams.get('tab'))
+  const [editModalOpen, setEditModalOpen] = useState(false)
   const [orgName, setOrgName] = useState<string | null>(null)
 
   useEffect(() => {
@@ -76,40 +72,30 @@ export function ProductDetailPage() {
     }
   }, [orgId])
 
+  // Clear URL edit mode just in case there's an old link
   useEffect(() => {
-    setMode(searchParams.get('mode') === 'edit' ? 'edit' : 'view')
-  }, [productId, searchParams])
+    if (searchParams.get('mode') === 'edit') {
+      const next = new URLSearchParams(searchParams)
+      next.delete('mode')
+      setSearchParams(next, { replace: true })
+      setEditModalOpen(true)
+    }
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
-    if (searchParams.get('mode') !== 'edit' || searchParams.get('tab') === DETAILS_TAB) return
-    const next = new URLSearchParams(searchParams)
-    next.set('tab', DETAILS_TAB)
-    setSearchParams(next, { replace: true })
-  }, [productId, searchParams, setSearchParams])
-
-  useEffect(() => {
-    if (!saved) return
-    setMode('view')
-    const next = new URLSearchParams(searchParams)
-    next.delete('mode')
-    next.set('tab', DETAILS_TAB)
-    setSearchParams(next, { replace: true })
-  }, [saved, searchParams, setSearchParams])
+    if (saved) {
+      setEditModalOpen(false)
+    }
+  }, [saved])
 
   const setTab = (nextTab: string) => {
     const next = new URLSearchParams(searchParams)
     if (nextTab === STRATEGIES_TAB) {
       next.delete('tab')
-      next.delete('mode')
-      setMode('view')
     } else if (nextTab === CHAT_TAB) {
       next.set('tab', CHAT_TAB)
-      next.delete('mode')
-      setMode('view')
     } else {
       next.set('tab', DETAILS_TAB)
-      next.delete('mode')
-      setMode('view')
       
       if (useProductChatStore.getState().profileDirtyFromChat) {
         useProductChatStore.getState().clearDirtyFlag()
@@ -119,11 +105,8 @@ export function ProductDetailPage() {
     setSearchParams(next, { replace: true })
   }
 
-  const cancelEdit = () => {
-    setMode('view')
-    const next = new URLSearchParams(searchParams)
-    next.delete('mode')
-    setSearchParams(next, { replace: true })
+  const handleSave = async (value: Record<string, unknown>) => {
+    await save(productId, value)
   }
 
   return (
@@ -148,42 +131,42 @@ export function ProductDetailPage() {
               >
                 <PlusIcon />
               </IconLink>
-            ) : mode === 'edit' ? (
-              <Button type="button" variant="ghost" onClick={cancelEdit}>
-                Cancel edit
+            ) : tab === DETAILS_TAB ? (
+              <Button type="button" variant="ghost" onClick={() => setEditModalOpen(true)}>
+                Edit
               </Button>
             ) : null}
           </>
         }
       />
-      {error && tab === DETAILS_TAB && mode === 'edit' ? (
+      {error && !product ? (
         <p role="alert" className="error-banner">
           {error}
         </p>
       ) : null}
       {loading || !product ? (
-        <p className="muted">Loading product…</p>
+        !error ? <p className="muted">Loading product…</p> : null
       ) : (
-        <Tabs
-          label="Product sections"
-          value={tab}
-          onValueChange={setTab}
-          items={[
-            {
-              value: STRATEGIES_TAB,
-              label: 'Strategies',
-              content: <ProductStrategiesTab />,
-            },
-            {
-              value: CHAT_TAB,
-              label: 'Chat',
-              content: <ProductChatTab />,
-            },
-            {
-              value: DETAILS_TAB,
-              label: 'Details',
-              content:
-                mode === 'view' ? (
+        <>
+          <Tabs
+            label="Product sections"
+            value={tab}
+            onValueChange={setTab}
+            items={[
+              {
+                value: STRATEGIES_TAB,
+                label: 'Strategies',
+                content: <ProductStrategiesTab />,
+              },
+              {
+                value: CHAT_TAB,
+                label: 'Chat',
+                content: <ProductChatTab />,
+              },
+              {
+                value: DETAILS_TAB,
+                label: 'Details',
+                content: (
                   <FormProfileViewer
                     title="Product profile"
                     validated={product.profile_validated}
@@ -191,23 +174,23 @@ export function ProductDetailPage() {
                     themes={productFormThemes}
                     value={toWizardValue(product)}
                   />
-                ) : (
-                  <SectionWizard
-                    key={`${product.id}-edit-${product.profile_validated}`}
-                    title="product or service"
-                    sections={productFormSections}
-                    themes={productFormThemes}
-                    initialValue={toWizardValue(product)}
-                    submitLabel="Save product"
-                    submitting={submitting}
-                    serverError={error}
-                    onSubmit={(value) => save(productId, value)}
-                    onIncrementalSave={(value) => incrementalSave(productId, value)}
-                  />
                 ),
-            },
-          ]}
-        />
+              },
+            ]}
+          />
+
+          <EntityEditModal
+            open={editModalOpen}
+            onOpenChange={setEditModalOpen}
+            title="product or service"
+            sections={productFormSections}
+            themes={productFormThemes}
+            initialValue={toWizardValue(product)}
+            submitting={submitting}
+            serverError={error}
+            onSubmit={handleSave}
+          />
+        </>
       )}
     </>
   )
