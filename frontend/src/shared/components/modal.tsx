@@ -10,18 +10,20 @@ export function Modal({
   description,
   children,
   footer,
+  contentStyle,
 }: PropsWithChildren<{
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
   description?: string
   footer?: ReactNode
+  contentStyle?: React.CSSProperties
 }>) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content className="dialog-content">
+        <Dialog.Content className="dialog-content" style={contentStyle}>
           <div className="dialog-header">
             <Dialog.Title className="dialog-title">{title}</Dialog.Title>
             {description ? (

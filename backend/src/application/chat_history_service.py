@@ -10,7 +10,6 @@ from agents.model_provider import resolve_chat_model
 from contracts.domain import ChatHistoryRead
 from core.config import get_settings
 
-
 def _thread_config(thread_id: str) -> dict[str, Any]:
     return {"configurable": {"thread_id": thread_id}}
 
@@ -34,7 +33,5 @@ class ThreadChatHistoryService:
                 for msg in raw_messages:
                     msg_dict = message_to_dict(msg)
                     messages.append(msg_dict)
-                    with open("master.json",'w') as file:
-                        file.write(json.dumps(msg_dict)+"\n")
 
             return ChatHistoryRead(thread_id=thread_id, messages=messages, can_resume=can_resume)

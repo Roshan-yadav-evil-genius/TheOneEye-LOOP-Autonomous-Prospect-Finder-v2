@@ -88,7 +88,7 @@ export function createSetupChatStore(api: SetupChatApi): UseBoundStore<StoreApi<
             messages.push({ id: `hist-${i}`, kind: 'user', content })
           } else if (type === 'ai') {
             const aiMessageId = msgDict.id || data.id || `hist-${i}`
-            const meta: any = {}
+            const meta: any = { raw: msgDict }
             if (data.usage_metadata) meta.usage_metadata = data.usage_metadata
             if (data.response_metadata) meta.response_metadata = data.response_metadata
             if (aiMessageId) meta.id = aiMessageId

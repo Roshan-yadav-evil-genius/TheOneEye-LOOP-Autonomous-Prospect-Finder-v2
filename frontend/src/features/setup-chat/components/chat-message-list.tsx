@@ -8,10 +8,13 @@ import { TypingIndicator } from './typing-indicator'
 import { getPublicToolCustomizations } from '../api/tool-customization-api'
 import type { ToolCustomizationRuleRead } from '../api/tool-customization-api'
 import { sharedMarkdownComponents, userMarkdownComponents } from './shared-markdown-components'
+import { Modal } from '../../../shared/components/modal'
+import { JsonHighlighter } from './json-highlighter'
 
 export function ChatMessageList({ messages, streaming, emptyMessage }: { messages: ChatUiMessage[], streaming?: boolean, emptyMessage?: string }) {
   const endRef = useRef<HTMLDivElement>(null)
   const [rules, setRules] = useState<ToolCustomizationRuleRead[]>([])
+  const [inspectJson, setInspectJson] = useState<any>(null)
 
   const renderMetadata = (metadata?: Record<string, any>) => {
     if (!metadata || Object.keys(metadata).length === 0) return null
@@ -22,6 +25,22 @@ export function ChatMessageList({ messages, streaming, emptyMessage }: { message
     
     return (
       <div style={{ marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '0.75em', color: 'var(--color-text-secondary)', padding: '0 4px' }}>
+        {metadata.raw && (
+          <button 
+            type="button" 
+            onClick={() => setInspectJson(metadata.raw)}
+            title="Inspect raw response"
+            style={{ 
+              background: 'none', border: 'none', padding: 0, cursor: 'pointer', 
+              color: 'var(--color-text-secondary)', fontSize: 'inherit',
+              display: 'flex', alignItems: 'center', gap: '4px',
+              fontFamily: 'inherit'
+            }}
+          >
+            <span style={{ opacity: 0.8 }}>🔍</span>
+            <span style={{ textDecoration: 'underline', textDecorationColor: 'var(--color-border-default)' }}>Inspect</span>
+          </button>
+        )}
         {modelName && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }} title="Model">
             <span>🧠</span>
@@ -165,6 +184,17 @@ export function ChatMessageList({ messages, streaming, emptyMessage }: { message
         </div>
       )}
       <div ref={endRef} />
+      
+      <Modal 
+        open={!!inspectJson} 
+        onOpenChange={(open) => { if (!open) setInspectJson(null) }} 
+        title="Raw AI Response"
+        contentStyle={{ maxWidth: '900px', width: '90vw' }}
+      >
+        <div style={{ maxHeight: '70vh', overflowY: 'auto', borderRadius: '6px' }}>
+          {inspectJson && <JsonHighlighter data={inspectJson} />}
+        </div>
+      </Modal>
     </div>
   )
 }
