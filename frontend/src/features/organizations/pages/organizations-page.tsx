@@ -52,7 +52,7 @@ export function OrganizationsPage() {
     setSaveError(null)
     try {
       await organizationsApi.updateOrganizationProfile(editingOrgId, {
-        org_form: value,
+        form: value,
       })
       setEditingOrgId(null)
       void load()

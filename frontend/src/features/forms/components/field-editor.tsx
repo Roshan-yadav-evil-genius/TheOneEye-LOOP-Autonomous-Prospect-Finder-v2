@@ -1,6 +1,8 @@
+import { useRef, useState, useEffect } from 'react'
 import { FormField, FormFieldset } from '../../../shared/components/form-field'
 import type { FormField as FormFieldDef } from '../form-field-schema'
 import { getAtPath, parseList, setAtPath } from '../path-utils'
+import { Button } from '../../../shared/components/button'
 
 interface FieldEditorProps {
   field: FormFieldDef
@@ -16,6 +18,20 @@ export function FieldEditor({
   sectionValue,
 }: FieldEditorProps) {
   const value = getAtPath(sectionValue, field.path)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [localFile, setLocalFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState('')
+
+  useEffect(() => {
+    if (!localFile) {
+      setPreviewUrl('')
+      return
+    }
+    const url = URL.createObjectURL(localFile)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [localFile])
 
   const update = (next: unknown) => {
     if (readOnly) return
@@ -184,6 +200,7 @@ export function FieldEditor({
       const file = event.target.files?.[0]
       if (!file) return
       
+      setLocalFile(file)
       const formData = new FormData()
       formData.append('file', file)
       
@@ -198,25 +215,77 @@ export function FieldEditor({
         }
       } catch (e) {
         console.error('Upload failed', e)
+        setLocalFile(null)
       }
     }
 
+    const hasValue = typeof value === 'string' && value !== ''
+    const displayUrl = previewUrl || (hasValue ? `${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:7878'}${value}` : '')
+
     return (
       <FormField label={field.label} required={field.required} help={field.help}>
-        <div className="file-upload-wrapper">
-          {typeof value === 'string' && value ? (
-            <div className="file-upload-preview" style={{ marginBottom: '8px' }}>
-              <img src={`${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:7878'}${value}`} alt="Preview" style={{ maxWidth: '200px', maxHeight: '100px', borderRadius: '8px', objectFit: 'contain' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {displayUrl ? (
+            <div style={{ position: 'relative', width: 64, height: 64, border: '1px solid var(--border-color, #ccc)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--bg-muted, #f3f4f6)' }}>
+              <img
+                src={displayUrl}
+                alt="Preview"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocalFile(null)
+                    setPreviewUrl('')
+                    update('')
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = ''
+                    }
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    background: 'rgba(0,0,0,0.6)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: 20,
+                    height: 20,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    padding: 0
+                  }}
+                  title="Remove file"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           ) : null}
-          <input
-            className="control"
-            type="file"
-            accept="image/*"
-            readOnly={readOnly}
-            disabled={readOnly}
-            onChange={(e) => void handleFileChange(e)}
-          />
+
+          {!readOnly && (
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => void handleFileChange(e)}
+                style={{ display: 'none' }}
+              />
+              <Button 
+                type="button" 
+                variant="ghost" 
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Upload File
+              </Button>
+            </div>
+          )}
         </div>
       </FormField>
     )

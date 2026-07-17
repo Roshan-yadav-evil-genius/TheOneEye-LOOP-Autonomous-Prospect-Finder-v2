@@ -299,3 +299,11 @@ class BrowserSession(Timestamped, Base):
     leased_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     health: Mapped[str] = mapped_column(String(20), default="unknown")
+
+
+class ToolCustomizationRule(Timestamped, Base):
+    __tablename__ = "tool_customization_rule"
+    tool_name_prefix: Mapped[str] = mapped_column(String(255), unique=True)
+    icon_url: Mapped[str | None] = mapped_column(String(2048))
+    request_color: Mapped[str | None] = mapped_column(String(20))
+    response_color: Mapped[str | None] = mapped_column(String(20))

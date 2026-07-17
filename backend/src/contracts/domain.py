@@ -368,3 +368,18 @@ class ChatHistoryRead(BaseModel):
     thread_id: str
     messages: list[ChatHistoryMessage]
     can_resume: bool = False
+
+
+class ToolCustomizationRuleCreate(BaseModel):
+    tool_name_prefix: str = Field(min_length=1, max_length=255)
+    icon_url: str | None = Field(default=None, max_length=2048)
+    request_color: str | None = None
+    response_color: str | None = None
+
+
+class ToolCustomizationRuleRead(OrmModel):
+    id: str
+    tool_name_prefix: str
+    icon_url: str | None
+    request_color: str | None
+    response_color: str | None

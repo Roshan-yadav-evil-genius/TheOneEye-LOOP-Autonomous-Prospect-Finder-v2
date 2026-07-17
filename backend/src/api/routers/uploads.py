@@ -20,3 +20,15 @@ async def upload_thumbnail(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
         
     return {"url": f"/static/uploads/{unique_filename}"}
+
+@router.post("/icon")
+async def upload_icon(file: UploadFile = File(...)):
+    # Generate a unique filename to prevent collisions
+    extension = file.filename.split(".")[-1] if "." in file.filename else "bin"
+    unique_filename = f"{uuid.uuid4().hex}.{extension}"
+    file_path = UPLOAD_DIR / unique_filename
+    
+    with file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    return {"url": f"/static/uploads/{unique_filename}"}

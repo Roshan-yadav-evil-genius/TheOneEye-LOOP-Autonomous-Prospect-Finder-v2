@@ -47,7 +47,7 @@ export function OrganizationProductsTab() {
     setSaveError(null)
     try {
       await productsApi.updateProductProfile(editingProductId, {
-        icp_form: value,
+        form: value,
       })
       setEditingProductId(null)
       void load(orgId)

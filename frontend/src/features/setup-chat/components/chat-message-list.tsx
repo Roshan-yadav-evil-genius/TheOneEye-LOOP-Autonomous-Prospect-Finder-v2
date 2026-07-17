@@ -5,9 +5,17 @@ import { ReasoningCard } from './reasoning-card'
 import { ToolCallCard } from './tool-call-card'
 import { ToolResultCard } from './tool-result-card'
 import { TypingIndicator } from './typing-indicator'
+import { getPublicToolCustomizations } from '../api/tool-customization-api'
+import type { ToolCustomizationRuleRead } from '../api/tool-customization-api'
+import { useState } from 'react'
 
 export function ChatMessageList({ messages, streaming }: { messages: ChatUiMessage[], streaming?: boolean }) {
   const endRef = useRef<HTMLDivElement>(null)
+  const [rules, setRules] = useState<ToolCustomizationRuleRead[]>([])
+
+  useEffect(() => {
+    void getPublicToolCustomizations().then(setRules).catch(console.error)
+  }, [])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -39,8 +47,8 @@ export function ChatMessageList({ messages, streaming }: { messages: ChatUiMessa
               </div>
             )}
             {msg.kind === 'reasoning' && <ReasoningCard text={msg.text} />}
-            {msg.kind === 'tool_call' && <ToolCallCard name={msg.name} args={msg.args} />}
-            {msg.kind === 'tool_result' && <ToolResultCard name={msg.name} content={msg.content} />}
+            {msg.kind === 'tool_call' && <ToolCallCard name={msg.name} args={msg.args} rules={rules} />}
+            {msg.kind === 'tool_result' && <ToolResultCard name={msg.name} content={msg.content} rules={rules} />}
           </div>
         ))
       )}

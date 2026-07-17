@@ -16,6 +16,7 @@ from api.routers.product_chat import router as product_chat_router
 from api.routers.strategy_chat import router as strategy_chat_router
 from api.routers.system import router as system_router
 from api.routers.uploads import router as uploads_router
+from api.routers.tool_customization import router as tool_customization_router
 from observability.logging import configure_logging
 from observability.telemetry import configure_tracing, telemetry_middleware
 from persistence.database import create_schema
@@ -62,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(product_chat_router)
     app.include_router(strategy_chat_router)
     app.include_router(uploads_router)
+    app.include_router(tool_customization_router)
     
     uploads_dir = Path("uploads")
     uploads_dir.mkdir(parents=True, exist_ok=True)

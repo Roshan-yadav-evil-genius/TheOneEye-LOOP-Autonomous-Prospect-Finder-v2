@@ -104,7 +104,11 @@ export function OrganizationDetailPage() {
         subtitle="Products and services for this organization, with profile details on the last tab."
         breadcrumbs={[
           { label: 'Organizations', to: '/orgs' },
-          { label: organization?.name ?? 'Organization' },
+          { 
+            label: organization?.name ?? 'Organization',
+            thumbnailUrl: organization ? (organization as any).thumbnail_url : null,
+            fallbackThumbnailUrl: '/static/org_placeholder.png'
+          },
         ]}
         actions={
           <>

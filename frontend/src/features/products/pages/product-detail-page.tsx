@@ -49,7 +49,7 @@ export function ProductDetailPage() {
   const { error, load, loading, product, reset, save, saved, submitting } = useProductDetailStore()
   const tab = parseTab(searchParams.get('tab'))
   const [editModalOpen, setEditModalOpen] = useState(false)
-  const [orgName, setOrgName] = useState<string | null>(null)
+  const [parentOrg, setParentOrg] = useState<any>(null)
 
   useEffect(() => {
     reset()
@@ -62,10 +62,10 @@ export function ProductDetailPage() {
     void organizationsApi
       .getOrganization(orgId)
       .then((organization) => {
-        if (!cancelled) setOrgName(organization.name)
+        if (!cancelled) setParentOrg(organization)
       })
       .catch(() => {
-        if (!cancelled) setOrgName(null)
+        if (!cancelled) setParentOrg(null)
       })
     return () => {
       cancelled = true
@@ -116,8 +116,17 @@ export function ProductDetailPage() {
         subtitle="Full product profile and sales strategies for this offering."
         breadcrumbs={[
           { label: 'Organizations', to: '/orgs' },
-          { label: orgName ?? 'Organization', to: `/orgs/${orgId}` },
-          { label: product?.name ?? 'Product' },
+          { 
+            label: parentOrg?.name ?? 'Organization', 
+            to: `/orgs/${orgId}`,
+            thumbnailUrl: parentOrg?.thumbnail_url,
+            fallbackThumbnailUrl: '/static/org_placeholder.png'
+          },
+          { 
+            label: product?.name ?? 'Product',
+            thumbnailUrl: product ? (product as any).thumbnail_url : null,
+            fallbackThumbnailUrl: '/static/product_service_placeholder.png'
+          },
         ]}
         actions={
           <>

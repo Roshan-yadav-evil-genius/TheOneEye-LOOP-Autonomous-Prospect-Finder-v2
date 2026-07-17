@@ -93,7 +93,7 @@ export function StrategyPage() {
   return (
     <WorkspaceShell 
       pageSubtitle="Full strategy profile for this run."
-      headerActions={
+      actions={
         strategy ? (
           <Button type="button" variant="ghost" onClick={() => setEditModalOpen(true)}>
             Edit
@@ -112,10 +112,10 @@ export function StrategyPage() {
             themes={strategyFormThemes}
             value={toViewerValue(strategy)}
             actions={
-              <span className="muted">
+              <div className="toolbar-row">
                 Company finder attempt {strategy.company_finder_attempt}/
                 {strategy.target_companies}
-              </span>
+              </div>
             }
           />
           <EntityEditModal

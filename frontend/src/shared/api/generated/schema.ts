@@ -278,8 +278,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Immutable Strategy */
-        patch: operations["immutable_strategy_api_v1_sales_strategies__strategy_id__strategy_patch"];
+        /** Update Strategy */
+        patch: operations["update_strategy_api_v1_sales_strategies__strategy_id__strategy_patch"];
         trace?: never;
     };
     "/api/v1/sales-strategies/{strategy_id}/bundle": {
@@ -966,6 +966,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/upload/icon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Icon */
+        post: operations["upload_icon_api_v1_upload_icon_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tool-customizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Public Tool Customizations */
+        get: operations["get_public_tool_customizations_api_v1_tool_customizations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tool-customizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Tool Customizations */
+        get: operations["get_tool_customizations_api_v1_admin_tool_customizations_get"];
+        put?: never;
+        /** Create Tool Customization */
+        post: operations["create_tool_customization_api_v1_admin_tool_customizations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tool-customizations/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Tool Customization */
+        put: operations["update_tool_customization_api_v1_admin_tool_customizations__rule_id__put"];
+        post?: never;
+        /** Delete Tool Customization */
+        delete: operations["delete_tool_customization_api_v1_admin_tool_customizations__rule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1043,6 +1113,11 @@ export interface components {
         BlacklistRequest: {
             /** Blacklist Reason */
             blacklist_reason: string;
+        };
+        /** Body_upload_icon_api_v1_upload_icon_post */
+        Body_upload_icon_api_v1_upload_icon_post: {
+            /** File */
+            file: string;
         };
         /** Body_upload_thumbnail_api_v1_upload_thumbnail_post */
         Body_upload_thumbnail_api_v1_upload_thumbnail_post: {
@@ -1546,15 +1621,6 @@ export interface components {
             message: "registered" | "already_in_db" | "already_in_strategy" | "blacklisted";
         };
         /** SalesStrategyBundle */
-        SalesStrategyProfileUpdate: {
-            /** Form */
-            form: {
-                [key: string]: unknown;
-            };
-            /** Name */
-            name?: string | null;
-        };
-
         SalesStrategyBundle: {
             organization: components["schemas"]["OrganizationRead"];
             product: components["schemas"]["ProductRead"];
@@ -1568,6 +1634,15 @@ export interface components {
             };
             /** Thumbnail Url */
             thumbnail_url?: string | null;
+        };
+        /** SalesStrategyProfileUpdate */
+        SalesStrategyProfileUpdate: {
+            /** Form */
+            form: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name?: string | null;
         };
         /** SalesStrategyRead */
         SalesStrategyRead: {
@@ -1651,6 +1726,30 @@ export interface components {
              * @enum {string}
              */
             checkpoint_backend: "postgresql" | "unavailable";
+        };
+        /** ToolCustomizationRuleCreate */
+        ToolCustomizationRuleCreate: {
+            /** Tool Name Prefix */
+            tool_name_prefix: string;
+            /** Icon Url */
+            icon_url?: string | null;
+            /** Request Color */
+            request_color?: string | null;
+            /** Response Color */
+            response_color?: string | null;
+        };
+        /** ToolCustomizationRuleRead */
+        ToolCustomizationRuleRead: {
+            /** Id */
+            id: string;
+            /** Tool Name Prefix */
+            tool_name_prefix: string;
+            /** Icon Url */
+            icon_url: string | null;
+            /** Request Color */
+            request_color: string | null;
+            /** Response Color */
+            response_color: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -2303,7 +2402,7 @@ export interface operations {
             };
         };
     };
-    immutable_strategy_api_v1_sales_strategies__strategy_id__strategy_patch: {
+    update_strategy_api_v1_sales_strategies__strategy_id__strategy_patch: {
         parameters: {
             query?: never;
             header?: never;
@@ -2312,15 +2411,19 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SalesStrategyProfileUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
-            409: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["SalesStrategyRead"];
                 };
             };
             /** @description Validation Error */
@@ -3716,6 +3819,176 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_icon_api_v1_upload_icon_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_icon_api_v1_upload_icon_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_public_tool_customizations_api_v1_tool_customizations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolCustomizationRuleRead"][];
+                };
+            };
+        };
+    };
+    get_tool_customizations_api_v1_admin_tool_customizations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolCustomizationRuleRead"][];
+                };
+            };
+        };
+    };
+    create_tool_customization_api_v1_admin_tool_customizations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolCustomizationRuleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolCustomizationRuleRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_tool_customization_api_v1_admin_tool_customizations__rule_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolCustomizationRuleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolCustomizationRuleRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_tool_customization_api_v1_admin_tool_customizations__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

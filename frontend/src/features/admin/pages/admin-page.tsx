@@ -14,8 +14,9 @@ import { KpiStrip } from '../../../shared/components/kpi-strip'
 import { PageHeader } from '../../../shared/components/page-header'
 import { formatDateTime, shortId } from '../../../shared/lib/format'
 import { useAdminStore } from '../stores/admin-store'
+import { ChatCustomizationPanel } from '../components/chat-customization-panel'
 
-type AdminTab = 'jobs' | 'dlq' | 'audit'
+type AdminTab = 'jobs' | 'dlq' | 'audit' | 'chat_customization'
 
 export function AdminPage() {
   const store = useAdminStore()
@@ -95,6 +96,7 @@ export function AdminPage() {
               ['jobs', 'Jobs'],
               ['dlq', 'Dead letters'],
               ['audit', 'Audit'],
+              ['chat_customization', 'Chat Customization'],
             ] as const
           ).map(([value, label]) => (
             <button
@@ -262,6 +264,8 @@ export function AdminPage() {
           ))}
         </DataTable>
       ) : null}
+
+      {tab === 'chat_customization' ? <ChatCustomizationPanel /> : null}
 
       <Drawer
         open={selectedJob != null}

@@ -44,14 +44,26 @@ export function WorkspaceShell({
   const breadcrumbs = [
     { label: 'Organizations', to: '/orgs' },
     ...(org
-      ? [{ label: org.name, to: `/orgs/${org.id}` }]
+      ? [{ 
+          label: org.name, 
+          to: `/orgs/${org.id}`,
+          thumbnailUrl: (org as any).thumbnail_url,
+          fallbackThumbnailUrl: '/static/org_placeholder.png'
+        }]
       : [{ label: 'Organization', to: `/orgs/${orgId}` }]),
     ...(org && product
-      ? [{ label: product.name, to: `/orgs/${org.id}/products/${product.id}` }]
+      ? [{ 
+          label: product.name, 
+          to: `/orgs/${org.id}/products/${product.id}`,
+          thumbnailUrl: (product as any).thumbnail_url,
+          fallbackThumbnailUrl: '/static/product_service_placeholder.png'
+        }]
       : []),
     {
       label: strategyName,
       to: companyId ? `${base}/companies` : undefined,
+      thumbnailUrl: strategy ? (strategy as any).thumbnail_url : null,
+      fallbackThumbnailUrl: '/static/strategy_placeholder.png'
     },
     ...(companyId
       ? [
