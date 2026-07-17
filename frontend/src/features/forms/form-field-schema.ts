@@ -7,6 +7,7 @@ export type FieldKind =
   | 'select'
   | 'multi-select'
   | 'object-list'
+  | 'file'
 
 export interface FormField {
   path: string
@@ -40,6 +41,13 @@ const text = (path: string, label: string, help?: string, required = false): For
   required,
 })
 
+const file = (path: string, label: string, help?: string): FormField => ({
+  path,
+  label,
+  kind: 'file',
+  help,
+})
+
 const area = (path: string, label: string, help?: string, required = false): FormField => ({
   path,
   label,
@@ -61,6 +69,7 @@ export const organizationFormSections: FormSectionDefinition[] = [
     title: 'Organization identity',
     help: 'Basic record fields stored on Organization.',
     fields: [
+      file('thumbnail_url', 'Thumbnail / Logo', 'Upload an image for the organization'),
       text('name', 'Organization name', 'Legal or brand name', true),
       text('website', 'Website', 'Canonical company website', true),
       text('primary_contact_email', 'Primary contact email', 'Optional notification contact'),
@@ -291,6 +300,7 @@ export const productFormSections: FormSectionDefinition[] = [
     title: 'Product identity',
     help: 'Product/service name and kind.',
     fields: [
+      file('thumbnail_url', 'Thumbnail / Logo', 'Upload an image for the product or service'),
       text('name', 'Name', 'Product or service name as prospects would recognize it', true),
       {
         path: 'kind',
@@ -507,6 +517,7 @@ export const strategyFormSections: FormSectionDefinition[] = [
     title: 'Sales strategy overview',
     help: 'Name, description, and target narrative.',
     fields: [
+      file('thumbnail_url', 'Thumbnail / Logo', 'Upload an image for the sales strategy'),
       text('name', 'Sales strategy name', 'Short label for this prospecting run', true),
       area('description', 'Description', 'What this strategy is trying to achieve and for which offering'),
       area('target_companies_narrative', 'Target companies in your own words', 'Describe ideal companies in plain language — agents use this to guide search', true),

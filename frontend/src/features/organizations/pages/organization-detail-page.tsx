@@ -30,6 +30,7 @@ function toWizardValue(organization: {
       name: organization.name,
       website: organization.website,
       primary_contact_email: organization.primary_contact_email ?? '',
+      thumbnail_url: (organization as any).thumbnail_url,
     },
     ...organizationTemplate,
     ...organization.org_form,
@@ -49,7 +50,7 @@ function parseTab(value: string | null, mode: string | null) {
 export function OrganizationDetailPage() {
   const { orgId = '' } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { error, load, loading, organization, reset, save, saved, submitting } =
+  const { error, load, loading, organization, reset, save, incrementalSave, saved, submitting } =
     useOrganizationDetailStore()
   const tab = parseTab(searchParams.get('tab'), searchParams.get('mode'))
   const [mode, setMode] = useState<'view' | 'edit'>(
@@ -181,6 +182,7 @@ export function OrganizationDetailPage() {
                     submitting={submitting}
                     serverError={error}
                     onSubmit={(value) => save(orgId, value)}
+                    onIncrementalSave={(value) => incrementalSave(orgId, value)}
                   />
                 ),
             },

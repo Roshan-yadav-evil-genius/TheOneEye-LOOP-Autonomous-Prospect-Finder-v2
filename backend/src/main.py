@@ -15,9 +15,14 @@ from api.routers.organization_chat import router as organization_chat_router
 from api.routers.product_chat import router as product_chat_router
 from api.routers.strategy_chat import router as strategy_chat_router
 from api.routers.system import router as system_router
+from api.routers.uploads import router as uploads_router
 from observability.logging import configure_logging
 from observability.telemetry import configure_tracing, telemetry_middleware
 from persistence.database import create_schema
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 
 @asynccontextmanager
@@ -56,6 +61,12 @@ def create_app() -> FastAPI:
     app.include_router(organization_chat_router)
     app.include_router(product_chat_router)
     app.include_router(strategy_chat_router)
+    app.include_router(uploads_router)
+    
+    uploads_dir = Path("uploads")
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/static/uploads", StaticFiles(directory="uploads"), name="uploads")
+    
     return app
 
 

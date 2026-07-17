@@ -3,8 +3,7 @@ import { create, type StoreApi, type UseBoundStore } from 'zustand'
 import {
   type ChatStreamEvent,
   type ChatStreamRequest,
-  type ChatHistoryRead,
-  type ChatHistoryMessage
+  type ChatHistoryRead
 } from '../api/setup-chat-api-client'
 
 export type ChatUiMessage =
@@ -38,7 +37,7 @@ export interface SetupChatStoreState {
 
 export interface SetupChatApi {
   getHistory: (entityId: string) => Promise<ChatHistoryRead>
-  clearChat: (entityId: string) => Promise<void>
+  clearChat: (entityId: string) => Promise<any>
   streamChat: (entityId: string, request: ChatStreamRequest, onEvent: (event: ChatStreamEvent) => void) => Promise<void>
 }
 

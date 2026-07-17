@@ -250,6 +250,7 @@ class LoopService:
         name: str | None = None,
         website: str | None = None,
         primary_contact_email: str | None = None,
+        thumbnail_url: str | None = None,
     ) -> models.Organization:
         row = await self.get_organization(organization_id)
         row.org_form = form
@@ -260,6 +261,8 @@ class LoopService:
             row.website = website
         if primary_contact_email is not None:
             row.primary_contact_email = primary_contact_email or None
+        if thumbnail_url is not None:
+            row.thumbnail_url = thumbnail_url
         await self._commit_event(
             action="OrganizationProfileUpdated",
             entity_type="organization",
@@ -324,6 +327,7 @@ class LoopService:
         form: dict[str, Any],
         name: str | None = None,
         kind: str | None = None,
+        thumbnail_url: str | None = None,
     ) -> models.Product:
         row = await self.get_product(product_id)
         row.icp_form = form
@@ -332,6 +336,8 @@ class LoopService:
             row.name = name
         if kind is not None:
             row.kind = kind
+        if thumbnail_url is not None:
+            row.thumbnail_url = thumbnail_url
         await self._commit_event(
             action="ProductProfileUpdated",
             entity_type="product",

@@ -29,6 +29,7 @@ function toViewerValue(strategy: SalesStrategy) {
     overview: {
       ...overview,
       name: typeof overview.name === 'string' && overview.name ? overview.name : strategy.name,
+      thumbnail_url: (strategy as any).thumbnail_url,
     },
     run_targets: {
       ...runTargets,

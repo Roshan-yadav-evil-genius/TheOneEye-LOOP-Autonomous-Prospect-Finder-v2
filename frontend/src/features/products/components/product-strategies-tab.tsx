@@ -48,6 +48,7 @@ export function ProductStrategiesTab() {
           badge={`${strategy.company_finder_attempt}/${strategy.target_companies}`}
           badgeTone="info"
           meta={`${strategy.contacts_per_company_default} contacts per company · strategy form is read-only after creation`}
+          thumbnailUrl={strategy.thumbnail_url ? `${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:7878'}${strategy.thumbnail_url}` : '/static/strategy_placeholder.png'}
         />
       ))}
     </EntityList>

@@ -18,6 +18,7 @@ interface WizardProps {
   /** When set, sections are navigated via theme groups (edit mode). */
   themes?: FormTheme[]
   onSubmit?: (value: Record<string, unknown>) => Promise<void>
+  onIncrementalSave?: (value: Record<string, unknown>) => Promise<void>
 }
 
 export function SectionWizard({
@@ -31,6 +32,7 @@ export function SectionWizard({
   submitting,
   themes,
   title,
+  onIncrementalSave,
 }: WizardProps) {
   const [step, setStep] = useState(0)
   const [themeKey, setThemeKey] = useState(themes?.[0]?.key ?? '')
@@ -90,7 +92,9 @@ export function SectionWizard({
     setLocalError(null)
   }
 
-  const continueNext = () => {
+  const [savingIncremental, setSavingIncremental] = useState(false)
+
+  const continueNext = async () => {
     if (!readOnly) {
       const error = validateRequired()
       if (error) {
@@ -99,6 +103,20 @@ export function SectionWizard({
       }
     }
     setLocalError(null)
+    
+    if (onIncrementalSave && !readOnly) {
+      try {
+        setSavingIncremental(true)
+        await onIncrementalSave(form)
+      } catch (err) {
+        // Handle error if needed, for now just let it fall through or show local error
+        setLocalError('Failed to save progress. Please try again.')
+        return
+      } finally {
+        setSavingIncremental(false)
+      }
+    }
+
     const max = (useThemes ? visibleSections : sections).length - 1
     if (step < max) {
       setStep((current) => current + 1)
@@ -205,12 +223,12 @@ export function SectionWizard({
         {localError ? <p role="alert" className="error-banner">{localError}</p> : null}
         {serverError ? <p role="alert" className="error-banner">{serverError}</p> : null}
         <div className="row-actions">
-          <Button type="button" variant="ghost" disabled={!canGoPrevious} onClick={goPrevious}>
+          <Button type="button" variant="ghost" disabled={!canGoPrevious || savingIncremental} onClick={goPrevious}>
             Previous
           </Button>
           {!isLastSection ? (
-            <Button type="button" onClick={continueNext}>
-              {readOnly ? 'Next' : 'Continue'}
+            <Button type="button" disabled={savingIncremental} onClick={() => void continueNext()}>
+              {savingIncremental ? 'Saving…' : (readOnly ? 'Next' : (onIncrementalSave ? 'Save & Continue' : 'Continue'))}
             </Button>
           ) : readOnly ? null : (
             <Button type="button" disabled={submitting} onClick={() => void submitAll()}>

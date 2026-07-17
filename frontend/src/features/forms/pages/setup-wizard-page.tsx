@@ -18,11 +18,11 @@ import {
 import { useSetupStore } from '../stores/setup-store'
 
 const organizationInitial = {
-  identity: { name: '', website: 'https://', primary_contact_email: '' },
+  identity: { thumbnail_url: '', name: '', website: 'https://', primary_contact_email: '' },
   ...organizationTemplate,
 }
 const productInitial = {
-  identity: { name: '', kind: 'service' },
+  identity: { thumbnail_url: '', name: '', kind: 'service' },
   ...productTemplate,
 }
 const strategyInitial = { ...strategyTemplate }

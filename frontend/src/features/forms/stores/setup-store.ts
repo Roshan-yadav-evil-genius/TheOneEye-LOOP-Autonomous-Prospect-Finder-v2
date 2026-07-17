@@ -36,6 +36,7 @@ export const useSetupStore = create<SetupState>((set) => ({
         name: identity.name,
         website: identity.website,
         primary_contact_email: identity.primary_contact_email || null,
+        thumbnail_url: identity.thumbnail_url || null,
         org_form: orgForm,
       })
       const result = await formsApi.validateOrganization(organization.id)
@@ -52,10 +53,11 @@ export const useSetupStore = create<SetupState>((set) => ({
     set({ error: null, submitting: true })
     try {
       const { identity: identityValue, ...icpForm } = value
-      const identity = identityValue as { name: string; kind: 'product' | 'service' }
+      const identity = identityValue as { name: string; kind: 'product' | 'service'; thumbnail_url?: string }
       const product = await formsApi.createProduct(organizationId, {
         name: identity.name,
         kind: identity.kind,
+        thumbnail_url: identity.thumbnail_url || null,
         icp_form: { form_version: '2.0', ...icpForm },
       })
       const result = await formsApi.validateProduct(product.id)
@@ -71,7 +73,9 @@ export const useSetupStore = create<SetupState>((set) => ({
   createStrategy: async (productId, value) => {
     set({ error: null, submitting: true })
     try {
+      const overview = (value.overview || {}) as { thumbnail_url?: string }
       const strategy = await formsApi.createStrategy(productId, {
+        thumbnail_url: overview.thumbnail_url || null,
         sales_strategy_form: { form_version: '2.0', ...value },
       })
       set({ strategyId: strategy.id, submitting: false })

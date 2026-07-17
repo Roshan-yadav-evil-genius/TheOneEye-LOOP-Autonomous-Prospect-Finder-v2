@@ -48,6 +48,7 @@ export function OrganizationProductsTab() {
           badge={product.profile_validated ? 'validated' : 'incomplete'}
           badgeTone={product.profile_validated ? 'success' : 'warning'}
           meta={`${product.kind} · open details or strategies`}
+          thumbnailUrl={product.thumbnail_url ? `${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:7878'}${product.thumbnail_url}` : '/static/product_service_placeholder.png'}
         />
       ))}
     </EntityList>

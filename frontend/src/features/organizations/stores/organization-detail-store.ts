@@ -11,6 +11,7 @@ interface OrganizationDetailState {
   saved: boolean
   load: (organizationId: string) => Promise<void>
   save: (organizationId: string, value: Record<string, unknown>) => Promise<void>
+  incrementalSave: (organizationId: string, value: Record<string, unknown>) => Promise<void>
   reset: () => void
 }
 
@@ -43,12 +44,14 @@ export const useOrganizationDetailStore = create<OrganizationDetailState>((set) 
         name: string
         website: string
         primary_contact_email?: string
+        thumbnail_url?: string
       }
       const organization = await organizationsApi.updateOrganizationProfile(organizationId, {
         form: orgForm,
         name: identity.name,
         website: identity.website,
         primary_contact_email: identity.primary_contact_email || null,
+        thumbnail_url: identity.thumbnail_url || null,
       })
       const result = await organizationsApi.validateOrganization(organizationId)
       set({
@@ -62,6 +65,28 @@ export const useOrganizationDetailStore = create<OrganizationDetailState>((set) 
         error: messageFor(error, 'Unable to save organization profile.'),
         submitting: false,
       })
+    }
+  },
+  incrementalSave: async (organizationId, value) => {
+    try {
+      const { identity: identityValue, ...orgForm } = value
+      const identity = identityValue as {
+        name: string
+        website: string
+        primary_contact_email?: string
+        thumbnail_url?: string
+      }
+      const organization = await organizationsApi.updateOrganizationProfile(organizationId, {
+        form: orgForm,
+        name: identity.name,
+        website: identity.website,
+        primary_contact_email: identity.primary_contact_email || null,
+        thumbnail_url: identity.thumbnail_url || null,
+      })
+      set({ organization })
+    } catch (error) {
+      // Allow throwing to let component handle error
+      throw error
     }
   },
 }))

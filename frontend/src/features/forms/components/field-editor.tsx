@@ -179,6 +179,49 @@ export function FieldEditor({
     )
   }
 
+  if (field.kind === 'file') {
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (!file) return
+      
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:7878'}/api/v1/upload/thumbnail`, {
+          method: 'POST',
+          body: formData,
+        })
+        const data = await response.json()
+        if (data.url) {
+          update(data.url)
+        }
+      } catch (e) {
+        console.error('Upload failed', e)
+      }
+    }
+
+    return (
+      <FormField label={field.label} required={field.required} help={field.help}>
+        <div className="file-upload-wrapper">
+          {typeof value === 'string' && value ? (
+            <div className="file-upload-preview" style={{ marginBottom: '8px' }}>
+              <img src={`${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:7878'}${value}`} alt="Preview" style={{ maxWidth: '200px', maxHeight: '100px', borderRadius: '8px', objectFit: 'contain' }} />
+            </div>
+          ) : null}
+          <input
+            className="control"
+            type="file"
+            accept="image/*"
+            readOnly={readOnly}
+            disabled={readOnly}
+            onChange={(e) => void handleFileChange(e)}
+          />
+        </div>
+      </FormField>
+    )
+  }
+
   return (
     <FormField label={field.label} required={field.required} help={field.help}>
       <input

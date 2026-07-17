@@ -16,6 +16,7 @@ export function EntityListItem({
   editLabel,
   badge,
   badgeTone = 'info',
+  thumbnailUrl,
 }: {
   title: string
   meta: ReactNode
@@ -24,6 +25,7 @@ export function EntityListItem({
   editLabel?: string
   badge?: string
   badgeTone?: 'info' | 'success' | 'danger' | 'warning'
+  thumbnailUrl?: string
 }) {
   const navigate = useNavigate()
 
@@ -51,6 +53,11 @@ export function EntityListItem({
       onKeyDown={onKeyDown}
       aria-label={`Open ${title}`}
     >
+      {thumbnailUrl ? (
+        <div className="entity-list-item__thumbnail">
+          <img src={thumbnailUrl} alt={title} />
+        </div>
+      ) : null}
       <div className="entity-list-item__body">
         <div className="entity-list-item__title-row">
           <h2 className="entity-list-item__title">{title}</h2>

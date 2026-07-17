@@ -128,7 +128,7 @@ export const productTemplate: Record<string, unknown> = {
 }
 
 export const strategyTemplate: Record<string, unknown> = {
-  overview: { name: '', description: '', target_companies_narrative: '' },
+  overview: { thumbnail_url: '', name: '', description: '', target_companies_narrative: '' },
   target_company_profile: { company_types: [], characteristics: [], similar_companies: [], keywords: [], problems_they_should_have: [] },
   target_decision_makers: { primary_titles: [], secondary_titles: [], seniority_order: [], contact_buying_signals: [] },
   priority_industries: { primary: [], secondary: [], deprioritized: [] },

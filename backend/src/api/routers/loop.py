@@ -79,6 +79,7 @@ async def update_organization_profile(
         name=data.name,
         website=str(data.website) if data.website is not None else None,
         primary_contact_email=data.primary_contact_email,
+        thumbnail_url=data.thumbnail_url,
     )
 
 
@@ -127,6 +128,7 @@ async def update_product_profile(
         form=data.form,
         name=data.name,
         kind=data.kind,
+        thumbnail_url=data.thumbnail_url,
     )
 
 

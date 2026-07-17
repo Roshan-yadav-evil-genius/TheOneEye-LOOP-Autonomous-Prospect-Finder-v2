@@ -38,6 +38,7 @@ class Organization(Timestamped, Base):
     name: Mapped[str] = mapped_column(String(255))
     website: Mapped[str] = mapped_column(String(2048))
     primary_contact_email: Mapped[str | None] = mapped_column(String(320))
+    thumbnail_url: Mapped[str | None] = mapped_column(String(2048))
     org_form: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     profile_validated: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -47,6 +48,7 @@ class Product(Timestamped, Base):
     organization_id: Mapped[str] = mapped_column(ForeignKey("organization.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(255))
     kind: Mapped[str] = mapped_column(String(20))
+    thumbnail_url: Mapped[str | None] = mapped_column(String(2048))
     icp_form: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     profile_validated: Mapped[bool] = mapped_column(Boolean, default=False)
     __table_args__ = (CheckConstraint("kind IN ('product','service')"),)
@@ -56,6 +58,7 @@ class SalesStrategy(Timestamped, Base):
     __tablename__ = "sales_strategy"
     product_id: Mapped[str] = mapped_column(ForeignKey("product.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(255))
+    thumbnail_url: Mapped[str | None] = mapped_column(String(2048))
     sales_strategy_form: Mapped[dict[str, Any]] = mapped_column(JSON)
     target_companies: Mapped[int] = mapped_column(Integer)
     contacts_per_company_default: Mapped[int] = mapped_column(Integer)

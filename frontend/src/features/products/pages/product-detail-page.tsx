@@ -32,6 +32,7 @@ function toWizardValue(product: {
     identity: {
       name: product.name,
       kind: product.kind,
+      thumbnail_url: (product as any).thumbnail_url,
     },
     ...productTemplate,
     ...formBody,
@@ -47,7 +48,7 @@ function parseTab(value: string | null, mode: string | null) {
 export function ProductDetailPage() {
   const { orgId = '', productId = '' } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { error, load, loading, product, reset, save, saved, submitting } = useProductDetailStore()
+  const { error, load, loading, product, reset, save, incrementalSave, saved, submitting } = useProductDetailStore()
   const tab = parseTab(searchParams.get('tab'), searchParams.get('mode'))
   const [mode, setMode] = useState<'view' | 'edit'>(
     searchParams.get('mode') === 'edit' ? 'edit' : 'view',
@@ -201,6 +202,7 @@ export function ProductDetailPage() {
                     submitting={submitting}
                     serverError={error}
                     onSubmit={(value) => save(productId, value)}
+                    onIncrementalSave={(value) => incrementalSave(productId, value)}
                   />
                 ),
             },

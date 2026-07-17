@@ -18,6 +18,7 @@ class OrganizationCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     website: HttpUrl
     primary_contact_email: str | None = None
+    thumbnail_url: str | None = None
     org_form: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -26,6 +27,7 @@ class OrganizationRead(OrmModel):
     name: str
     website: str
     primary_contact_email: str | None
+    thumbnail_url: str | None
     org_form: dict[str, Any]
     profile_validated: bool
 
@@ -41,11 +43,13 @@ class OrganizationProfileUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     website: HttpUrl | None = None
     primary_contact_email: str | None = None
+    thumbnail_url: str | None = None
 
 
 class ProductCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     kind: Literal["product", "service"]
+    thumbnail_url: str | None = None
     icp_form: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -53,6 +57,7 @@ class ProductProfileUpdate(BaseModel):
     form: dict[str, Any]
     name: str | None = Field(default=None, min_length=1, max_length=255)
     kind: Literal["product", "service"] | None = None
+    thumbnail_url: str | None = None
 
 
 class ProductRead(OrmModel):
@@ -60,18 +65,21 @@ class ProductRead(OrmModel):
     organization_id: str
     name: str
     kind: str
+    thumbnail_url: str | None
     icp_form: dict[str, Any]
     profile_validated: bool
 
 
 class SalesStrategyCreate(BaseModel):
     sales_strategy_form: dict[str, Any]
+    thumbnail_url: str | None = None
 
 
 class SalesStrategyRead(OrmModel):
     id: str
     product_id: str
     name: str
+    thumbnail_url: str | None
     sales_strategy_form: dict[str, Any]
     target_companies: int
     contacts_per_company_default: int

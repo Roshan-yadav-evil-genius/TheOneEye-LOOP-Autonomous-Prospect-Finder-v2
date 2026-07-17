@@ -54,6 +54,7 @@ export function OrganizationsPage() {
               badge={organization.profile_validated ? 'validated' : 'incomplete'}
               badgeTone={organization.profile_validated ? 'success' : 'warning'}
               meta={organization.website}
+              thumbnailUrl={organization.thumbnail_url ? `${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:7878'}${organization.thumbnail_url}` : '/static/org_placeholder.png'}
             />
           ))}
         </EntityList>

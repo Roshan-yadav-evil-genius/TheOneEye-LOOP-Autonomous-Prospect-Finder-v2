@@ -11,6 +11,7 @@ interface ProductDetailState {
   saved: boolean
   load: (productId: string) => Promise<void>
   save: (productId: string, value: Record<string, unknown>) => Promise<void>
+  incrementalSave: (productId: string, value: Record<string, unknown>) => Promise<void>
   reset: () => void
 }
 
@@ -39,11 +40,12 @@ export const useProductDetailStore = create<ProductDetailState>((set) => ({
     set({ submitting: true, error: null, saved: false })
     try {
       const { identity: identityValue, ...icpForm } = value
-      const identity = identityValue as { name: string; kind: 'product' | 'service' }
+      const identity = identityValue as { name: string; kind: 'product' | 'service'; thumbnail_url?: string }
       const product = await productsApi.updateProductProfile(productId, {
         form: { form_version: '2.0', ...icpForm },
         name: identity.name,
         kind: identity.kind,
+        thumbnail_url: identity.thumbnail_url || null,
       })
       const result = await productsApi.validateProduct(productId)
       set({
@@ -57,6 +59,21 @@ export const useProductDetailStore = create<ProductDetailState>((set) => ({
         error: messageFor(error, 'Unable to save product profile.'),
         submitting: false,
       })
+    }
+  },
+  incrementalSave: async (productId, value) => {
+    try {
+      const { identity: identityValue, ...icpForm } = value
+      const identity = identityValue as { name: string; kind: 'product' | 'service'; thumbnail_url?: string }
+      const product = await productsApi.updateProductProfile(productId, {
+        form: { form_version: '2.0', ...icpForm },
+        name: identity.name,
+        kind: identity.kind,
+        thumbnail_url: identity.thumbnail_url || null,
+      })
+      set({ product })
+    } catch (error) {
+      throw error
     }
   },
 }))
