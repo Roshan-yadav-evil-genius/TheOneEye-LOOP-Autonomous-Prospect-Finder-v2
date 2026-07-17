@@ -59,7 +59,7 @@ flowchart TB
 | Source split (search/content) with caps | `target_companies` on sales strategy; source-agnostic discovery |
 | Global singleton organization profile | Per-organization [organization_form.md](../../form/organization_form.md) + per-product [service_form.md](../../form/service_form.md) |
 | Single combined prospect finder | Company Finder → Contact Finder pipeline |
-| Ad-hoc thread id patterns | `LOOP_{product}_{sales_strategy}_{attempt}_*` — see [§9.12](03-checkpoints-and-threads.md#912-agent-effort-threads-and-snapshot-viewer) |
+| Ad-hoc thread id patterns | `LOOP_{org}_{product}_{sales_strategy}_{attempt}_*` — see [§9.12](03-checkpoints-and-threads.md#912-agent-effort-threads-and-snapshot-viewer) |
 
 ### 9.4 Tool system design
 
@@ -126,7 +126,7 @@ Namespaces: `{AgentType}/{category}` e.g. `CompanyFinder/decisions`.
 
 Company Finder effort (production):
 
-1. **Start effort** — allocate unique `effort_seq` (monotonic per sales strategy); prefix `LOOP_{product_id}_{sales_strategy_id}_{effort_seq}`; create sub-agent threads; **no `company_id` yet**
+1. **Start effort** — allocate unique `effort_seq` (monotonic per sales strategy); prefix `LOOP_{org_id}_{product_id}_{sales_strategy_id}_{effort_seq}`; create sub-agent threads; **no `company_id` yet**
 2. Orient — load sales strategy bundle, Brain recall (Sales-strategy-scoped)
 3. Quota check — `companies_registered >= target_companies` → stop; `register_company` returns **409** if target met
 4. Delegate Browser — research one company candidate (any source)
@@ -136,7 +136,7 @@ Company Finder effort (production):
 
 Contact Finder effort (production — **separate background process**, started from **Contact Finder Process** tab; **one company at a time**):
 
-1. **Start effort** — pick validated company with `contacts_registered < contacts_target`; allocate `contact_effort_seq` for that company; prefix `LOOP_{product_id}_{sales_strategy_id}_{sales_strategy_attempt_at_register}_{company_id}_{contact_effort_seq}` (`sales_strategy_attempt_at_register` **frozen** on company at first successful `register_company`)
+1. **Start effort** — pick validated company with `contacts_registered < contacts_target`; allocate `contact_effort_seq` for that company; prefix `LOOP_{org_id}_{product_id}_{sales_strategy_id}_{sales_strategy_attempt_at_register}_{company_id}_{contact_effort_seq}` (`sales_strategy_attempt_at_register` **frozen** on company at first successful `register_company`)
 2. Orient — load sales strategy bundle + company row (`contacts_target`, `contacts_registered`, role signals)
 3. Quota check — skip if `contacts_registered >= contacts_target` or `contacts_per_company_default <= 0`
 4. Delegate Browser — find next contact candidate at `company_id` (exclude already-registered profiles)

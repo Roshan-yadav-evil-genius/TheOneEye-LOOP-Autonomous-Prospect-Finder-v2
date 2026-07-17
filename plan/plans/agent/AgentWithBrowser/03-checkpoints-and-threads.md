@@ -22,19 +22,19 @@ Production replaces the POC flat thread list (`LangChainStateSnapShotViewer`) wi
 **Company Finder** — sales-strategy-level effort (unique `effort_seq` per attempt start):
 
 ```text
-Prefix:  LOOP_<product_id>_<sales_strategy_id>_<effort_seq>
+Prefix:  LOOP_<org_id>_<product_id>_<sales_strategy_id>_<effort_seq>
 
 Threads:
-  LOOP_<product_id>_<sales_strategy_id>_<effort_seq>_company_finder    ← linked on register_company
-  LOOP_<product_id>_<sales_strategy_id>_<effort_seq>_browser_agent
-  LOOP_<product_id>_<sales_strategy_id>_<effort_seq>_company_finder_brain
-  LOOP_<product_id>_<sales_strategy_id>_<effort_seq>_browser_agent_brain
+  LOOP_<org_id>_<product_id>_<sales_strategy_id>_<effort_seq>_company_finder    ← linked on register_company
+  LOOP_<org_id>_<product_id>_<sales_strategy_id>_<effort_seq>_browser_agent
+  LOOP_<org_id>_<product_id>_<sales_strategy_id>_<effort_seq>_company_finder_brain
+  LOOP_<org_id>_<product_id>_<sales_strategy_id>_<effort_seq>_browser_agent_brain
 ```
 
 **Contact Finder** — uses **`sales_strategy_attempt_at_register`** frozen on the company (not the live sales_strategy counter) + company + contact effort:
 
 ```text
-Prefix:  LOOP_<product_id>_<sales_strategy_id>_<sales_strategy_attempt_at_register>_<company_id>_<contact_effort_seq>
+Prefix:  LOOP_<org_id>_<product_id>_<sales_strategy_id>_<sales_strategy_attempt_at_register>_<company_id>_<contact_effort_seq>
 
 Threads:
   LOOP_..._<contact_effort_seq>_contact_finder    ← linked on register_contact
@@ -54,9 +54,9 @@ Threads:
 Examples:
 
 ```text
-LOOP_prod_camp_7_company_finder_GPA_1
-LOOP_prod_camp_7_company_finder_GPA_2
-LOOP_prod_camp_7_browser_agent_GPA_1
+LOOP_org1_prod_camp_7_company_finder_GPA_1
+LOOP_org1_prod_camp_7_company_finder_GPA_2
+LOOP_org1_prod_camp_7_browser_agent_GPA_1
 ```
 
 #### GPA thread allocation (DB max + 1)
@@ -84,9 +84,9 @@ The production implementation must use a nested checkpoint architecture:
 
 | Layer | Checkpointer | Thread id owner | Example |
 |-------|--------------|-----------------|---------|
-| Parent role agent | Parent graph checkpointer | Company Finder / Contact Finder / Browser role | `LOOP_prod_camp_7_company_finder` |
-| Compiled child agent | Child graph checkpointer | Wrapped `CompiledSubAgent` graph | `LOOP_prod_camp_7_company_finder_GPA_3` |
-| Role child agent | Child graph checkpointer | Stable role child such as Browser or Brain | `LOOP_prod_camp_7_browser_agent` |
+| Parent role agent | Parent graph checkpointer | Company Finder / Contact Finder / Browser role | `LOOP_org1_prod_camp_7_company_finder` |
+| Compiled child agent | Child graph checkpointer | Wrapped `CompiledSubAgent` graph | `LOOP_org1_prod_camp_7_company_finder_GPA_3` |
+| Role child agent | Child graph checkpointer | Stable role child such as Browser or Brain | `LOOP_org1_prod_camp_7_browser_agent` |
 
 The checkpointer may be the same physical `PostgresSaver`, but parent and child state must be isolated by different `thread_id` values. Never invoke a compiled sub-agent on the parent role thread.
 
@@ -103,13 +103,13 @@ Recommended value shape:
 ```python
 {
     "General Purpose Agent": {
-        "thread_id": "LOOP_prod_camp_7_company_finder_GPA_3",
+        "thread_id": "LOOP_org1_prod_camp_7_company_finder_GPA_3",
         "status": "running",
         "allocation_mode": "gpa",
         "task_fingerprint": "optional stable hash of the delegated task"
     },
     "Browser Agent": {
-        "thread_id": "LOOP_prod_camp_7_browser_agent",
+        "thread_id": "LOOP_org1_prod_camp_7_browser_agent",
         "status": "running",
         "allocation_mode": "role"
     }
@@ -152,21 +152,21 @@ GPA allocation is only for a brand-new GPA delegation. It must not run during re
 Example:
 
 ```text
-Parent role thread: LOOP_prod_camp_7_company_finder
-First GPA call:     LOOP_prod_camp_7_company_finder_GPA_1
-Second GPA call:    LOOP_prod_camp_7_company_finder_GPA_2
-Third GPA call:     LOOP_prod_camp_7_company_finder_GPA_3
+Parent role thread: LOOP_org1_prod_camp_7_company_finder
+First GPA call:     LOOP_org1_prod_camp_7_company_finder_GPA_1
+Second GPA call:    LOOP_org1_prod_camp_7_company_finder_GPA_2
+Third GPA call:     LOOP_org1_prod_camp_7_company_finder_GPA_3
 ```
 
 If `_GPA_3` stops after tool step 3:
 
-1. Parent checkpoint contains `active_subagent_threads["General Purpose Agent"].thread_id = "LOOP_prod_camp_7_company_finder_GPA_3"`.
-2. Child checkpoint exists for `LOOP_prod_camp_7_company_finder_GPA_3`.
-3. Resume parent on `LOOP_prod_camp_7_company_finder`.
+1. Parent checkpoint contains `active_subagent_threads["General Purpose Agent"].thread_id = "LOOP_org1_prod_camp_7_company_finder_GPA_3"`.
+2. Child checkpoint exists for `LOOP_org1_prod_camp_7_company_finder_GPA_3`.
+3. Resume parent on `LOOP_org1_prod_camp_7_company_finder`.
 4. Parent reads the stored child thread id.
-5. Parent invokes GPA with `thread_id = LOOP_prod_camp_7_company_finder_GPA_3`.
+5. Parent invokes GPA with `thread_id = LOOP_org1_prod_camp_7_company_finder_GPA_3`.
 6. GPA graph restores its own checkpoint and continues from the last saved step.
-7. The system must not allocate `LOOP_prod_camp_7_company_finder_GPA_4` until `_GPA_3` has completed and a new GPA task is requested.
+7. The system must not allocate `LOOP_org1_prod_camp_7_company_finder_GPA_4` until `_GPA_3` has completed and a new GPA task is requested.
 
 ##### Child graph resume input
 

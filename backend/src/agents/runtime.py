@@ -15,11 +15,12 @@ def build_role_thread_id(*, effort_prefix: str, role_suffix: str) -> str:
     return f"{effort_prefix}_{role_suffix}"
 
 
-def build_company_effort_prefix(product_id: str, strategy_id: str, effort_seq: int) -> str:
-    return f"LOOP_{product_id}_{strategy_id}_{effort_seq}"
+def build_company_effort_prefix(org_id: str, product_id: str, strategy_id: str, effort_seq: int) -> str:
+    return f"LOOP_{org_id}_{product_id}_{strategy_id}_{effort_seq}"
 
 
 def build_contact_effort_prefix(
+    org_id: str,
     product_id: str,
     strategy_id: str,
     sales_strategy_attempt_at_register: int,
@@ -27,7 +28,7 @@ def build_contact_effort_prefix(
     contact_effort_seq: int,
 ) -> str:
     return (
-        f"LOOP_{product_id}_{strategy_id}_{sales_strategy_attempt_at_register}_"
+        f"LOOP_{org_id}_{product_id}_{strategy_id}_{sales_strategy_attempt_at_register}_"
         f"{company_id}_{contact_effort_seq}"
     )
 

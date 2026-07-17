@@ -39,7 +39,7 @@ class CompanyFinderEffort:
         strategy = await service.get_strategy(strategy_id)
         strategy.company_effort_seq += 1
         prefix = build_company_effort_prefix(
-            strategy.product_id, strategy.id, strategy.company_effort_seq
+            bundle.organization.id, strategy.product_id, strategy.id, strategy.company_effort_seq
         )
         thread_id = build_role_thread_id(effort_prefix=prefix, role_suffix="company_finder")
         run = models.AgentRun(
@@ -183,7 +183,9 @@ class ContactFinderEffort:
         strategy = await service.get_strategy(strategy_id)
         company_link = await self._next_company(strategy_id)
         company_link.contact_effort_seq += 1
+        product = await service.get_product(strategy.product_id)
         prefix = build_contact_effort_prefix(
+            product.organization_id,
             strategy.product_id,
             strategy.id,
             company_link.sales_strategy_attempt_at_register,

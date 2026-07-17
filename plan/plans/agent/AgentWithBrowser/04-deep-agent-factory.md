@@ -30,7 +30,7 @@ class LoopDeepAgentConfig:
     middlewares: list                  # role-specific only
     store: BaseStore
     checkpointer: BaseCheckpointSaver
-    effort_prefix: str                 # LOOP_<product>_<sales_strategy>_<attempt>[...]
+    effort_prefix: str                 # LOOP_<org>_<product>_<sales_strategy>_<attempt>[...]
     role_suffix: str                   # company_finder | browser_agent | contact_finder | ...
     subagents: list[CompiledSubAgent]  # default []
     loop_context: LoopAgentToolContext
@@ -142,7 +142,7 @@ Browser tools are **situation-specific** (company research vs contact profile lo
 | Duplicate `create_deep_agent` blocks | `build_company_finder_stack()` / `build_contact_finder_stack()` |
 | Separate prompt strings per agent | `name` + `responsibility` per `LoopDeepAgentConfig` |
 | Inline browser agent builder | Browser = first factory call → `CompiledSubAgent` in orchestrator `subagents` |
-| Ad-hoc thread id builders | `effort_prefix` = `LOOP_{product}_{sales_strategy}_{attempt}` — [§9.12](03-checkpoints-and-threads.md) |
+| Ad-hoc thread id builders | `effort_prefix` = `LOOP_{org}_{product}_{sales_strategy}_{attempt}` — [§9.12](03-checkpoints-and-threads.md) |
 
 #### Package layout
 

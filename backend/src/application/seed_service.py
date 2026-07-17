@@ -595,8 +595,8 @@ class SeedService:
                     sales_strategy_id=strategy.id,
                     company_id=None,
                     agent_role="company_finder",
-                    effort_prefix=f"LOOP_{product.id[:8]}_{strategy.id[:8]}_1",
-                    primary_thread_id=f"LOOP_{product.id[:8]}_{strategy.id[:8]}_1_company_finder",
+                    effort_prefix=f"LOOP_{product.organization_id[:8]}_{product.id[:8]}_{strategy.id[:8]}_1",
+                    primary_thread_id=f"LOOP_{product.organization_id[:8]}_{product.id[:8]}_{strategy.id[:8]}_1_company_finder",
                     attempt_iteration=1,
                     status="completed",
                     completed_at=utcnow(),
@@ -610,9 +610,9 @@ class SeedService:
                     sales_strategy_id=strategy.id,
                     company_id=acme_id,
                     agent_role="contact_finder",
-                    effort_prefix=f"LOOP_{product.id[:8]}_{strategy.id[:8]}_{acme_id[:8]}_1",
+                    effort_prefix=f"LOOP_{product.organization_id[:8]}_{product.id[:8]}_{strategy.id[:8]}_{acme_id[:8]}_1",
                     primary_thread_id=(
-                        f"LOOP_{product.id[:8]}_{strategy.id[:8]}_{acme_id[:8]}_1_contact_finder"
+                        f"LOOP_{product.organization_id[:8]}_{product.id[:8]}_{strategy.id[:8]}_{acme_id[:8]}_1_contact_finder"
                     ),
                     attempt_iteration=1,
                     contact_attempt_iteration=1,
