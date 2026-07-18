@@ -15,7 +15,7 @@ from deepagents import CompiledSubAgent
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableLambda
 
-from agents.runtime import allocate_gpa_thread_id, build_role_thread_id
+from agents.runtime import build_role_thread_id
 
 AllocationMode = Literal["role", "gpa", "named"]
 
@@ -52,7 +52,20 @@ def resolve_compiled_child_thread_id(
     if allocation_mode == "gpa":
         if not parent_role_thread:
             raise ValueError("parent_role_thread is required for GPA allocation")
-        thread_id = allocate_gpa_thread_id(parent_role_thread, existing_thread_ids or [])
+        from agents.runtime import allocate_gpa_thread_id, collect_gpa_thread_ids
+
+        # Never allocate a new GPA while any GPA entry is still running.
+        for item in active.values():
+            thread_id_candidate = str(item.get("thread_id") or "")
+            if (
+                item.get("status") == "running"
+                and thread_id_candidate.startswith(f"{parent_role_thread}_GPA_")
+            ):
+                return thread_id_candidate, parent_state
+        known = collect_gpa_thread_ids(parent_role_thread, active) + list(
+            existing_thread_ids or []
+        )
+        thread_id = allocate_gpa_thread_id(parent_role_thread, known)
     elif allocation_mode == "role":
         if not role_suffix:
             raise ValueError("role_suffix is required for role allocation")

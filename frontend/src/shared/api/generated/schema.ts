@@ -607,6 +607,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Global Threads */
+        get: operations["global_threads_api_v1_threads_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/threads/{thread_id}/chat/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chat History */
+        get: operations["chat_history_api_v1_threads__thread_id__chat_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sales-strategies/{strategy_id}/agents/{role}/events": {
         parameters: {
             query?: never;
@@ -1167,28 +1201,14 @@ export interface components {
             /** Build Timestamp */
             build_timestamp: string;
         };
-        /** ChatHistoryMessage */
-        ChatHistoryMessage: {
-            /**
-             * Role
-             * @enum {string}
-             */
-            role: "user" | "assistant" | "tool_call" | "tool_result";
-            /** Content */
-            content: string;
-            /** Name */
-            name?: string | null;
-            /** Args */
-            args?: {
-                [key: string]: unknown;
-            } | null;
-        };
         /** ChatHistoryRead */
         ChatHistoryRead: {
             /** Thread Id */
             thread_id: string;
             /** Messages */
-            messages: components["schemas"]["ChatHistoryMessage"][];
+            messages: {
+                [key: string]: unknown;
+            }[];
             /**
              * Can Resume
              * @default false
@@ -3120,6 +3140,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ThreadSnapshot"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    global_threads_api_v1_threads_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+        };
+    };
+    chat_history_api_v1_threads__thread_id__chat_history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatHistoryRead"];
                 };
             };
             /** @description Validation Error */

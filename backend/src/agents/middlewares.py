@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from agents.snapshot_compaction import BrowserSnapshotCompactionMiddleware
 from core.config import get_settings
 
 
 def browser_middlewares() -> list[Any]:
-    """Browser-agent middlewares: optional summarization when credentials are available."""
-    return _optional_summarization(keep_messages=12)
+    """Browser-agent middlewares: snapshot compaction + optional summarization."""
+    middlewares: list[Any] = [BrowserSnapshotCompactionMiddleware()]
+    middlewares.extend(_optional_summarization(keep_messages=12))
+    return middlewares
 
 
 def orchestrator_middlewares() -> list[Any]:

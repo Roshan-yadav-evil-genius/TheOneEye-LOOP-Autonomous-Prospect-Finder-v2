@@ -22,6 +22,9 @@ class ProcessService:
         return row
 
     async def start(self, strategy_id: str, role: str) -> ProcessStatus:
+        from agents.cancel import clear_cancel
+
+        clear_cancel(strategy_id, role)
         strategy = await LoopService(self.session).get_strategy(strategy_id)
         state = await self._state(strategy_id, role)
         if role == "company-finder":
@@ -37,6 +40,8 @@ class ProcessService:
         if state.actual_state == "running":
             return await self.status(strategy_id, role)
         state.desired_state = state.actual_state = "running"
+        state.consecutive_failures = 0
+        state.last_error = None
         state.heartbeat_at = utcnow()
         self.session.add(
             models.JobRun(
@@ -56,6 +61,9 @@ class ProcessService:
         return await self.status(strategy_id, role)
 
     async def stop(self, strategy_id: str, role: str) -> ProcessStatus:
+        from agents.cancel import request_cancel
+
+        request_cancel(strategy_id, role)
         state = await self._state(strategy_id, role)
         state.desired_state = state.actual_state = "stopped"
         state.active_company_id = None

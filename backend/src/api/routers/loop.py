@@ -389,10 +389,13 @@ async def snapshot(strategy_id: str, thread_id: str, session: Session) -> Thread
     store = ThreadCheckpointStore()
     available = await store.list_threads(run.effort_prefix)
     state = await store.latest(thread_id)
+    from agents.redaction import redact_payload
+
     return ThreadSnapshot(
         thread_id=thread_id,
         effort_prefix=run.effort_prefix,
         available_threads=available,
+        state=redact_payload(state) if state else None,
         checkpoint_backend="postgresql" if store.database_url else "unavailable",
     )
 

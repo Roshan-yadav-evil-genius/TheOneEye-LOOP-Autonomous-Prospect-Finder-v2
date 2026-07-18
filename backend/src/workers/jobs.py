@@ -56,9 +56,18 @@ class JobService:
         await self.session.commit()
         try:
             await self.registry.get(row.task_key)(row.payload)
+            await self.session.refresh(row)
+            if row.status == "cancelled":
+                JOB_OUTCOMES.labels(row.task_key, "cancelled").inc()
+                return row
             row.status = "completed"
             row.completed_at = utcnow()
             JOB_OUTCOMES.labels(row.task_key, "completed").inc()
+        except asyncio.CancelledError:
+            row.status = "cancelled"
+            row.completed_at = utcnow()
+            row.error = "cancelled"
+            JOB_OUTCOMES.labels(row.task_key, "cancelled").inc()
         except Exception as exc:
             settings = get_settings()
             row.error = str(exc)

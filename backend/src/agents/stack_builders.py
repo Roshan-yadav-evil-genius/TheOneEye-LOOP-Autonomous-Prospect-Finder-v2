@@ -6,11 +6,18 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from agents.prompt_context import (
+    browser_prompt_values,
+    brain_prompt_values,
+    company_finder_prompt_values,
+    contact_finder_prompt_values,
+)
 from agents.prompts import (
     BRAIN_AGENT_PROMPT,
     BROWSER_AGENT_PROMPT,
     COMPANY_FINDER_PROMPT,
     CONTACT_FINDER_PROMPT,
+    render_prompt,
 )
 from agents.runtime import (
     LoopAgentToolContext,
@@ -43,6 +50,26 @@ def _passthrough_wrap(_name: str, _description: str, child: Any, _role_suffix: s
     return child
 
 
+def _render_company_responsibility(bundle: dict[str, Any] | None) -> str:
+    values = company_finder_prompt_values(bundle or {})
+    return render_prompt(COMPANY_FINDER_PROMPT, values)
+
+
+def _render_contact_responsibility(
+    bundle: dict[str, Any] | None, company: dict[str, Any] | None
+) -> str:
+    values = contact_finder_prompt_values(bundle or {}, company)
+    return render_prompt(CONTACT_FINDER_PROMPT, values)
+
+
+def _render_browser_responsibility() -> str:
+    return render_prompt(BROWSER_AGENT_PROMPT, browser_prompt_values())
+
+
+def _render_brain_responsibility() -> str:
+    return render_prompt(BRAIN_AGENT_PROMPT, brain_prompt_values())
+
+
 def build_company_finder_stack(
     *,
     effort_prefix: str,
@@ -58,6 +85,7 @@ def build_company_finder_stack(
     wrap_subagent: WrapSubagent | None = None,
     backend: Any = None,
     permissions: list[Any] | None = None,
+    strategy_bundle: dict[str, Any] | None = None,
 ) -> CompanyFinderStack:
     """Compose Browser + Brain under Company Finder with registration authority checks."""
     validate_registration_authority(
@@ -67,11 +95,14 @@ def build_company_finder_stack(
         "company_finder", {getattr(tool, "name", str(tool)) for tool in company_tools}
     )
     wrap = wrap_subagent or _passthrough_wrap
+    company_responsibility = _render_company_responsibility(strategy_bundle)
+    browser_responsibility = _render_browser_responsibility()
+    brain_responsibility = _render_brain_responsibility()
 
     browser_brain = create_loop_deep_agent(
         LoopDeepAgentConfig(
             name="Browser Agent Brain",
-            responsibility=BRAIN_AGENT_PROMPT,
+            responsibility=brain_responsibility,
             tools=brain_tools,
             middlewares=[],
             store=store,
@@ -87,7 +118,7 @@ def build_company_finder_stack(
     browser = create_loop_deep_agent(
         LoopDeepAgentConfig(
             name="Browser Agent",
-            responsibility=BROWSER_AGENT_PROMPT,
+            responsibility=browser_responsibility,
             tools=browser_tools,
             middlewares=browser_middlewares or [],
             store=store,
@@ -111,7 +142,7 @@ def build_company_finder_stack(
     company_brain = create_loop_deep_agent(
         LoopDeepAgentConfig(
             name="Company Finder Brain",
-            responsibility=BRAIN_AGENT_PROMPT,
+            responsibility=brain_responsibility,
             tools=brain_tools,
             middlewares=[],
             store=store,
@@ -127,7 +158,7 @@ def build_company_finder_stack(
     company_finder = create_loop_deep_agent(
         LoopDeepAgentConfig(
             name="Company Finder",
-            responsibility=COMPANY_FINDER_PROMPT,
+            responsibility=company_responsibility,
             tools=company_tools,
             middlewares=company_middlewares or [],
             store=store,
@@ -178,6 +209,8 @@ def build_contact_finder_stack(
     wrap_subagent: WrapSubagent | None = None,
     backend: Any = None,
     permissions: list[Any] | None = None,
+    strategy_bundle: dict[str, Any] | None = None,
+    company_payload: dict[str, Any] | None = None,
 ) -> ContactFinderStack:
     """Compose Browser + Brain under Contact Finder for one validated company."""
     validate_registration_authority(
@@ -189,11 +222,14 @@ def build_contact_finder_stack(
     if loop_context.company_id != company_id:
         raise ValueError("Contact Finder stack requires loop_context.company_id == company_id")
     wrap = wrap_subagent or _passthrough_wrap
+    contact_responsibility = _render_contact_responsibility(strategy_bundle, company_payload)
+    browser_responsibility = _render_browser_responsibility()
+    brain_responsibility = _render_brain_responsibility()
 
     browser_brain = create_loop_deep_agent(
         LoopDeepAgentConfig(
             name="Browser Agent Brain",
-            responsibility=BRAIN_AGENT_PROMPT,
+            responsibility=brain_responsibility,
             tools=brain_tools,
             middlewares=[],
             store=store,
@@ -209,7 +245,7 @@ def build_contact_finder_stack(
     browser = create_loop_deep_agent(
         LoopDeepAgentConfig(
             name="Browser Agent",
-            responsibility=BROWSER_AGENT_PROMPT,
+            responsibility=browser_responsibility,
             tools=browser_tools,
             middlewares=browser_middlewares or [],
             store=store,
@@ -233,7 +269,7 @@ def build_contact_finder_stack(
     contact_brain = create_loop_deep_agent(
         LoopDeepAgentConfig(
             name="Contact Finder Brain",
-            responsibility=BRAIN_AGENT_PROMPT,
+            responsibility=brain_responsibility,
             tools=brain_tools,
             middlewares=[],
             store=store,
@@ -249,7 +285,7 @@ def build_contact_finder_stack(
     contact_finder = create_loop_deep_agent(
         LoopDeepAgentConfig(
             name="Contact Finder",
-            responsibility=CONTACT_FINDER_PROMPT,
+            responsibility=contact_responsibility,
             tools=contact_tools,
             middlewares=contact_middlewares or [],
             store=store,

@@ -30,6 +30,13 @@ def company_finder_tools(
         selection_reason: str,
     ) -> dict[str, Any]:
         """Register one evidence-backed company; Company Finder is sole authority."""
+        from urllib.parse import urlparse
+
+        host = urlparse(
+            website_url if "://" in website_url else f"https://{website_url}"
+        ).hostname
+        if not host:
+            raise ValueError("website_url must be a real observed company URL.")
         result = await service.register_company(
             strategy_id,
             RegisterCompanyRequest(
@@ -101,6 +108,13 @@ def contact_finder_tools(
         evidence_urls: list[str] | None = None,
     ) -> dict[str, Any]:
         """Register one verified decision maker; Contact Finder is sole authority."""
+        from urllib.parse import urlparse
+
+        urls = evidence_urls or []
+        for url in [linkedin_url, *urls]:
+            host = urlparse(url if "://" in url else f"https://{url}").hostname
+            if not host:
+                raise ValueError("Invented or invalid URLs are rejected; use observed evidence only.")
         result = await service.register_contact(
             strategy_id,
             company_id,

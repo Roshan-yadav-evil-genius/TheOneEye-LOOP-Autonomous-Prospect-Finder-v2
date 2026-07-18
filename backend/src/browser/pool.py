@@ -15,6 +15,8 @@ from persistence import models
 
 
 class BrowserPool:
+    """Exclusive lease around the shared operator Playwright MCP session."""
+
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
@@ -41,8 +43,17 @@ class BrowserPool:
         row.lease_owner = effort_id
         row.leased_at = now
         row.lease_expires_at = now + timedelta(minutes=10)
+        row.health = "unknown"
         await self.session.commit()
         BROWSER_LEASES.labels("acquired").inc()
+        return row
+
+    async def heartbeat(self, session_id: str, effort_id: str) -> models.BrowserSession:
+        row = await self.session.get(models.BrowserSession, session_id)
+        if not row or row.lease_owner != effort_id:
+            raise DomainError("browser_lease_not_found", "Browser lease was not found.", 404)
+        row.lease_expires_at = utcnow() + timedelta(minutes=10)
+        await self.session.commit()
         return row
 
     async def release(self, session_id: str, effort_id: str) -> None:
@@ -52,8 +63,30 @@ class BrowserPool:
         row.state = "available"
         row.lease_owner = None
         row.lease_expires_at = None
+        row.health = "ok"
         await self.session.commit()
         BROWSER_LEASES.labels("released").inc()
+
+    async def force_release_expired(self, profile_id: str = "operator") -> bool:
+        """Recover from dead owners without duplicate lease ownership."""
+        now = utcnow()
+        row = await self.session.scalar(
+            select(models.BrowserSession).where(
+                models.BrowserSession.profile_id == profile_id,
+                models.BrowserSession.state == "leased",
+                models.BrowserSession.lease_expires_at < now,
+            )
+        )
+        if not row:
+            return False
+        row.state = "available"
+        row.lease_owner = None
+        row.lease_expires_at = None
+        row.health = "recovered"
+        await self.session.commit()
+        BROWSER_LEASES.labels("recovered").inc()
+        return True
+
 
 class PlaywrightMcpGateway:
     def __init__(self, guard: BrowserPolicyGuard, endpoint: str | None = None) -> None:

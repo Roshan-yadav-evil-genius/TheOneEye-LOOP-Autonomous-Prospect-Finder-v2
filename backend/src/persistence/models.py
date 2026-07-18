@@ -161,9 +161,18 @@ class AgentProcessState(Timestamped, Base):
     desired_state: Mapped[str] = mapped_column(String(20), default="stopped")
     actual_state: Mapped[str] = mapped_column(String(20), default="stopped")
     active_company_id: Mapped[str | None] = mapped_column(String(36))
+    consecutive_failures: Mapped[int] = mapped_column(Integer, default=0)
     last_error: Mapped[str | None] = mapped_column(Text)
     heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     __table_args__ = (UniqueConstraint("sales_strategy_id", "role"),)
+
+
+class AgentSubagentState(Timestamped, Base):
+    """Durable nested child-thread map for a parent orchestrator role thread."""
+
+    __tablename__ = "agent_subagent_state"
+    parent_thread_id: Mapped[str] = mapped_column(String(512), unique=True, index=True)
+    active_subagent_threads: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
 
 class AgentRun(Timestamped, Base):

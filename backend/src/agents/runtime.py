@@ -34,11 +34,40 @@ def build_contact_effort_prefix(
 
 
 def allocate_gpa_thread_id(parent_role_thread: str, existing_thread_ids: list[str]) -> str:
+    """Allocate next GPA id; callers must supply a concurrency-safe existing id list."""
     pattern = re.compile(rf"^{re.escape(parent_role_thread)}_GPA_(\d+)$")
     numbers = [
         int(match.group(1)) for value in existing_thread_ids if (match := pattern.match(value))
     ]
+    # Never skip past a still-running GPA: callers must include running ids in existing.
     return f"{parent_role_thread}_GPA_{max(numbers, default=0) + 1}"
+
+
+def collect_gpa_thread_ids(
+    parent_role_thread: str, active_subagent_threads: dict[str, Any]
+) -> list[str]:
+    """Gather GPA thread ids from durable parent state for max+1 allocation."""
+    pattern = re.compile(rf"^{re.escape(parent_role_thread)}_GPA_\d+$")
+    found: list[str] = []
+    for item in (active_subagent_threads or {}).values():
+        thread_id = str(item.get("thread_id") or "")
+        if pattern.match(thread_id):
+            found.append(thread_id)
+    return found
+
+
+def allocate_gpa_thread_id_from_state(
+    parent_role_thread: str, parent_state: dict[str, Any]
+) -> str:
+    active = dict(parent_state.get("active_subagent_threads") or {})
+    # Reuse any still-running GPA instead of allocating a new number.
+    for item in active.values():
+        if item.get("status") == "running" and str(item.get("thread_id", "")).startswith(
+            f"{parent_role_thread}_GPA_"
+        ):
+            return str(item["thread_id"])
+    existing = collect_gpa_thread_ids(parent_role_thread, active)
+    return allocate_gpa_thread_id(parent_role_thread, existing)
 
 
 class AgentGraph(Protocol):

@@ -41,11 +41,27 @@ def _registry(session: AsyncSession) -> JobRegistry:
 
     async def company(payload: dict[str, object]) -> None:
         strategy_id = str(payload["sales_strategy_id"])
+        state = await session.scalar(
+            select(models.AgentProcessState).where(
+                models.AgentProcessState.sales_strategy_id == strategy_id,
+                models.AgentProcessState.role == "company-finder",
+            )
+        )
+        if not state or state.desired_state != "running":
+            return
         await CompanyFinderEffort(session, resolve_discovery_model()).execute(strategy_id)
         await enqueue_next("company-finder", strategy_id)
 
     async def contact(payload: dict[str, object]) -> None:
         strategy_id = str(payload["sales_strategy_id"])
+        state = await session.scalar(
+            select(models.AgentProcessState).where(
+                models.AgentProcessState.sales_strategy_id == strategy_id,
+                models.AgentProcessState.role == "contact-finder",
+            )
+        )
+        if not state or state.desired_state != "running":
+            return
         await ContactFinderEffort(session, resolve_discovery_model()).execute(strategy_id)
         await enqueue_next("contact-finder", strategy_id)
 
