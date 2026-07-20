@@ -27,20 +27,28 @@ from agents.prompts import (
     CONTACT_FINDER_PROMPT,
     render_prompt,
 )
+from typing import Any, Callable, Protocol, Sequence
 from agents.runtime import (
     LoopAgentToolContext,
     LoopDeepAgentConfig,
-    create_loop_deep_agent,
+    create_deep_agent_with_brain,
 )
 
-WrapSubagent = Callable[[str, str, Any, str], Any]
+class WrapSubagent(Protocol):
+    def __call__(
+        self,
+        name: str,
+        description: str,
+        child: Any,
+        role_suffix: str,
+        allocation_mode: str = "incremental",
+    ) -> Any: ...
 
 
 @dataclass(frozen=True)
 class CompanyFinderStack:
     company_finder: Any
     browser: Any
-    brain: Any
     effort_prefix: str
 
 
@@ -48,12 +56,11 @@ class CompanyFinderStack:
 class ContactFinderStack:
     contact_finder: Any
     browser: Any
-    brain: Any
     effort_prefix: str
     company_id: str
 
 
-def _passthrough_wrap(_name: str, _description: str, child: Any, _role_suffix: str) -> Any:
+def _passthrough_wrap(_name: str, _description: str, child: Any, _role_suffix: str, _allocation_mode: str = "incremental") -> Any:
     return child
 
 
@@ -99,23 +106,7 @@ def build_company_finder_stack(
     browser_responsibility = _render_browser_responsibility()
     brain_responsibility = _render_brain_responsibility()
 
-    browser_brain = create_loop_deep_agent(
-        LoopDeepAgentConfig(
-            name="Browser Agent Brain",
-            responsibility=brain_responsibility,
-            tools=brain_tools,
-            middlewares=[],
-            store=store,
-            checkpointer=checkpointer,
-            effort_prefix=effort_prefix,
-            role_suffix="browser_agent_brain",
-            loop_context=loop_context,
-            model=model,
-            backend=backend,
-            permissions=permissions,
-        )
-    )
-    browser = create_loop_deep_agent(
+    browser = create_deep_agent_with_brain(
         LoopDeepAgentConfig(
             name="Browser Agent",
             responsibility=browser_responsibility,
@@ -129,33 +120,12 @@ def build_company_finder_stack(
             model=model,
             backend=backend,
             permissions=permissions,
-            subagents=[
-                wrap(
-                    "browser_agent_brain",
-                    "Recall and persist Browser Agent long-term memory.",
-                    browser_brain,
-                    "browser_agent_brain",
-                )
-            ],
+            brain_tools=brain_tools,
+            brain_responsibility=brain_responsibility,
+            wrap_subagent=wrap,
         )
     )
-    company_brain = create_loop_deep_agent(
-        LoopDeepAgentConfig(
-            name="Company Finder Brain",
-            responsibility=brain_responsibility,
-            tools=brain_tools,
-            middlewares=[],
-            store=store,
-            checkpointer=checkpointer,
-            effort_prefix=effort_prefix,
-            role_suffix="company_finder_brain",
-            loop_context=loop_context,
-            model=model,
-            backend=backend,
-            permissions=permissions,
-        )
-    )
-    company_finder = create_loop_deep_agent(
+    company_finder = create_deep_agent_with_brain(
         LoopDeepAgentConfig(
             name="Company Finder",
             responsibility=company_responsibility,
@@ -169,6 +139,9 @@ def build_company_finder_stack(
             model=model,
             backend=backend,
             permissions=permissions,
+            brain_tools=brain_tools,
+            brain_responsibility=brain_responsibility,
+            wrap_subagent=wrap,
             subagents=[
                 wrap(
                     "browser_agent",
@@ -176,19 +149,12 @@ def build_company_finder_stack(
                     browser,
                     "browser_agent",
                 ),
-                wrap(
-                    "company_finder_brain",
-                    "Recall and persist Company Finder long-term memory.",
-                    company_brain,
-                    "company_finder_brain",
-                ),
             ],
         )
     )
     return CompanyFinderStack(
         company_finder=company_finder,
         browser=browser,
-        brain=company_brain,
         effort_prefix=effort_prefix,
     )
 
@@ -220,23 +186,7 @@ def build_contact_finder_stack(
     browser_responsibility = _render_browser_responsibility()
     brain_responsibility = _render_brain_responsibility()
 
-    browser_brain = create_loop_deep_agent(
-        LoopDeepAgentConfig(
-            name="Browser Agent Brain",
-            responsibility=brain_responsibility,
-            tools=brain_tools,
-            middlewares=[],
-            store=store,
-            checkpointer=checkpointer,
-            effort_prefix=effort_prefix,
-            role_suffix="browser_agent_brain",
-            loop_context=loop_context,
-            model=model,
-            backend=backend,
-            permissions=permissions,
-        )
-    )
-    browser = create_loop_deep_agent(
+    browser = create_deep_agent_with_brain(
         LoopDeepAgentConfig(
             name="Browser Agent",
             responsibility=browser_responsibility,
@@ -250,33 +200,12 @@ def build_contact_finder_stack(
             model=model,
             backend=backend,
             permissions=permissions,
-            subagents=[
-                wrap(
-                    "browser_agent_brain",
-                    "Recall and persist Browser Agent long-term memory.",
-                    browser_brain,
-                    "browser_agent_brain",
-                )
-            ],
+            brain_tools=brain_tools,
+            brain_responsibility=brain_responsibility,
+            wrap_subagent=wrap,
         )
     )
-    contact_brain = create_loop_deep_agent(
-        LoopDeepAgentConfig(
-            name="Contact Finder Brain",
-            responsibility=brain_responsibility,
-            tools=brain_tools,
-            middlewares=[],
-            store=store,
-            checkpointer=checkpointer,
-            effort_prefix=effort_prefix,
-            role_suffix="contact_finder_brain",
-            loop_context=loop_context,
-            model=model,
-            backend=backend,
-            permissions=permissions,
-        )
-    )
-    contact_finder = create_loop_deep_agent(
+    contact_finder = create_deep_agent_with_brain(
         LoopDeepAgentConfig(
             name="Contact Finder",
             responsibility=contact_responsibility,
@@ -290,6 +219,9 @@ def build_contact_finder_stack(
             model=model,
             backend=backend,
             permissions=permissions,
+            brain_tools=brain_tools,
+            brain_responsibility=brain_responsibility,
+            wrap_subagent=wrap,
             subagents=[
                 wrap(
                     "browser_agent",
@@ -297,19 +229,12 @@ def build_contact_finder_stack(
                     browser,
                     "browser_agent",
                 ),
-                wrap(
-                    "contact_finder_brain",
-                    "Recall and persist Contact Finder long-term memory.",
-                    contact_brain,
-                    "contact_finder_brain",
-                ),
             ],
         )
     )
     return ContactFinderStack(
         contact_finder=contact_finder,
         browser=browser,
-        brain=contact_brain,
         effort_prefix=effort_prefix,
         company_id=company_id,
     )

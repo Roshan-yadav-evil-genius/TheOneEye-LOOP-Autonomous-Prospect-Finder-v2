@@ -44,21 +44,21 @@ def build_contact_effort_prefix(
     )
 
 
-def allocate_gpa_thread_id(parent_role_thread: str, existing_thread_ids: list[str]) -> str:
-    """Allocate next GPA id; callers must supply a concurrency-safe existing id list."""
-    pattern = re.compile(rf"^{re.escape(parent_role_thread)}_GPA_(\d+)$")
+def allocate_incremental_thread_id(parent_role_thread: str, existing_thread_ids: list[str], suffix: str) -> str:
+    """Allocate next incremental id; callers must supply a concurrency-safe existing id list."""
+    pattern = re.compile(rf"^{re.escape(parent_role_thread)}_{re.escape(suffix)}_(\d+)$")
     numbers = [
         int(match.group(1)) for value in existing_thread_ids if (match := pattern.match(value))
     ]
-    # Never skip past a still-running GPA: callers must include running ids in existing.
-    return f"{parent_role_thread}_GPA_{max(numbers, default=0) + 1}"
+    # Never skip past a still-running agent: callers must include running ids in existing.
+    return f"{parent_role_thread}_{suffix}_{max(numbers, default=0) + 1}"
 
 
-def collect_gpa_thread_ids(
-    parent_role_thread: str, active_subagent_threads: dict[str, Any]
+def collect_incremental_thread_ids(
+    parent_role_thread: str, active_subagent_threads: dict[str, Any], suffix: str
 ) -> list[str]:
-    """Gather GPA thread ids from durable parent state for max+1 allocation."""
-    pattern = re.compile(rf"^{re.escape(parent_role_thread)}_GPA_\d+$")
+    """Gather incremental thread ids from durable parent state for max+1 allocation."""
+    pattern = re.compile(rf"^{re.escape(parent_role_thread)}_{re.escape(suffix)}_\d+$")
     found: list[str] = []
     for item in (active_subagent_threads or {}).values():
         thread_id = str(item.get("thread_id") or "")
@@ -109,6 +109,10 @@ class LoopDeepAgentConfig:
     subagents: Sequence[SubAgent | CompiledSubAgent | AsyncSubAgent] | None = None
     backend: BackendProtocol | BackendFactory | None = None
     permissions: list[FilesystemPermission] | None = None
+    brain_tools: Sequence[BaseTool] | None = None
+    brain_responsibility: str | None = None
+    wrap_subagent: Any | None = None
+    brain_persistent: bool = True
 
 
 @dataclass
@@ -124,7 +128,7 @@ def assemble_system_prompt(*, name: str, responsibility: str) -> str:
     return f"You are {name}.\n{responsibility}".strip()
 
 
-def create_loop_deep_agent(config: LoopDeepAgentConfig) -> Any:
+def create_deep_agent_with_brain(config: LoopDeepAgentConfig) -> Any:
     """Build either a ConfiguredAgent plan (no model) or a compiled deepagents graph."""
     system_prompt = assemble_system_prompt(
         name=config.name, responsibility=config.responsibility
@@ -134,12 +138,71 @@ def create_loop_deep_agent(config: LoopDeepAgentConfig) -> Any:
     )
     if config.model is None:
         return ConfiguredAgent(config=config, thread_id=thread_id, system_prompt=system_prompt)
+    subagents_list = list(config.subagents) if config.subagents else []
+    wrap = config.wrap_subagent if config.wrap_subagent is not None else lambda n, d, c, rs, mode="incremental": c
+    
+    is_internal = config.role_suffix.endswith("_brain") or config.role_suffix.endswith("_gpa")
+    
+    if not is_internal and config.brain_tools is not None and config.brain_responsibility is not None:
+        brain_mode = "role" if config.brain_persistent else "incremental"
+        brain_config = LoopDeepAgentConfig(
+            name=f"{config.name} Brain",
+            responsibility=config.brain_responsibility,
+            tools=config.brain_tools,
+            middlewares=[],
+            store=config.store,
+            checkpointer=config.checkpointer,
+            effort_prefix=config.effort_prefix,
+            role_suffix=f"{config.role_suffix}_brain",
+            loop_context=config.loop_context,
+            model=config.model,
+            backend=config.backend,
+            permissions=config.permissions,
+        )
+        brain_agent = create_deep_agent_with_brain(brain_config)
+        subagents_list.append(
+            wrap(
+                f"{config.role_suffix}_brain",
+                f"Recall and persist {config.name} long-term memory.",
+                brain_agent,
+                f"{config.role_suffix}_brain",
+                brain_mode,
+            )
+        )
+        
+    if not is_internal:
+        gpa_config = LoopDeepAgentConfig(
+            name="General Purpose Agent",
+            responsibility="You are a general-purpose delegate agent responsible for context management and tool execution on behalf of the main agent.",
+            tools=config.tools,
+            middlewares=config.middlewares,
+            subagents=list(subagents_list),
+            store=config.store,
+            checkpointer=config.checkpointer,
+            effort_prefix=config.effort_prefix,
+            role_suffix=f"{config.role_suffix}_gpa",
+            loop_context=config.loop_context,
+            model=config.model,
+            backend=config.backend,
+            permissions=config.permissions,
+        )
+        gpa_agent = create_deep_agent_with_brain(gpa_config)
+        subagents_list.append(
+            wrap(
+                "general-purpose",
+                "General purpose task delegation.",
+                gpa_agent,
+                f"{config.role_suffix}_gpa",
+                "incremental",
+            )
+        )
+
     kwargs: dict[str, Any] = {
         "model": config.model,
         "tools": config.tools,
         "system_prompt": system_prompt,
         "middleware": tuple(config.middlewares),
-        "subagents": config.subagents,
+        "subagents": subagents_list,
         "checkpointer": config.checkpointer,
         "store": config.store,
         "name": config.name,

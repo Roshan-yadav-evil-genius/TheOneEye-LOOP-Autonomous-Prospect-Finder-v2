@@ -126,8 +126,7 @@ async def company_finder_agent_scope(
     )
     bundle = (await LoopService(session).bundle(strategy_id)).model_dump(mode="json")
 
-    def wrap(name: str, description: str, child: Any, role_suffix: str) -> Any:
-        mode = "gpa" if role_suffix.endswith("_gpa") else "role"
+    def wrap(name: str, description: str, child: Any, role_suffix: str, allocation_mode: str = "incremental") -> Any:
         return _child_subagent(
             name=name,
             description=description,
@@ -138,7 +137,7 @@ async def company_finder_agent_scope(
             list_existing=list_existing,
             load_state=load_state,
             save_state=save_state,
-            allocation_mode=mode,
+            allocation_mode=allocation_mode,
         )
 
     async with checkpoint_scope() as checkpointer, _browser_client().session(
@@ -194,8 +193,7 @@ async def contact_finder_agent_scope(
         mode="json"
     )
 
-    def wrap(name: str, description: str, child: Any, role_suffix: str) -> Any:
-        mode = "gpa" if role_suffix.endswith("_gpa") else "role"
+    def wrap(name: str, description: str, child: Any, role_suffix: str, allocation_mode: str = "incremental") -> Any:
         return _child_subagent(
             name=name,
             description=description,
@@ -206,7 +204,7 @@ async def contact_finder_agent_scope(
             list_existing=list_existing,
             load_state=load_state,
             save_state=save_state,
-            allocation_mode=mode,
+            allocation_mode=allocation_mode,
         )
 
     async with checkpoint_scope() as checkpointer, _browser_client().session(

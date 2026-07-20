@@ -49,23 +49,23 @@ def resolve_compiled_child_thread_id(
     if current and current.get("status") == "running" and current.get("thread_id"):
         return str(current["thread_id"]), parent_state
 
-    if allocation_mode == "gpa":
-        if not parent_role_thread:
-            raise ValueError("parent_role_thread is required for GPA allocation")
-        from agents.runtime import allocate_gpa_thread_id, collect_gpa_thread_ids
+    if allocation_mode == "incremental":
+        if not parent_role_thread or not child_suffix:
+            raise ValueError("parent_role_thread and child_suffix are required for incremental allocation")
+        from agents.runtime import allocate_incremental_thread_id, collect_incremental_thread_ids
 
-        # Never allocate a new GPA while any GPA entry is still running.
+        # Never allocate a new thread while any entry for this suffix is still running.
         for item in active.values():
             thread_id_candidate = str(item.get("thread_id") or "")
             if (
                 item.get("status") == "running"
-                and thread_id_candidate.startswith(f"{parent_role_thread}_GPA_")
+                and thread_id_candidate.startswith(f"{parent_role_thread}_{child_suffix}_")
             ):
                 return thread_id_candidate, parent_state
-        known = collect_gpa_thread_ids(parent_role_thread, active) + list(
+        known = collect_incremental_thread_ids(parent_role_thread, active, child_suffix) + list(
             existing_thread_ids or []
         )
-        thread_id = allocate_gpa_thread_id(parent_role_thread, known)
+        thread_id = allocate_incremental_thread_id(parent_role_thread, known, child_suffix)
     elif allocation_mode == "role":
         if not role_suffix:
             raise ValueError("role_suffix is required for role allocation")
@@ -177,6 +177,7 @@ def to_checkpointed_compiled_subagent(
             role_suffix=role_suffix,
             parent_role_thread=parent_role_thread or parent_thread,
             existing_thread_ids=existing,
+            child_suffix=role_suffix,
         )
         if save_parent_state and parent_thread:
             save_parent_state(parent_thread, next_state)

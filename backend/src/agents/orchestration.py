@@ -208,6 +208,7 @@ class CompanyFinderEffort:
                     async with company_finder_agent_scope(
                         self.session, strategy_id, prefix, lease_owner=prefix
                     ) as (graph, config, parent_store):
+                        print(f"Invoking company finder agent with config: {config}")
                         result = await run_cancellable(
                             strategy_id,
                             "company-finder",
