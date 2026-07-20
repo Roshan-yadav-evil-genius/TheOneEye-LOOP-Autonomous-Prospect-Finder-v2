@@ -6,6 +6,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from langchain_core.language_models import BaseLanguageModel
+
 from agents.prompt_context import (
     browser_prompt_values,
     brain_prompt_values,
@@ -79,7 +81,7 @@ def build_company_finder_stack(
     brain_tools: list[Any],
     checkpointer: Any,
     store: Any = None,
-    model: Any = None,
+    model: BaseLanguageModel | None = None,
     company_middlewares: list[Any] | None = None,
     browser_middlewares: list[Any] | None = None,
     wrap_subagent: WrapSubagent | None = None,
@@ -203,7 +205,7 @@ def build_contact_finder_stack(
     brain_tools: list[Any],
     checkpointer: Any,
     store: Any = None,
-    model: Any = None,
+    model: BaseLanguageModel | None = None,
     contact_middlewares: list[Any] | None = None,
     browser_middlewares: list[Any] | None = None,
     wrap_subagent: WrapSubagent | None = None,
