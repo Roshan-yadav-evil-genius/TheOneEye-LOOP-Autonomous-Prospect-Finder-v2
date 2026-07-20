@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import BaseMessage, ToolMessage
 
 BROWSER_SNAPSHOT_TOOL = "browser_snapshot"
@@ -66,11 +67,10 @@ def compact_stale_browser_snapshots(messages: list[BaseMessage]) -> list[ToolMes
     return updates
 
 
-class BrowserSnapshotCompactionMiddleware:
+class BrowserSnapshotCompactionMiddleware(AgentMiddleware):
     """Best-effort middleware shim compatible with deepagents middleware hooks."""
 
-    def __init__(self) -> None:
-        self.name = "browser_snapshot_compaction"
+    name: str = "browser_snapshot_compaction"
 
     def before_model(self, state: dict[str, Any], _runtime: Any = None) -> dict[str, Any] | None:
         messages = list(state.get("messages") or [])

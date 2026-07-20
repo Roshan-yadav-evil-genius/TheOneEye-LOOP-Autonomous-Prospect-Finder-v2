@@ -46,19 +46,28 @@ class LangChainDiscoveryModel:
         return value
 
 
+def _harness_profile_key(provider: str, model_name: str) -> str:
+    """Build a deepagents profile key that never exceeds one ':'."""
+    # Ollama tags like qwen3.5:4b already contain ':'; do not prepend provider.
+    if ":" in model_name:
+        return model_name
+    return f"{provider}:{model_name}"
+
+
 def resolve_chat_model(settings: Settings | None = None) -> BaseChatModel:
     config = settings or get_settings()
+    model: BaseChatModel
     if config.model_provider == "openai":
         if not config.model_api_key:
             raise RuntimeError("LOOP_MODEL_API_KEY is required for the OpenAI provider.")
         log.info("resolve_chat_model", provider="openai", model=config.model_name)
-        return ChatOpenAI(
+        model = ChatOpenAI(
             model=config.model_name,
             api_key=SecretStr(config.model_api_key),
             base_url=config.model_base_url or None,
             model_kwargs={"parallel_tool_calls": False},
         )
-    if config.model_provider == "ollama":
+    elif config.model_provider == "ollama":
         base_url = config.model_base_url or "http://127.0.0.1:11434"
         log.info(
             "resolve_chat_model",
@@ -66,11 +75,28 @@ def resolve_chat_model(settings: Settings | None = None) -> BaseChatModel:
             model=config.model_name,
             base_url=base_url,
         )
-        return ChatOllama(
+        model = ChatOllama(
             model=config.model_name,
             base_url=base_url,
         )
-    raise RuntimeError("The deterministic provider has no live BaseChatModel.")
+    else:
+        raise RuntimeError("The deterministic provider has no live BaseChatModel.")
+
+    # Exclude the default deepagents SummarizationMiddleware so we can use our own custom keep config
+    import dataclasses
+    from deepagents import register_harness_profile
+    from deepagents.profiles.harness.harness_profiles import _harness_profile_for_model
+
+    base_profile = _harness_profile_for_model(model, None)
+    new_profile = dataclasses.replace(
+        base_profile,
+        excluded_middleware=base_profile.excluded_middleware | {"SummarizationMiddleware"},
+    )
+    key = _harness_profile_key(config.model_provider, config.model_name)
+    register_harness_profile(key, new_profile)
+    register_harness_profile(config.model_provider, new_profile)
+
+    return model
 
 
 def resolve_discovery_model(settings: Settings | None = None) -> DiscoveryModel:

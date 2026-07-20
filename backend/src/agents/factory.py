@@ -7,6 +7,10 @@ from langchain_mcp_adapters.tools import load_mcp_tools
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents.checkpoint_runtime import checkpoint_scope
+from agents.filesystem_backend import (
+    default_filesystem_backend,
+    default_filesystem_permissions,
+)
 from agents.middlewares import browser_middlewares, orchestrator_middlewares
 from agents.model_provider import resolve_chat_model
 from agents.nested_checkpointing import to_checkpointed_compiled_subagent
@@ -31,12 +35,6 @@ from core.config import get_settings
 from observability.logging import get_logger
 
 log = get_logger("loop.factory")
-
-
-def _default_backend() -> Any:
-    from deepagents.backends import StateBackend
-
-    return StateBackend
 
 
 def _config(thread_id: str) -> dict[str, dict[str, str]]:
@@ -168,7 +166,8 @@ async def company_finder_agent_scope(
             company_middlewares=orchestrator_middlewares(),
             browser_middlewares=browser_middlewares(),
             wrap_subagent=wrap,
-            backend=_default_backend(),
+            backend=default_filesystem_backend(),
+            permissions=default_filesystem_permissions(),
             strategy_bundle=bundle,
         )
         try:
@@ -244,7 +243,8 @@ async def contact_finder_agent_scope(
             contact_middlewares=orchestrator_middlewares(),
             browser_middlewares=browser_middlewares(),
             wrap_subagent=wrap,
-            backend=_default_backend(),
+            backend=default_filesystem_backend(),
+            permissions=default_filesystem_permissions(),
             strategy_bundle=bundle,
             company_payload=company_payload,
         )

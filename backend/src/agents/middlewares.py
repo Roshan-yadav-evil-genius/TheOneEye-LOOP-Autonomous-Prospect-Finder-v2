@@ -24,15 +24,15 @@ def _optional_summarization(*, keep_messages: int) -> list[Any]:
     if get_settings().model_provider == "deterministic":
         return []
     try:
-        from deepagents.backends import StateBackend
         from deepagents.middleware import SummarizationMiddleware
 
+        from agents.filesystem_backend import default_filesystem_backend
         from agents.model_provider import resolve_chat_model
 
         return [
             SummarizationMiddleware(
                 model=resolve_chat_model(),
-                backend=StateBackend,
+                backend=default_filesystem_backend(),
                 keep=("messages", keep_messages),
             )
         ]
