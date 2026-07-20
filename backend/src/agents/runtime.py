@@ -3,12 +3,23 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from deepagents import create_deep_agent
+from deepagents import (
+    AsyncSubAgent,
+    CompiledSubAgent,
+    FilesystemPermission,
+    SubAgent,
+    create_deep_agent,
+)
+from deepagents.backends.protocol import BackendFactory, BackendProtocol
+from langchain.agents.middleware import AgentMiddleware
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.store.base import BaseStore
 
 
 def build_role_thread_id(*, effort_prefix: str, role_suffix: str) -> str:
@@ -87,17 +98,17 @@ class LoopAgentToolContext:
 class LoopDeepAgentConfig:
     name: str
     responsibility: str
-    tools: list[Any]
-    middlewares: list[Any]
-    store: Any
-    checkpointer: Any
+    tools: Sequence[BaseTool]
+    middlewares: Sequence[AgentMiddleware]
+    store: BaseStore | None
+    checkpointer: BaseCheckpointSaver
     effort_prefix: str
     role_suffix: str
     loop_context: LoopAgentToolContext
-    model: Any = None
-    subagents: list[Any] = field(default_factory=list)
-    backend: Any = None
-    permissions: list[Any] | None = None
+    model: BaseChatModel | None = None
+    subagents: Sequence[SubAgent | CompiledSubAgent | AsyncSubAgent] | None = None
+    backend: BackendProtocol | BackendFactory | None = None
+    permissions: list[FilesystemPermission] | None = None
 
 
 @dataclass
@@ -143,14 +154,14 @@ def create_loop_deep_agent(config: LoopDeepAgentConfig) -> Any:
 def build_loop_agent_graph(
     *,
     model: BaseChatModel,
-    tools: list[BaseTool],
+    tools: Sequence[BaseTool],
     system_prompt: str,
-    checkpointer: Any,
-    store: Any | None = None,
-    subagents: list[Any] | None = None,
-    middleware: list[Any] | None = None,
-    backend: Any = None,
-    permissions: list[Any] | None = None,
+    checkpointer: BaseCheckpointSaver,
+    store: BaseStore | None = None,
+    subagents: Sequence[SubAgent | CompiledSubAgent | AsyncSubAgent] | None = None,
+    middleware: Sequence[AgentMiddleware] | None = None,
+    backend: BackendProtocol | BackendFactory | None = None,
+    permissions: list[FilesystemPermission] | None = None,
     name: str | None = None,
 ) -> Any:
     """Build a real deepagents graph; callers own PostgreSQL checkpoint resources."""
@@ -205,10 +216,3 @@ BROWSER_TOOLS = {
 }
 
 
-def validate_registration_authority(role_suffix: str, tool_names: set[str]) -> None:
-    if role_suffix == "browser_agent" and {"register_company", "register_contact"} & tool_names:
-        raise ValueError("Browser agents may not receive registration tools.")
-    if role_suffix == "company_finder" and "register_contact" in tool_names:
-        raise ValueError("Company Finder may not register contacts.")
-    if role_suffix == "contact_finder" and "register_company" in tool_names:
-        raise ValueError("Contact Finder may not register companies.")

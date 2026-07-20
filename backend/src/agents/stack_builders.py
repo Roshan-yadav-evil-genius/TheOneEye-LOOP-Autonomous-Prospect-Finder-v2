@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 from langchain_core.language_models import BaseLanguageModel
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.store.base import BaseStore
+from deepagents import FilesystemPermission
+from deepagents.backends.protocol import BackendFactory, BackendProtocol
+from langchain.agents.middleware import AgentMiddleware
+from langchain_core.tools import BaseTool
 
 from agents.prompt_context import (
     browser_prompt_values,
@@ -25,7 +31,6 @@ from agents.runtime import (
     LoopAgentToolContext,
     LoopDeepAgentConfig,
     create_loop_deep_agent,
-    validate_registration_authority,
 )
 
 WrapSubagent = Callable[[str, str, Any, str], Any]
@@ -71,31 +76,24 @@ def _render_browser_responsibility() -> str:
 def _render_brain_responsibility() -> str:
     return render_prompt(BRAIN_AGENT_PROMPT, brain_prompt_values())
 
-
 def build_company_finder_stack(
     *,
     effort_prefix: str,
     loop_context: LoopAgentToolContext,
-    company_tools: list[Any],
-    browser_tools: list[Any],
-    brain_tools: list[Any],
-    checkpointer: Any,
-    store: Any = None,
+    company_tools: Sequence[BaseTool],
+    browser_tools: Sequence[BaseTool],
+    brain_tools: Sequence[BaseTool],
+    checkpointer: BaseCheckpointSaver,
+    store: BaseStore | None = None,
     model: BaseLanguageModel | None = None,
-    company_middlewares: list[Any] | None = None,
-    browser_middlewares: list[Any] | None = None,
+    company_middlewares: Sequence[AgentMiddleware] | None = None,
+    browser_middlewares: Sequence[AgentMiddleware] | None = None,
     wrap_subagent: WrapSubagent | None = None,
-    backend: Any = None,
-    permissions: list[Any] | None = None,
+    backend: BackendProtocol | BackendFactory | None = None,
+    permissions: list[FilesystemPermission] | None = None,
     strategy_bundle: dict[str, Any] | None = None,
 ) -> CompanyFinderStack:
     """Compose Browser + Brain under Company Finder with registration authority checks."""
-    validate_registration_authority(
-        "browser_agent", {getattr(tool, "name", str(tool)) for tool in browser_tools}
-    )
-    validate_registration_authority(
-        "company_finder", {getattr(tool, "name", str(tool)) for tool in company_tools}
-    )
     wrap = wrap_subagent or _passthrough_wrap
     company_responsibility = _render_company_responsibility(strategy_bundle)
     browser_responsibility = _render_browser_responsibility()
@@ -200,27 +198,21 @@ def build_contact_finder_stack(
     effort_prefix: str,
     company_id: str,
     loop_context: LoopAgentToolContext,
-    contact_tools: list[Any],
-    browser_tools: list[Any],
-    brain_tools: list[Any],
-    checkpointer: Any,
-    store: Any = None,
+    contact_tools: Sequence[BaseTool],
+    browser_tools: Sequence[BaseTool],
+    brain_tools: Sequence[BaseTool],
+    checkpointer: BaseCheckpointSaver,
+    store: BaseStore | None = None,
     model: BaseLanguageModel | None = None,
-    contact_middlewares: list[Any] | None = None,
-    browser_middlewares: list[Any] | None = None,
+    contact_middlewares: Sequence[AgentMiddleware] | None = None,
+    browser_middlewares: Sequence[AgentMiddleware] | None = None,
     wrap_subagent: WrapSubagent | None = None,
-    backend: Any = None,
-    permissions: list[Any] | None = None,
+    backend: BackendProtocol | BackendFactory | None = None,
+    permissions: list[FilesystemPermission] | None = None,
     strategy_bundle: dict[str, Any] | None = None,
     company_payload: dict[str, Any] | None = None,
 ) -> ContactFinderStack:
     """Compose Browser + Brain under Contact Finder for one validated company."""
-    validate_registration_authority(
-        "browser_agent", {getattr(tool, "name", str(tool)) for tool in browser_tools}
-    )
-    validate_registration_authority(
-        "contact_finder", {getattr(tool, "name", str(tool)) for tool in contact_tools}
-    )
     if loop_context.company_id != company_id:
         raise ValueError("Contact Finder stack requires loop_context.company_id == company_id")
     wrap = wrap_subagent or _passthrough_wrap
