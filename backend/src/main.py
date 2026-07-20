@@ -34,7 +34,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    configure_logging(json_logs=settings.env in {"staging", "production"})
+    configure_logging(
+        json_logs=settings.env in {"staging", "production"},
+        level=settings.log_level,
+        log_dir=settings.resolved_log_dir,
+        log_file_name=settings.log_file_name,
+    )
     configure_tracing()
     app = FastAPI(
         title="LOOP API",

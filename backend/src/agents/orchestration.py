@@ -27,8 +27,11 @@ from contracts.domain import (
     RegisterContactRequest,
 )
 from core.config import get_settings
+from observability.logging import get_logger
 from observability.telemetry import AGENT_EFFORTS
 from persistence import models
+
+log = get_logger("loop.orchestration")
 
 
 async def _process_state(
@@ -138,10 +141,18 @@ class CompanyFinderEffort:
         self.model = model
 
     async def execute(self, strategy_id: str) -> models.AgentRun | None:
+        log.info("company_finder.execute.enter", strategy_id=strategy_id)
         service = LoopService(self.session)
         bundle = await service.bundle(strategy_id)
         strategy = await service.get_strategy(strategy_id)
-        if await service.companies_registered(strategy_id) >= strategy.target_companies:
+        registered = await service.companies_registered(strategy_id)
+        if registered >= strategy.target_companies:
+            log.info(
+                "company_finder.target_reached",
+                strategy_id=strategy_id,
+                registered=registered,
+                target=strategy.target_companies,
+            )
             state = await _process_state(self.session, strategy_id, "company-finder")
             if state:
                 state.desired_state = state.actual_state = "stopped"
@@ -163,6 +174,13 @@ class CompanyFinderEffort:
             bundle.organization.id, strategy.product_id, strategy.id, strategy.company_effort_seq
         )
         thread_id = build_role_thread_id(effort_prefix=prefix, role_suffix="company_finder")
+        log.info(
+            "company_finder.effort_prepared",
+            strategy_id=strategy_id,
+            effort_prefix=prefix,
+            thread_id=thread_id,
+            attempt=strategy.company_effort_seq,
+        )
         run = models.AgentRun(
             product_id=strategy.product_id,
             sales_strategy_id=strategy.id,
@@ -198,17 +216,36 @@ class CompanyFinderEffort:
                 "instruction": "Return one JSON company decision or action=no_candidate.",
             }
         )
+        provider = get_settings().model_provider
         try:
             if is_cancel_requested(strategy_id, "company-finder"):
+                log.info("company_finder.cancelled_before_start", strategy_id=strategy_id)
                 raise asyncio.CancelledError("company-finder cancelled before start")
-            if get_settings().model_provider != "deterministic":
+            log.info(
+                "company_finder.provider_branch",
+                strategy_id=strategy_id,
+                model_provider=provider,
+            )
+            if provider != "deterministic":
                 pool = BrowserPool(self.session)
+                log.info("company_finder.browser_lease_acquire", strategy_id=strategy_id, effort_prefix=prefix)
                 lease = await pool.acquire(prefix)
                 try:
+                    log.info(
+                        "company_finder.agent_scope_enter",
+                        strategy_id=strategy_id,
+                        effort_prefix=prefix,
+                    )
                     async with company_finder_agent_scope(
                         self.session, strategy_id, prefix, lease_owner=prefix
                     ) as (graph, config, parent_store):
-                        print(f"Invoking company finder agent with config: {config}")
+                        thread = (config.get("configurable") or {}).get("thread_id")
+                        log.info(
+                            "company_finder.ainvoke.start",
+                            strategy_id=strategy_id,
+                            thread_id=thread,
+                            config=config,
+                        )
                         result = await run_cancellable(
                             strategy_id,
                             "company-finder",
@@ -217,13 +254,24 @@ class CompanyFinderEffort:
                                 config,
                             ),
                         )
+                        log.info(
+                            "company_finder.ainvoke.done",
+                            strategy_id=strategy_id,
+                            thread_id=thread,
+                        )
                         await _reconcile_company_run(
                             self.session, run, thread_id, parent_store.sync_load(thread_id)
                         )
                         apply_usage(run, _usage_from_result(result))
                 finally:
                     await pool.release(lease.id, prefix)
+                    log.info(
+                        "company_finder.browser_lease_release",
+                        strategy_id=strategy_id,
+                        effort_prefix=prefix,
+                    )
             else:
+                log.info("company_finder.deterministic_decide", strategy_id=strategy_id)
                 decision = await self.model.decide(prompt)
                 if decision.get("action") == "register_company":
                     result = await service.register_company(
@@ -252,7 +300,13 @@ class CompanyFinderEffort:
                 if await service.companies_registered(strategy_id) >= strategy.target_companies:
                     state.actual_state = state.desired_state = "stopped"
             await self.session.commit()
+            log.info(
+                "company_finder.execute.completed",
+                strategy_id=strategy_id,
+                effort_prefix=prefix,
+            )
         except asyncio.CancelledError:
+            log.info("company_finder.execute.stopped", strategy_id=strategy_id, effort_prefix=prefix)
             run.status = "stopped"
             run.completed_at = utcnow()
             AGENT_EFFORTS.labels("company-finder", "stopped").inc()
@@ -272,6 +326,12 @@ class CompanyFinderEffort:
             await self.session.commit()
             return run
         except Exception as exc:
+            log.exception(
+                "company_finder.execute.failed",
+                strategy_id=strategy_id,
+                effort_prefix=prefix,
+                error=str(exc),
+            )
             AGENT_EFFORTS.labels("company-finder", "failed").inc()
             run.status = "failed"
             run.completed_at = utcnow()
@@ -337,6 +397,7 @@ class ContactFinderEffort:
         raise DomainError("contact_queue_empty", "No validated company has open contact quota.")
 
     async def execute(self, strategy_id: str) -> models.AgentRun | None:
+        log.info("contact_finder.execute.enter", strategy_id=strategy_id)
         service = LoopService(self.session)
         strategy = await service.get_strategy(strategy_id)
         try:
@@ -345,6 +406,7 @@ class ContactFinderEffort:
             if getattr(exc, "code", None) == "contact_queue_empty" or "contact_queue_empty" in str(
                 exc
             ):
+                log.info("contact_finder.queue_empty", strategy_id=strategy_id)
                 state = await _process_state(self.session, strategy_id, "contact-finder")
                 if state:
                     state.desired_state = state.actual_state = "stopped"
@@ -374,6 +436,13 @@ class ContactFinderEffort:
             company_link.contact_effort_seq,
         )
         thread_id = build_role_thread_id(effort_prefix=prefix, role_suffix="contact_finder")
+        log.info(
+            "contact_finder.effort_prepared",
+            strategy_id=strategy_id,
+            company_id=company_link.company_id,
+            effort_prefix=prefix,
+            thread_id=thread_id,
+        )
         run = models.AgentRun(
             product_id=strategy.product_id,
             sales_strategy_id=strategy.id,
@@ -414,6 +483,7 @@ class ContactFinderEffort:
                 "instruction": "Return register_contact, blacklist_prospect, or no_candidate JSON.",
             }
         )
+        provider = get_settings().model_provider
         try:
             # Abort if company was blacklisted while queued.
             await self.session.refresh(company_link)
@@ -423,11 +493,22 @@ class ContactFinderEffort:
                     "Active company was blacklisted; aborting contact effort.",
                 )
             if is_cancel_requested(strategy_id, "contact-finder"):
+                log.info("contact_finder.cancelled_before_start", strategy_id=strategy_id)
                 raise asyncio.CancelledError("contact-finder cancelled before start")
-            if get_settings().model_provider != "deterministic":
+            log.info(
+                "contact_finder.provider_branch",
+                strategy_id=strategy_id,
+                model_provider=provider,
+            )
+            if provider != "deterministic":
                 pool = BrowserPool(self.session)
                 lease = await pool.acquire(prefix)
                 try:
+                    log.info(
+                        "contact_finder.agent_scope_enter",
+                        strategy_id=strategy_id,
+                        effort_prefix=prefix,
+                    )
                     async with contact_finder_agent_scope(
                         self.session,
                         strategy_id,
@@ -435,6 +516,12 @@ class ContactFinderEffort:
                         prefix,
                         lease_owner=prefix,
                     ) as (graph, config, parent_store):
+                        thread = (config.get("configurable") or {}).get("thread_id")
+                        log.info(
+                            "contact_finder.ainvoke.start",
+                            strategy_id=strategy_id,
+                            thread_id=thread,
+                        )
                         result = await run_cancellable(
                             strategy_id,
                             "contact-finder",
@@ -442,6 +529,11 @@ class ContactFinderEffort:
                                 {"messages": [{"role": "user", "content": prompt}]},
                                 config,
                             ),
+                        )
+                        log.info(
+                            "contact_finder.ainvoke.done",
+                            strategy_id=strategy_id,
+                            thread_id=thread,
                         )
                         await _reconcile_contact_run(
                             self.session, run, thread_id, parent_store.sync_load(thread_id)
@@ -496,7 +588,13 @@ class ContactFinderEffort:
                     state.desired_state = state.actual_state = "stopped"
                     state.active_company_id = None
             await self.session.commit()
+            log.info(
+                "contact_finder.execute.completed",
+                strategy_id=strategy_id,
+                effort_prefix=prefix,
+            )
         except asyncio.CancelledError:
+            log.info("contact_finder.execute.stopped", strategy_id=strategy_id, effort_prefix=prefix)
             run.status = "stopped"
             run.completed_at = utcnow()
             AGENT_EFFORTS.labels("contact-finder", "stopped").inc()
@@ -517,6 +615,12 @@ class ContactFinderEffort:
             await self.session.commit()
             return run
         except Exception as exc:
+            log.exception(
+                "contact_finder.execute.failed",
+                strategy_id=strategy_id,
+                effort_prefix=prefix,
+                error=str(exc),
+            )
             AGENT_EFFORTS.labels("contact-finder", "failed").inc()
             run.status = "failed"
             run.completed_at = utcnow()

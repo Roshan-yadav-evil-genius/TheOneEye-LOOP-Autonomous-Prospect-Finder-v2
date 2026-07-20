@@ -10,6 +10,7 @@ from agents.model_provider import resolve_discovery_model
 from agents.orchestration import CompanyFinderEffort, ContactFinderEffort
 from application.loop_service import utcnow
 from core.config import get_settings
+from observability.logging import configure_logging, get_logger
 from persistence import models
 from persistence.database import SessionFactory, create_schema
 from workers.consumers import EventConsumer, StreamEventConsumer, reconcile_progress
@@ -17,6 +18,17 @@ from workers.jobs import JobRegistry, JobService, Scheduler
 from workers.outbox import OutboxPublisher
 
 app = typer.Typer(help="LOOP API, worker, scheduler, admin, and bootstrap CLI.")
+log = get_logger("loop.cli")
+
+
+def _configure_cli_logging(*, log_file_name: str) -> None:
+    settings = get_settings()
+    configure_logging(
+        json_logs=settings.env in {"staging", "production"},
+        level=settings.log_level,
+        log_dir=settings.resolved_log_dir,
+        log_file_name=log_file_name,
+    )
 
 
 def _registry(session: AsyncSession) -> JobRegistry:
@@ -30,14 +42,21 @@ def _registry(session: AsyncSession) -> JobRegistry:
             )
         )
         if state and state.desired_state == "running":
+            pacing = get_settings().agent_pacing_seconds
             session.add(
                 models.JobRun(
                     task_key=role,
                     payload={"sales_strategy_id": strategy_id},
-                    available_at=utcnow() + timedelta(seconds=get_settings().agent_pacing_seconds),
+                    available_at=utcnow() + timedelta(seconds=pacing),
                 )
             )
             await session.commit()
+            log.info(
+                "job_enqueued_next",
+                role=role,
+                strategy_id=strategy_id,
+                pacing_seconds=pacing,
+            )
 
     async def company(payload: dict[str, object]) -> None:
         strategy_id = str(payload["sales_strategy_id"])
@@ -48,8 +67,15 @@ def _registry(session: AsyncSession) -> JobRegistry:
             )
         )
         if not state or state.desired_state != "running":
+            log.info(
+                "company_finder_job_skipped",
+                strategy_id=strategy_id,
+                desired_state=getattr(state, "desired_state", None),
+            )
             return
+        log.info("company_finder_job_start", strategy_id=strategy_id)
         await CompanyFinderEffort(session, resolve_discovery_model()).execute(strategy_id)
+        log.info("company_finder_job_done", strategy_id=strategy_id)
         await enqueue_next("company-finder", strategy_id)
 
     async def contact(payload: dict[str, object]) -> None:
@@ -61,8 +87,15 @@ def _registry(session: AsyncSession) -> JobRegistry:
             )
         )
         if not state or state.desired_state != "running":
+            log.info(
+                "contact_finder_job_skipped",
+                strategy_id=strategy_id,
+                desired_state=getattr(state, "desired_state", None),
+            )
             return
+        log.info("contact_finder_job_start", strategy_id=strategy_id)
         await ContactFinderEffort(session, resolve_discovery_model()).execute(strategy_id)
+        log.info("contact_finder_job_done", strategy_id=strategy_id)
         await enqueue_next("contact-finder", strategy_id)
 
     registry.register("company-finder", company)
@@ -79,6 +112,7 @@ def bootstrap() -> None:
 @app.command("worker-once")
 def worker_once() -> None:
     """Run one durable queued job and one outbox publish batch."""
+    _configure_cli_logging(log_file_name="loop-worker.log")
 
     async def run() -> None:
         async with SessionFactory() as session:
@@ -95,6 +129,8 @@ def worker_once() -> None:
 @app.command()
 def worker() -> None:
     """Run the durable worker loop until interrupted."""
+    _configure_cli_logging(log_file_name="loop-worker.log")
+    log.info("worker_loop_starting")
 
     async def run() -> None:
         stop = asyncio.Event()
@@ -107,6 +143,7 @@ def worker() -> None:
                 await asyncio.sleep(1)
         finally:
             await redis.aclose()
+            log.info("worker_loop_stopped")
 
     asyncio.run(run())
 
@@ -114,6 +151,7 @@ def worker() -> None:
 @app.command("scheduler-once")
 def scheduler_once() -> None:
     """Evaluate due schedules once."""
+    _configure_cli_logging(log_file_name="loop-scheduler.log")
 
     async def run() -> None:
         async with SessionFactory() as session:
@@ -126,6 +164,8 @@ def scheduler_once() -> None:
 @app.command()
 def scheduler() -> None:
     """Run the scheduler loop until interrupted."""
+    _configure_cli_logging(log_file_name="loop-scheduler.log")
+    log.info("scheduler_loop_starting")
 
     async def run() -> None:
         stop = asyncio.Event()

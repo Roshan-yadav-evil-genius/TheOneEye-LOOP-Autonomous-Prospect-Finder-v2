@@ -8,10 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.loop_service import DomainError, utcnow
 from core.config import get_settings
+from observability.logging import get_logger
 from observability.telemetry import DLQ_DEPTH, JOB_OUTCOMES
 from persistence import models
 
 JobHandler = Callable[[dict[str, Any]], Awaitable[None]]
+log = get_logger("loop.jobs")
 
 
 class JobRegistry:
@@ -54,20 +56,30 @@ class JobService:
         row.started_at = now
         row.attempts += 1
         await self.session.commit()
+        log.info(
+            "job_claimed",
+            job_id=row.id,
+            task_key=row.task_key,
+            attempt=row.attempts,
+            payload=row.payload,
+        )
         try:
             await self.registry.get(row.task_key)(row.payload)
             await self.session.refresh(row)
             if row.status == "cancelled":
                 JOB_OUTCOMES.labels(row.task_key, "cancelled").inc()
+                log.info("job_cancelled", job_id=row.id, task_key=row.task_key)
                 return row
             row.status = "completed"
             row.completed_at = utcnow()
             JOB_OUTCOMES.labels(row.task_key, "completed").inc()
+            log.info("job_completed", job_id=row.id, task_key=row.task_key)
         except asyncio.CancelledError:
             row.status = "cancelled"
             row.completed_at = utcnow()
             row.error = "cancelled"
             JOB_OUTCOMES.labels(row.task_key, "cancelled").inc()
+            log.warning("job_cancelled_error", job_id=row.id, task_key=row.task_key)
         except Exception as exc:
             settings = get_settings()
             row.error = str(exc)
@@ -84,11 +96,26 @@ class JobService:
                         payload=row.payload,
                     )
                 )
+                log.exception(
+                    "job_dead_letter",
+                    job_id=row.id,
+                    task_key=row.task_key,
+                    attempts=row.attempts,
+                    error=str(exc),
+                )
             else:
                 row.status = "retry"
                 JOB_OUTCOMES.labels(row.task_key, "retry").inc()
                 delay = settings.job_retry_base_seconds * (2 ** (row.attempts - 1))
                 row.available_at = utcnow() + timedelta(seconds=delay)
+                log.exception(
+                    "job_retry_scheduled",
+                    job_id=row.id,
+                    task_key=row.task_key,
+                    attempts=row.attempts,
+                    retry_in_seconds=delay,
+                    error=str(exc),
+                )
         await self.session.commit()
         return row
 

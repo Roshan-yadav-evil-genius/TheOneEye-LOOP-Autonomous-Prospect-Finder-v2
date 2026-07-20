@@ -28,6 +28,9 @@ from browser.policy import (
     policy_enforced_tools,
 )
 from core.config import get_settings
+from observability.logging import get_logger
+
+log = get_logger("loop.factory")
 
 
 def _default_backend() -> Any:
@@ -111,6 +114,11 @@ async def company_finder_agent_scope(
     The caller must hold a BrowserPool lease before entering this scope.
     """
     _ = lease_owner  # exclusive lock is enforced by BrowserPool; retained for API clarity
+    log.info(
+        "company_finder_scope.build_start",
+        strategy_id=strategy_id,
+        effort_prefix=effort_prefix,
+    )
     model = resolve_chat_model()
     parent_thread = build_role_thread_id(
         effort_prefix=effort_prefix, role_suffix="company_finder"
@@ -140,9 +148,15 @@ async def company_finder_agent_scope(
             allocation_mode=allocation_mode,
         )
 
+    log.info(
+        "company_finder_scope.browser_mcp_connect",
+        strategy_id=strategy_id,
+        browser_mcp_url=get_settings().browser_mcp_url,
+    )
     async with checkpoint_scope() as checkpointer, _browser_client().session(
         "playwright"
     ) as browser_session:
+        log.info("company_finder_scope.stack_build", strategy_id=strategy_id, parent_thread=parent_thread)
         stack = build_company_finder_stack(
             effort_prefix=effort_prefix,
             loop_context=loop_context,
@@ -158,9 +172,15 @@ async def company_finder_agent_scope(
             strategy_bundle=bundle,
         )
         try:
+            log.info(
+                "company_finder_scope.ready",
+                strategy_id=strategy_id,
+                parent_thread=parent_thread,
+            )
             yield stack.company_finder, _config(parent_thread), store
         finally:
             await store.flush()
+            log.info("company_finder_scope.closed", strategy_id=strategy_id, parent_thread=parent_thread)
 
 
 @asynccontextmanager

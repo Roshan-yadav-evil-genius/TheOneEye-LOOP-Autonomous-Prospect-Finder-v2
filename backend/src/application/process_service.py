@@ -3,7 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.loop_service import DomainError, LoopService, utcnow
 from contracts.domain import AgentRunSummary, ProcessLogRead, ProcessStatus, WhiteboardRead
+from observability.logging import get_logger
 from persistence import models
+
+log = get_logger("loop.process")
 
 
 class ProcessService:
@@ -38,6 +41,7 @@ class ProcessService:
                 "contacts_disabled", "Contact Finder requires a positive contacts default."
             )
         if state.actual_state == "running":
+            log.info("process_start_noop_already_running", strategy_id=strategy_id, role=role)
             return await self.status(strategy_id, role)
         state.desired_state = state.actual_state = "running"
         state.consecutive_failures = 0
@@ -58,6 +62,7 @@ class ProcessService:
             )
         )
         await self.session.commit()
+        log.info("process_started_job_enqueued", strategy_id=strategy_id, role=role)
         return await self.status(strategy_id, role)
 
     async def stop(self, strategy_id: str, role: str) -> ProcessStatus:

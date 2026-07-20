@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     build_version: str = "0.1.0"
     commit_sha: str = "local"
     build_timestamp: str = "unknown"
+    log_level: str = "INFO"
+    log_dir: str = ""
+    log_file_name: str = "loop.log"
 
     @field_validator("threads_database_url", mode="before")
     @classmethod
@@ -74,6 +77,15 @@ class Settings(BaseSettings):
         """PostgreSQL URL for LangChain threads when configured."""
         url = self.threads_database_url.strip()
         return url or None
+
+    @property
+    def resolved_log_dir(self) -> Path:
+        """Directory for rotating application logs (defaults to backend/instance/logs)."""
+        raw = self.log_dir.strip()
+        if not raw:
+            return _BACKEND_ROOT / "instance" / "logs"
+        path = Path(raw)
+        return path if path.is_absolute() else _BACKEND_ROOT / path
 
 
 @lru_cache

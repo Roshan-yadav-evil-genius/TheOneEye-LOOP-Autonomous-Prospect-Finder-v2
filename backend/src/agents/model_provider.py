@@ -7,6 +7,9 @@ from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
 from core.config import Settings, get_settings
+from observability.logging import get_logger
+
+log = get_logger("loop.model_provider")
 
 
 class DiscoveryModel(Protocol):
@@ -48,6 +51,7 @@ def resolve_chat_model(settings: Settings | None = None) -> BaseChatModel:
     if config.model_provider == "openai":
         if not config.model_api_key:
             raise RuntimeError("LOOP_MODEL_API_KEY is required for the OpenAI provider.")
+        log.info("resolve_chat_model", provider="openai", model=config.model_name)
         return ChatOpenAI(
             model=config.model_name,
             api_key=SecretStr(config.model_api_key),
@@ -55,10 +59,16 @@ def resolve_chat_model(settings: Settings | None = None) -> BaseChatModel:
             model_kwargs={"parallel_tool_calls": False},
         )
     if config.model_provider == "ollama":
-        print(config.model_name)
+        base_url = config.model_base_url or "http://127.0.0.1:11434"
+        log.info(
+            "resolve_chat_model",
+            provider="ollama",
+            model=config.model_name,
+            base_url=base_url,
+        )
         return ChatOllama(
             model=config.model_name,
-            base_url=config.model_base_url or "http://127.0.0.1:11434",
+            base_url=base_url,
         )
     raise RuntimeError("The deterministic provider has no live BaseChatModel.")
 
@@ -66,5 +76,7 @@ def resolve_chat_model(settings: Settings | None = None) -> BaseChatModel:
 def resolve_discovery_model(settings: Settings | None = None) -> DiscoveryModel:
     config = settings or get_settings()
     if config.model_provider == "deterministic":
+        log.info("resolve_discovery_model", provider="deterministic")
         return DeterministicDiscoveryModel()
+    log.info("resolve_discovery_model", provider=config.model_provider, model=config.model_name)
     return LangChainDiscoveryModel(resolve_chat_model(config))
