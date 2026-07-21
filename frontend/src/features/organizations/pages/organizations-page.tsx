@@ -51,8 +51,19 @@ export function OrganizationsPage() {
     setSubmitting(true)
     setSaveError(null)
     try {
+      const { identity: identityValue, ...orgForm } = value
+      const identity = identityValue as {
+        name: string
+        website: string
+        primary_contact_email?: string
+        thumbnail_url?: string
+      }
       await organizationsApi.updateOrganizationProfile(editingOrgId, {
-        form: value,
+        form: orgForm,
+        name: identity.name,
+        website: identity.website,
+        primary_contact_email: identity.primary_contact_email || null,
+        thumbnail_url: identity.thumbnail_url || null,
       })
       setEditingOrgId(null)
       void load()

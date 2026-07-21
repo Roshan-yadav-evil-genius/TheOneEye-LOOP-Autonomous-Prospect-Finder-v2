@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/v1/upload", tags=["Uploads"])
 @router.post("/thumbnail")
 async def upload_thumbnail(file: UploadFile = File(...)):
     settings = get_settings()
-    upload_dir = Path("instance") / settings.env / "upload"
+    upload_dir = settings.resolved_upload_dir
     upload_dir.mkdir(parents=True, exist_ok=True)
     
     # Generate a unique filename to prevent collisions
@@ -27,7 +27,7 @@ async def upload_thumbnail(file: UploadFile = File(...)):
 @router.post("/icon")
 async def upload_icon(file: UploadFile = File(...)):
     settings = get_settings()
-    upload_dir = Path("instance") / settings.env / "upload"
+    upload_dir = settings.resolved_upload_dir
     upload_dir.mkdir(parents=True, exist_ok=True)
     
     # Generate a unique filename to prevent collisions

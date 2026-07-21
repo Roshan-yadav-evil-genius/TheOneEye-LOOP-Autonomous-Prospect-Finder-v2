@@ -95,6 +95,11 @@ class Settings(BaseSettings):
         path = Path(raw)
         return path if path.is_absolute() else _BACKEND_ROOT / path
 
+    @property
+    def resolved_upload_dir(self) -> Path:
+        """Absolute path to the environment-specific upload directory."""
+        return _BACKEND_ROOT / "instance" / self.env / "upload"
+
 
 @lru_cache
 def get_settings() -> Settings:
