@@ -8,9 +8,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from core.database_urls import resolve_sqlite_database_url
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_SQLITE_URL = "sqlite:///" + str(_BACKEND_ROOT / "instance" / "loop.db")
-
-
 class Settings(BaseSettings):
     """Typed twelve-factor configuration for the API shell.
 
@@ -30,7 +27,7 @@ class Settings(BaseSettings):
     api_host: str = "127.0.0.1"
     api_port: int = Field(default=7878, ge=1, le=65535)
     cors_origins: str = "http://127.0.0.1:3000,http://localhost:3000"
-    database_url: str = _DEFAULT_SQLITE_URL
+    database_url: str = ""
     threads_enabled: bool = False
     threads_database_url: str = ""
     redis_url: str = "redis://127.0.0.1:6379/0"
@@ -70,7 +67,18 @@ class Settings(BaseSettings):
     @property
     def resolved_database_url(self) -> str:
         """Main SQLite URL with relative paths anchored to the backend root."""
-        return resolve_sqlite_database_url(self.database_url, base_dir=_BACKEND_ROOT)
+        url = self.database_url.strip()
+        if not url:
+            url = f"sqlite:///instance/{self.env}/db/loop.db"
+            
+        if url.startswith("sqlite:///"):
+            path_str = url.replace("sqlite:///", "")
+            path = Path(path_str)
+            if not path.is_absolute():
+                path = _BACKEND_ROOT / path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            
+        return resolve_sqlite_database_url(url, base_dir=_BACKEND_ROOT)
 
     @property
     def resolved_threads_database_url(self) -> str | None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-DEV_LOOP_DB_PATH_NAME = "instance/loop.db"
+DEV_LOOP_DB_PATH_NAME = "instance/loop_dev.db"
 _SQLITE_FILE_PREFIX = "sqlite:///"
 
 
