@@ -3,6 +3,7 @@ import { FormField, FormFieldset } from '../../../shared/components/form-field'
 import type { FormField as FormFieldDef } from '../form-field-schema'
 import { getAtPath, parseList, setAtPath } from '../path-utils'
 import { Button } from '../../../shared/components/button'
+import { useUploadUrl } from '../contexts/upload-context'
 
 interface FieldEditorProps {
   field: FormFieldDef
@@ -22,6 +23,7 @@ export function FieldEditor({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [localFile, setLocalFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState('')
+  const uploadUrl = useUploadUrl()
 
   useEffect(() => {
     if (!localFile) {
@@ -196,6 +198,8 @@ export function FieldEditor({
   }
 
   if (field.kind === 'file') {
+    if (!uploadUrl) return null
+
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
       if (!file) return
@@ -205,7 +209,7 @@ export function FieldEditor({
       formData.append('file', file)
       
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:7878'}/api/v1/upload/thumbnail`, {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:7878'}${uploadUrl}`, {
           method: 'POST',
           body: formData,
         })

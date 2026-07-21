@@ -13,6 +13,7 @@ import { PageHeader } from '../../../shared/components/page-header'
 import { Tabs } from '../../../shared/components/tabs'
 import { ProductStrategiesTab } from '../components/product-strategies-tab'
 import { ProductChatTab } from '../components/product-chat-tab'
+import { UploadContext } from '../../forms/contexts/upload-context'
 import { useProductDetailStore } from '../stores/product-detail-store'
 import { useProductChatStore } from '../stores/product-chat-store'
 
@@ -188,17 +189,19 @@ export function ProductDetailPage() {
             ]}
           />
 
-          <EntityEditModal
-            open={editModalOpen}
-            onOpenChange={setEditModalOpen}
-            title="product or service"
-            sections={productFormSections}
-            themes={productFormThemes}
-            initialValue={toWizardValue(product)}
-            submitting={submitting}
-            serverError={error}
-            onSubmit={handleSave}
-          />
+          <UploadContext.Provider value={`/api/v1/orgs/${orgId}/products/${productId}/thumbnail`}>
+            <EntityEditModal
+              open={editModalOpen}
+              onOpenChange={setEditModalOpen}
+              title="product or service"
+              sections={productFormSections}
+              themes={productFormThemes}
+              initialValue={toWizardValue(product)}
+              submitting={submitting}
+              serverError={error}
+              onSubmit={handleSave}
+            />
+          </UploadContext.Provider>
         </>
       )}
     </>

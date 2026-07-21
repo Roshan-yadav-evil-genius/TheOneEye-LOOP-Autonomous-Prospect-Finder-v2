@@ -14,6 +14,7 @@ import { OrganizationProductsTab } from '../components/organization-products-tab
 import { OrganizationChatTab } from '../components/organization-chat-tab'
 import { useOrganizationDetailStore } from '../stores/organization-detail-store'
 import { useOrganizationChatStore } from '../stores/organization-chat-store'
+import { UploadContext } from '../../forms/contexts/upload-context'
 
 const PRODUCTS_TAB = 'products'
 const DETAILS_TAB = 'details'
@@ -164,17 +165,19 @@ export function OrganizationDetailPage() {
             ]}
           />
 
-          <EntityEditModal
-            open={editModalOpen}
-            onOpenChange={setEditModalOpen}
-            title="organization"
-            sections={organizationFormSections}
-            themes={organizationFormThemes}
-            initialValue={toWizardValue(organization)}
-            submitting={submitting}
-            serverError={error}
-            onSubmit={handleSave}
-          />
+          <UploadContext.Provider value={`/api/v1/orgs/${orgId}/thumbnail`}>
+            <EntityEditModal
+              open={editModalOpen}
+              onOpenChange={setEditModalOpen}
+              title="organization"
+              sections={organizationFormSections}
+              themes={organizationFormThemes}
+              initialValue={toWizardValue(organization)}
+              submitting={submitting}
+              serverError={error}
+              onSubmit={handleSave}
+            />
+          </UploadContext.Provider>
         </>
       )}
     </>

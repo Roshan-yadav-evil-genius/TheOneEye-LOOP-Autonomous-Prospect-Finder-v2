@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { Button } from '../../../shared/components/button'
 import { EmptyState } from '../../../shared/components/design-system'
+import { UploadContext } from '../../forms/contexts/upload-context'
 import { EntityList, EntityListItem } from '../../../shared/components/entity-list'
 import { PageHeader } from '../../../shared/components/page-header'
 import { useOrganizationsStore } from '../stores/organizations-store'
@@ -117,17 +118,19 @@ export function OrganizationsPage() {
       )}
 
       {editingOrg ? (
-        <EntityEditModal
-          open={!!editingOrgId}
-          onOpenChange={(open) => !open && setEditingOrgId(null)}
-          title="organization"
-          sections={organizationFormSections}
-          themes={organizationFormThemes}
-          initialValue={toWizardValue(editingOrg as any)}
-          submitting={submitting}
-          serverError={saveError}
-          onSubmit={handleSave}
-        />
+        <UploadContext.Provider value={`/api/v1/orgs/${editingOrgId}/thumbnail`}>
+          <EntityEditModal
+            open={!!editingOrgId}
+            onOpenChange={(open) => !open && setEditingOrgId(null)}
+            title="organization"
+            sections={organizationFormSections}
+            themes={organizationFormThemes}
+            initialValue={toWizardValue(editingOrg as any)}
+            submitting={submitting}
+            serverError={saveError}
+            onSubmit={handleSave}
+          />
+        </UploadContext.Provider>
       ) : null}
     </>
   )

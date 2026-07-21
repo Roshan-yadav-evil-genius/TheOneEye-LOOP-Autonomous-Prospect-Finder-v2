@@ -29,10 +29,10 @@ export const adminApi = {
     (await apiClient.put<ToolCustomizationRuleRead>(`/api/v1/admin/tool-customizations/${id}`, data)).data,
   deleteToolCustomization: async (id: string) =>
     apiClient.delete(`/api/v1/admin/tool-customizations/${id}`),
-  uploadIcon: async (file: File) => {
+  uploadIcon: async (ruleId: string, file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    return (await apiClient.post<{url: string}>('/api/v1/upload/icon', formData, {
+    return (await apiClient.post<{url: string}>(`/api/v1/admin/tool-customizations/${ruleId}/icon`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })).data
   }

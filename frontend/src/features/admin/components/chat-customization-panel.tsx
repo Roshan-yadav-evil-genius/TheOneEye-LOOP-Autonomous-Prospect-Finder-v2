@@ -66,29 +66,28 @@ export function ChatCustomizationPanel() {
     e.preventDefault()
     setError(null)
     try {
-      let finalIconUrl = iconUrl
-      if (iconFile) {
-        const uploadRes = await adminApi.uploadIcon(iconFile)
-        finalIconUrl = uploadRes.url
-      }
-
       const payload: ToolCustomizationRuleCreate = {
         tool_name_prefix: prefix,
-        icon_url: finalIconUrl || undefined,
+        icon_url: iconUrl || undefined,
         request_color: requestColor || undefined,
         response_color: responseColor || undefined
       }
 
+      let savedRule
       if (editingRule) {
-        await adminApi.updateToolCustomization(editingRule.id, payload)
+        savedRule = await adminApi.updateToolCustomization(editingRule.id, payload)
       } else {
-        await adminApi.createToolCustomization(payload)
+        savedRule = await adminApi.createToolCustomization(payload)
+      }
+      
+      if (iconFile) {
+        await adminApi.uploadIcon(savedRule.id, iconFile)
       }
 
       setIsDrawerOpen(false)
       void loadRules()
-    } catch (e: any) {
-      setError(e.message || 'Failed to save rule')
+    } catch (err: any) {
+      setError(err.message || 'Failed to save rule')
     }
   }
 

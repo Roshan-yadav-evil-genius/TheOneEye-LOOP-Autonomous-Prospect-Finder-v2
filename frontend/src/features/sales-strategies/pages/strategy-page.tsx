@@ -12,6 +12,7 @@ import {
 } from '../api/sales-strategy-api'
 import { WorkspaceShell } from '../components/workspace-shell'
 import { useStrategyChatStore } from '../stores/strategy-chat-store'
+import { UploadContext } from '../../forms/contexts/upload-context'
 import { Button } from '../../../shared/components/button'
 
 function toViewerValue(strategy: SalesStrategy) {
@@ -118,17 +119,19 @@ export function StrategyPage() {
               </div>
             }
           />
-          <EntityEditModal
-            open={editModalOpen}
-            onOpenChange={setEditModalOpen}
-            title="sales strategy"
-            sections={strategyFormSections}
-            themes={strategyFormThemes}
-            initialValue={toViewerValue(strategy)}
-            submitting={submitting}
-            serverError={saveError}
-            onSubmit={handleSave}
-          />
+          <UploadContext.Provider value={`/api/v1/orgs/${orgId}/products/${productId}/sales-strategies/${strategyId}/thumbnail`}>
+            <EntityEditModal
+              open={editModalOpen}
+              onOpenChange={setEditModalOpen}
+              title="sales strategy"
+              sections={strategyFormSections}
+              themes={strategyFormThemes}
+              initialValue={toViewerValue(strategy)}
+              submitting={submitting}
+              serverError={saveError}
+              onSubmit={handleSave}
+            />
+          </UploadContext.Provider>
         </>
       ) : null}
     </WorkspaceShell>

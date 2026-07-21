@@ -1,8 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import shutil
+import uuid
+import os
+from core.config import get_settings
 
 from contracts.domain import (
     ToolCustomizationRuleCreate,
@@ -59,6 +63,39 @@ async def update_tool_customization(rule_id: str, data: ToolCustomizationRuleCre
     
     await session.commit()
     return row
+
+@router.post("/api/v1/admin/tool-customizations/{rule_id}/icon")
+async def upload_tool_customization_icon(
+    rule_id: str,
+    file: UploadFile = File(...),
+    session: Session = None,
+) -> dict[str, str]:
+    row = await session.get(models.ToolCustomizationRule, rule_id)
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+        
+    settings = get_settings()
+    upload_dir = settings.resolved_upload_dir
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    if row.icon_url and row.icon_url.startswith("/static/uploads/"):
+        old_filename = row.icon_url.split("/")[-1]
+        old_file_path = upload_dir / old_filename
+        if old_file_path.exists():
+            old_file_path.unlink()
+            
+    extension = file.filename.split(".")[-1] if "." in file.filename else "bin"
+    unique_filename = f"{uuid.uuid4().hex}.{extension}"
+    file_path = upload_dir / unique_filename
+    
+    with file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    row.icon_url = f"/static/uploads/{unique_filename}"
+    await session.commit()
+    
+    return {"url": row.icon_url}
+
 
 @router.delete("/api/v1/admin/tool-customizations/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_tool_customization(rule_id: str, session: Session) -> None:

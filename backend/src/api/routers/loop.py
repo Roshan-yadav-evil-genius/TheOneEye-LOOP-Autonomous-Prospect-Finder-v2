@@ -41,6 +41,10 @@ from contracts.domain import (
     WhiteboardUpdate,
 )
 from persistence.database import get_session
+import shutil
+import uuid
+import os
+from fastapi import File, UploadFile, HTTPException
 
 router = APIRouter(prefix="/api/v1", tags=["loop"])
 Session = Annotated[AsyncSession, Depends(get_session)]
@@ -93,6 +97,39 @@ async def validate_organization(organization_id: str, session: Session, request:
     return await service(session, request).validate_organization(organization_id)
 
 
+@router.post("/orgs/{org_id}/thumbnail")
+async def upload_org_thumbnail(
+    org_id: str,
+    file: UploadFile = File(...),
+    session: Session = None,
+    request: Request = None,
+) -> dict[str, str]:
+    svc = service(session, request)
+    org = await svc.get_organization(org_id)
+    
+    settings = get_settings()
+    upload_dir = settings.resolved_upload_dir
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    if org.thumbnail_url and org.thumbnail_url.startswith("/static/uploads/"):
+        old_filename = org.thumbnail_url.split("/")[-1]
+        old_file_path = upload_dir / old_filename
+        if old_file_path.exists():
+            old_file_path.unlink()
+            
+    extension = file.filename.split(".")[-1] if "." in file.filename else "bin"
+    unique_filename = f"{uuid.uuid4().hex}.{extension}"
+    file_path = upload_dir / unique_filename
+    
+    with file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    org.thumbnail_url = f"/static/uploads/{unique_filename}"
+    await session.commit()
+    
+    return {"url": org.thumbnail_url}
+
+
 @router.post(
     "/organizations/{organization_id}/products",
     response_model=ProductRead,
@@ -142,6 +179,43 @@ async def validate_product(product_id: str, session: Session, request: Request) 
     return await service(session, request).validate_product(product_id)
 
 
+@router.post("/orgs/{org_id}/products/{product_id}/thumbnail")
+async def upload_product_thumbnail(
+    org_id: str,
+    product_id: str,
+    file: UploadFile = File(...),
+    session: Session = None,
+    request: Request = None,
+) -> dict[str, str]:
+    svc = service(session, request)
+    product = await svc.get_product(product_id)
+    
+    if product.organization_id != org_id:
+        raise HTTPException(status_code=400, detail="Product does not belong to this organization")
+    
+    settings = get_settings()
+    upload_dir = settings.resolved_upload_dir
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    if product.thumbnail_url and product.thumbnail_url.startswith("/static/uploads/"):
+        old_filename = product.thumbnail_url.split("/")[-1]
+        old_file_path = upload_dir / old_filename
+        if old_file_path.exists():
+            old_file_path.unlink()
+            
+    extension = file.filename.split(".")[-1] if "." in file.filename else "bin"
+    unique_filename = f"{uuid.uuid4().hex}.{extension}"
+    file_path = upload_dir / unique_filename
+    
+    with file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    product.thumbnail_url = f"/static/uploads/{unique_filename}"
+    await session.commit()
+    
+    return {"url": product.thumbnail_url}
+
+
 @router.post(
     "/products/{product_id}/sales-strategies",
     response_model=SalesStrategyRead,
@@ -175,6 +249,48 @@ async def update_strategy(
     return await service(session, request).update_strategy_profile(
         strategy_id, form=data.form, name=data.name
     )
+
+
+@router.post("/orgs/{org_id}/products/{product_id}/sales-strategies/{strategy_id}/thumbnail")
+async def upload_strategy_thumbnail(
+    org_id: str,
+    product_id: str,
+    strategy_id: str,
+    file: UploadFile = File(...),
+    session: Session = None,
+    request: Request = None,
+) -> dict[str, str]:
+    svc = service(session, request)
+    strategy = await svc.get_strategy(strategy_id)
+    
+    if strategy.product_id != product_id:
+        raise HTTPException(status_code=400, detail="Strategy does not belong to this product")
+        
+    product = await svc.get_product(product_id)
+    if product.organization_id != org_id:
+        raise HTTPException(status_code=400, detail="Product does not belong to this organization")
+    
+    settings = get_settings()
+    upload_dir = settings.resolved_upload_dir
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    if strategy.thumbnail_url and strategy.thumbnail_url.startswith("/static/uploads/"):
+        old_filename = strategy.thumbnail_url.split("/")[-1]
+        old_file_path = upload_dir / old_filename
+        if old_file_path.exists():
+            old_file_path.unlink()
+            
+    extension = file.filename.split(".")[-1] if "." in file.filename else "bin"
+    unique_filename = f"{uuid.uuid4().hex}.{extension}"
+    file_path = upload_dir / unique_filename
+    
+    with file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    strategy.thumbnail_url = f"/static/uploads/{unique_filename}"
+    await session.commit()
+    
+    return {"url": strategy.thumbnail_url}
 
 
 @router.get("/sales-strategies/{strategy_id}/bundle", response_model=SalesStrategyBundle)
