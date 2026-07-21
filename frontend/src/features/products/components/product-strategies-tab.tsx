@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 
 import { useStrategiesListStore } from '../../sales-strategies/stores/strategies-list-store'
+import { UploadContext } from '../../forms/contexts/upload-context'
 import { Button } from '../../../shared/components/button'
 import { EmptyState } from '../../../shared/components/design-system'
 import { EntityList, EntityListItem } from '../../../shared/components/entity-list'
@@ -113,17 +114,19 @@ export function ProductStrategiesTab() {
       </EntityList>
 
       {editingStrategy ? (
-        <EntityEditModal
-          open={!!editingStrategyId}
-          onOpenChange={(open) => !open && setEditingStrategyId(null)}
-          title="sales strategy"
-          sections={strategyFormSections}
-          themes={strategyFormThemes}
-          initialValue={toWizardValue(editingStrategy)}
-          submitting={submitting}
-          serverError={saveError}
-          onSubmit={handleSave}
-        />
+        <UploadContext.Provider value={`/api/v1/orgs/${orgId}/products/${productId}/sales-strategies/${editingStrategyId}/thumbnail`}>
+          <EntityEditModal
+            open={!!editingStrategyId}
+            onOpenChange={(open) => !open && setEditingStrategyId(null)}
+            title="sales strategy"
+            sections={strategyFormSections}
+            themes={strategyFormThemes}
+            initialValue={toWizardValue(editingStrategy)}
+            submitting={submitting}
+            serverError={saveError}
+            onSubmit={handleSave}
+          />
+        </UploadContext.Provider>
       ) : null}
     </>
   )

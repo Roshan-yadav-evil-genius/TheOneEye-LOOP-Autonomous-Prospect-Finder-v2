@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 
 import { useProductsStore } from '../../products/stores/products-store'
+import { UploadContext } from '../../forms/contexts/upload-context'
 import { Button } from '../../../shared/components/button'
 import { EmptyState } from '../../../shared/components/design-system'
 import { EntityList, EntityListItem } from '../../../shared/components/entity-list'
@@ -99,17 +100,19 @@ export function OrganizationProductsTab() {
       </EntityList>
 
       {editingProduct ? (
-        <EntityEditModal
-          open={!!editingProductId}
-          onOpenChange={(open) => !open && setEditingProductId(null)}
-          title="product or service"
-          sections={productFormSections}
-          themes={productFormThemes}
-          initialValue={toWizardValue(editingProduct as any)}
-          submitting={submitting}
-          serverError={saveError}
-          onSubmit={handleSave}
-        />
+        <UploadContext.Provider value={`/api/v1/orgs/${orgId}/products/${editingProductId}/thumbnail`}>
+          <EntityEditModal
+            open={!!editingProductId}
+            onOpenChange={(open) => !open && setEditingProductId(null)}
+            title="product or service"
+            sections={productFormSections}
+            themes={productFormThemes}
+            initialValue={toWizardValue(editingProduct as any)}
+            submitting={submitting}
+            serverError={saveError}
+            onSubmit={handleSave}
+          />
+        </UploadContext.Provider>
       ) : null}
     </>
   )
