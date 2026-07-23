@@ -1,8 +1,7 @@
-import { useParams, useSearchParams } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
+import { useEffect } from 'react'
 
 import { FormProfileViewer } from '../../forms/components/form-profile-viewer'
-import { EntityEditModal } from '../../forms/components/entity-edit-modal'
 import { organizationTemplate } from '../../forms/form-definitions'
 import { organizationFormSections } from '../../forms/form-field-schema'
 import { organizationFormThemes } from '../../forms/form-themes'
@@ -11,14 +10,10 @@ import { Button } from '../../../shared/components/button'
 import { PageHeader } from '../../../shared/components/page-header'
 import { Tabs } from '../../../shared/components/tabs'
 import { OrganizationProductsTab } from '../components/organization-products-tab'
-import { OrganizationChatTab } from '../components/organization-chat-tab'
 import { useOrganizationDetailStore } from '../stores/organization-detail-store'
-import { useOrganizationChatStore } from '../stores/organization-chat-store'
-import { UploadContext } from '../../forms/contexts/upload-context'
 
 const PRODUCTS_TAB = 'products'
 const DETAILS_TAB = 'details'
-const CHAT_TAB = 'chat'
 
 function toWizardValue(organization: {
   name: string
@@ -40,20 +35,15 @@ function toWizardValue(organization: {
 
 function parseTab(value: string | null) {
   if (value === DETAILS_TAB) return DETAILS_TAB
-  if (value === CHAT_TAB) return CHAT_TAB
   return PRODUCTS_TAB
 }
 
-/**
- * Primary click from org list lands here on the Products tab.
- */
 export function OrganizationDetailPage() {
   const { orgId = '' } = useParams()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { error, load, loading, organization, reset, save, saved, submitting } =
-    useOrganizationDetailStore()
+  const { error, load, loading, organization, reset } = useOrganizationDetailStore()
   const tab = parseTab(searchParams.get('tab'))
-  const [editModalOpen, setEditModalOpen] = useState(false)
 
   useEffect(() => {
     reset()
@@ -61,41 +51,21 @@ export function OrganizationDetailPage() {
     return () => reset()
   }, [load, orgId, reset])
 
-  // Clear URL edit mode just in case there's an old link
+  // Redirect to edit page if edit mode requested
   useEffect(() => {
     if (searchParams.get('mode') === 'edit') {
-      const next = new URLSearchParams(searchParams)
-      next.delete('mode')
-      setSearchParams(next, { replace: true })
-      setEditModalOpen(true)
+      navigate(`/orgs/${orgId}/edit`, { replace: true })
     }
-  }, [searchParams, setSearchParams])
-
-  useEffect(() => {
-    if (saved) {
-      setEditModalOpen(false)
-    }
-  }, [saved])
+  }, [searchParams, navigate, orgId])
 
   const setTab = (nextTab: string) => {
     const next = new URLSearchParams(searchParams)
     if (nextTab === PRODUCTS_TAB) {
       next.delete('tab')
-    } else if (nextTab === CHAT_TAB) {
-      next.set('tab', CHAT_TAB)
     } else {
       next.set('tab', DETAILS_TAB)
-      
-      if (useOrganizationChatStore.getState().profileDirtyFromChat) {
-        useOrganizationChatStore.getState().clearDirtyFlag()
-        void load(orgId)
-      }
     }
     setSearchParams(next, { replace: true })
-  }
-
-  const handleSave = async (value: Record<string, unknown>) => {
-    await save(orgId, value)
   }
 
   return (
@@ -117,11 +87,11 @@ export function OrganizationDetailPage() {
               <IconLink to={`/orgs/${orgId}/products/new`} label="Add product">
                 <PlusIcon />
               </IconLink>
-            ) : tab === DETAILS_TAB ? (
-              <Button type="button" variant="ghost" onClick={() => setEditModalOpen(true)}>
-                Edit
+            ) : (
+              <Button asChild variant="ghost">
+                <Link to={`/orgs/${orgId}/edit`}>Edit</Link>
               </Button>
-            ) : null}
+            )}
           </>
         }
       />
@@ -145,11 +115,6 @@ export function OrganizationDetailPage() {
                 content: <OrganizationProductsTab />,
               },
               {
-                value: CHAT_TAB,
-                label: 'Chat',
-                content: <OrganizationChatTab />,
-              },
-              {
                 value: DETAILS_TAB,
                 label: 'Details',
                 content: (
@@ -164,20 +129,6 @@ export function OrganizationDetailPage() {
               },
             ]}
           />
-
-          <UploadContext.Provider value={`/api/v1/orgs/${orgId}/thumbnail`}>
-            <EntityEditModal
-              open={editModalOpen}
-              onOpenChange={setEditModalOpen}
-              title="organization"
-              sections={organizationFormSections}
-              themes={organizationFormThemes}
-              initialValue={toWizardValue(organization)}
-              submitting={submitting}
-              serverError={error}
-              onSubmit={handleSave}
-            />
-          </UploadContext.Provider>
         </>
       )}
     </>

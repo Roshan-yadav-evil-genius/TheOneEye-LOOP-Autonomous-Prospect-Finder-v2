@@ -204,6 +204,7 @@ class LoopService:
             website=str(data.website),
             primary_contact_email=data.primary_contact_email,
             org_form=data.org_form,
+            products=[],
         )
         self.session.add(row)
         await self.session.flush()
@@ -271,14 +272,26 @@ class LoopService:
         )
         return row
 
+    async def delete_organization(self, organization_id: str) -> None:
+        row = await self.get_organization(organization_id)
+        if row.products_count > 0:
+            raise DomainError("organization_has_products", "Cannot delete organization that has products.", 400)
+        await self.session.delete(row)
+        await self._commit_event(
+            action="OrganizationDeleted",
+            entity_type="organization",
+            entity_id=organization_id,
+            after={},
+        )
+
     async def create_product(self, organization_id: str, data: ProductCreate) -> models.Product:
         organization = await self.get_organization(organization_id)
-        if not organization.profile_validated:
-            raise DomainError(
-                "organization_profile_incomplete", "Validate the organization profile first."
-            )
         row = models.Product(
-            organization_id=organization_id, name=data.name, kind=data.kind, icp_form=data.icp_form
+            organization_id=organization_id,
+            name=data.name,
+            kind=data.kind,
+            icp_form=data.icp_form,
+            sales_strategies=[],
         )
         self.session.add(row)
         await self.session.flush()
@@ -346,19 +359,42 @@ class LoopService:
         )
         return row
 
+    async def delete_product(self, product_id: str) -> None:
+        row = await self.get_product(product_id)
+        if row.strategies_count > 0:
+            raise DomainError("product_has_strategies", "Cannot delete product that has sales strategies.", 400)
+        await self.session.delete(row)
+        await self._commit_event(
+            action="ProductDeleted",
+            entity_type="product",
+            entity_id=product_id,
+            after={},
+        )
+
     async def create_strategy(
         self, product_id: str, data: SalesStrategyCreate
     ) -> models.SalesStrategy:
         product = await self.get_product(product_id)
-        if not product.profile_validated:
-            raise DomainError("product_profile_incomplete", "Validate the product profile first.")
-        name, target, contacts = validate_strategy_form(data.sales_strategy_form)
+        form = data.sales_strategy_form or {}
+        if not isinstance(form, dict):
+            form = {}
+        if "form_version" not in form:
+            form["form_version"] = "2.0"
+            
+        overview = form.get("overview") if isinstance(form.get("overview"), dict) else {}
+        name = data.name or overview.get("name") or "Untitled Sales Strategy"
+        
+        targets = form.get("run_targets") if isinstance(form.get("run_targets"), dict) else {}
+        target_companies = targets.get("target_companies") if isinstance(targets.get("target_companies"), int) and targets.get("target_companies", 0) > 0 else 10
+        contacts_per_company_default = targets.get("contacts_per_company_default") if isinstance(targets.get("contacts_per_company_default"), int) and targets.get("contacts_per_company_default", 0) >= 0 else 3
+
         row = models.SalesStrategy(
             product_id=product_id,
             name=name,
-            sales_strategy_form=data.sales_strategy_form,
-            target_companies=target,
-            contacts_per_company_default=contacts,
+            sales_strategy_form=form,
+            target_companies=target_companies,
+            contacts_per_company_default=contacts_per_company_default,
+            companies=[],
         )
         self.session.add(row)
         await self.session.flush()
@@ -414,6 +450,18 @@ class LoopService:
             after={"name": row.name},
         )
         return row
+
+    async def delete_strategy(self, strategy_id: str) -> None:
+        row = await self.get_strategy(strategy_id)
+        if row.companies_count > 0:
+            raise DomainError("strategy_has_companies", "Cannot delete sales strategy that has registered companies.", 400)
+        await self.session.delete(row)
+        await self._commit_event(
+            action="SalesStrategyDeleted",
+            entity_type="sales_strategy",
+            entity_id=strategy_id,
+            after={},
+        )
 
     async def bundle(self, strategy_id: str) -> SalesStrategyBundle:
         strategy = await self.get_strategy(strategy_id)

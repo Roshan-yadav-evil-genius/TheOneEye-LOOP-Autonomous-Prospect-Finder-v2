@@ -26,10 +26,17 @@ export const salesStrategyApi = {
     (
       await apiClient.get<SalesStrategy[]>(`/api/v1/products/${productId}/sales-strategies`)
     ).data,
+  createStrategy: async (productId: string, payload: Record<string, unknown> = {}) =>
+    (
+      await apiClient.post<SalesStrategy>(`/api/v1/products/${productId}/sales-strategies`, payload)
+    ).data,
   getStrategy: async (strategyId: string) =>
     (await apiClient.get<SalesStrategy>(`${strategyPath(strategyId)}/strategy`)).data,
   updateStrategyProfile: async (strategyId: string, data: SalesStrategyProfileUpdate) =>
     (await apiClient.patch<SalesStrategy>(`${strategyPath(strategyId)}/strategy`, data)).data,
+  deleteStrategy: async (strategyId: string) => {
+    await apiClient.delete(`/api/v1/sales-strategies/${strategyId}`)
+  },
   getBundle: async (strategyId: string) =>
     (await apiClient.get<SalesStrategyBundle>(`${strategyPath(strategyId)}/bundle`)).data,
   getRecords: async (strategyId: string) =>

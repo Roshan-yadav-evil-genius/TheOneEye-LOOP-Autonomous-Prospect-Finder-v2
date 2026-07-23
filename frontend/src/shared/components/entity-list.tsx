@@ -2,7 +2,7 @@ import type { KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Badge } from './design-system'
-import { EditIcon, IconLink, IconButton } from './icon-button'
+import { EditIcon, IconLink, IconButton, TrashIcon } from './icon-button'
 
 export function EntityList({ children }: { children: ReactNode }) {
   return <div className="entity-list">{children}</div>
@@ -15,6 +15,8 @@ export function EntityListItem({
   editTo,
   onEdit,
   editLabel,
+  onDelete,
+  deleteLabel,
   badge,
   badgeTone = 'info',
   thumbnailUrl,
@@ -25,6 +27,8 @@ export function EntityListItem({
   editTo?: string
   onEdit?: () => void
   editLabel?: string
+  onDelete?: () => void
+  deleteLabel?: string
   badge?: string
   badgeTone?: 'info' | 'success' | 'danger' | 'warning'
   thumbnailUrl?: string
@@ -42,7 +46,7 @@ export function EntityListItem({
     }
   }
 
-  const stopEdit = (event: MouseEvent) => {
+  const stopAction = (event: MouseEvent) => {
     event.stopPropagation()
   }
 
@@ -67,17 +71,29 @@ export function EntityListItem({
         </div>
         <div className="entity-list-item__meta muted">{meta}</div>
       </div>
-      {editTo || onEdit ? (
-        <div className="entity-list-item__actions" onClick={stopEdit}>
+      {editTo || onEdit || onDelete ? (
+        <div className="entity-list-item__actions" onClick={stopAction}>
           {editTo ? (
-            <IconLink to={editTo} label={editLabel ?? `Edit ${title}`} onClick={stopEdit}>
+            <IconLink to={editTo} label={editLabel ?? `Edit ${title}`} onClick={stopAction}>
               <EditIcon />
             </IconLink>
-          ) : (
-            <IconButton label={editLabel ?? `Edit ${title}`} onClick={(e) => { stopEdit(e); onEdit?.(); }}>
+          ) : onEdit ? (
+            <IconButton label={editLabel ?? `Edit ${title}`} onClick={(e) => { stopAction(e); onEdit(); }}>
               <EditIcon />
             </IconButton>
-          )}
+          ) : null}
+          {onDelete ? (
+            <IconButton
+              label={deleteLabel ?? `Delete ${title}`}
+              className="delete-button"
+              onClick={(e) => {
+                stopAction(e)
+                onDelete()
+              }}
+            >
+              <TrashIcon />
+            </IconButton>
+          ) : null}
         </div>
       ) : null}
     </article>

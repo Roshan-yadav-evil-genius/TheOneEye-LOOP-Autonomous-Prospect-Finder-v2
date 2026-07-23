@@ -78,17 +78,16 @@ describe('ProductDetailPage', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
-  it('opens edit wizard from list mode query param', () => {
+  it('redirects to edit page from list mode query param', () => {
     render(
       <MemoryRouter initialEntries={['/orgs/org-1/products/prod-1?tab=details&mode=edit']}>
         <Routes>
           <Route path="/orgs/:orgId/products/:productId" element={<ProductDetailPage />} />
+          <Route path="/orgs/:orgId/products/:productId/edit" element={<div>Product Edit Page</div>} />
         </Routes>
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('button', { name: 'Cancel edit' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /1\. Product identity/i })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Product profile' })).not.toBeInTheDocument()
+    expect(screen.getByText('Product Edit Page')).toBeInTheDocument()
   })
 })

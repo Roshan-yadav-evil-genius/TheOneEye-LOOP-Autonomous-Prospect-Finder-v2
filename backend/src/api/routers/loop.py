@@ -97,6 +97,11 @@ async def validate_organization(organization_id: str, session: Session, request:
     return await service(session, request).validate_organization(organization_id)
 
 
+@router.delete("/organizations/{organization_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_organization(organization_id: str, session: Session, request: Request) -> None:
+    await service(session, request).delete_organization(organization_id)
+
+
 @router.post("/orgs/{org_id}/thumbnail")
 async def upload_org_thumbnail(
     org_id: str,
@@ -179,6 +184,11 @@ async def validate_product(product_id: str, session: Session, request: Request) 
     return await service(session, request).validate_product(product_id)
 
 
+@router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_product(product_id: str, session: Session, request: Request) -> None:
+    await service(session, request).delete_product(product_id)
+
+
 @router.post("/orgs/{org_id}/products/{product_id}/thumbnail")
 async def upload_product_thumbnail(
     org_id: str,
@@ -249,6 +259,11 @@ async def update_strategy(
     return await service(session, request).update_strategy_profile(
         strategy_id, form=data.form, name=data.name
     )
+
+
+@router.delete("/sales-strategies/{strategy_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_strategy(strategy_id: str, session: Session, request: Request) -> None:
+    await service(session, request).delete_strategy(strategy_id)
 
 
 @router.post("/orgs/{org_id}/products/{product_id}/sales-strategies/{strategy_id}/thumbnail")

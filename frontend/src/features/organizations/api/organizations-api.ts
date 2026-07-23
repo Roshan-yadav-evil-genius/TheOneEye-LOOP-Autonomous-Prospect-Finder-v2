@@ -8,6 +8,8 @@ export type ValidationResult = components['schemas']['ValidationResult']
 export const organizationsApi = {
   listOrganizations: async () =>
     (await apiClient.get<Organization[]>('/api/v1/organizations')).data,
+  createOrganization: async (payload: Partial<Organization> = {}) =>
+    (await apiClient.post<Organization>('/api/v1/organizations', payload)).data,
   getOrganization: async (organizationId: string) =>
     (await apiClient.get<Organization>(`/api/v1/organizations/${organizationId}`)).data,
   updateOrganizationProfile: async (organizationId: string, data: OrganizationProfileUpdate) =>
@@ -23,4 +25,7 @@ export const organizationsApi = {
         `/api/v1/organizations/${organizationId}/profile/validate`,
       )
     ).data,
+  deleteOrganization: async (organizationId: string) => {
+    await apiClient.delete(`/api/v1/organizations/${organizationId}`)
+  },
 }

@@ -13,8 +13,9 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    inspect,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from persistence.database import Base
 
@@ -41,6 +42,14 @@ class Organization(Timestamped, Base):
     thumbnail_url: Mapped[str | None] = mapped_column(String(2048))
     org_form: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     profile_validated: Mapped[bool] = mapped_column(Boolean, default=False)
+    products: Mapped[list["Product"]] = relationship("Product", backref="organization", lazy="selectin", cascade="all, delete-orphan")
+
+    @property
+    def products_count(self) -> int:
+        state = inspect(self)
+        if state is None or "products" in state.unloaded:
+            return 0
+        return len(self.products) if self.products is not None else 0
 
 
 class Product(Timestamped, Base):
@@ -51,7 +60,15 @@ class Product(Timestamped, Base):
     thumbnail_url: Mapped[str | None] = mapped_column(String(2048))
     icp_form: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     profile_validated: Mapped[bool] = mapped_column(Boolean, default=False)
+    sales_strategies: Mapped[list["SalesStrategy"]] = relationship("SalesStrategy", backref="product", lazy="selectin", cascade="all, delete-orphan")
     __table_args__ = (CheckConstraint("kind IN ('product','service')"),)
+
+    @property
+    def strategies_count(self) -> int:
+        state = inspect(self)
+        if state is None or "sales_strategies" in state.unloaded:
+            return 0
+        return len(self.sales_strategies) if self.sales_strategies is not None else 0
 
 
 class SalesStrategy(Timestamped, Base):
@@ -64,10 +81,18 @@ class SalesStrategy(Timestamped, Base):
     contacts_per_company_default: Mapped[int] = mapped_column(Integer)
     company_finder_attempt: Mapped[int] = mapped_column(Integer, default=0)
     company_effort_seq: Mapped[int] = mapped_column(Integer, default=0)
+    companies: Mapped[list["SalesStrategyCompany"]] = relationship("SalesStrategyCompany", backref="sales_strategy", lazy="selectin", cascade="all, delete-orphan")
     __table_args__ = (
         CheckConstraint("target_companies > 0"),
         CheckConstraint("contacts_per_company_default >= 0"),
     )
+
+    @property
+    def companies_count(self) -> int:
+        state = inspect(self)
+        if state is None or "companies" in state.unloaded:
+            return 0
+        return len(self.companies) if self.companies is not None else 0
 
 
 class Company(Timestamped, Base):

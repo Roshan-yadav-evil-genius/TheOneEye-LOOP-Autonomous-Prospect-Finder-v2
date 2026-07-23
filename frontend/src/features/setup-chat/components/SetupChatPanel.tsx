@@ -23,17 +23,18 @@ export function SetupChatPanel({ title, threadId, entityId, agentDescription, st
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '600px', background: 'var(--color-bg-surface)', border: '1px solid var(--color-border-default)', borderRadius: 'var(--radius-lg)', padding: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border-default)', paddingBottom: '12px', marginBottom: '12px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', flex: 1, minHeight: 0 }}>
+      {/* Panel Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border-default)', paddingBottom: '14px', marginBottom: '14px', flexShrink: 0 }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: '1.2rem' }}>{title}</h3>
-          <p className="muted" style={{ margin: '4px 0 0 0', fontSize: '0.85rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700 }}>{title}</h3>
+          <p className="muted" style={{ margin: '4px 0 0 0', fontSize: '0.825rem' }}>
             {store.mode === 'chat' 
               ? `Thread: ${threadId}` 
               : `Agent: ${agentDescription}`}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <div 
             style={{ 
               display: 'flex', 
@@ -49,7 +50,7 @@ export function SetupChatPanel({ title, threadId, entityId, agentDescription, st
               type="button"
               onClick={() => store.setMode('chat')}
               style={{
-                padding: '6px 12px',
+                padding: '6px 14px',
                 background: store.mode === 'chat' ? 'var(--color-accent-primary)' : 'transparent',
                 color: store.mode === 'chat' ? 'var(--color-accent-foreground)' : 'var(--color-text-primary)',
                 border: 'none',
@@ -57,7 +58,8 @@ export function SetupChatPanel({ title, threadId, entityId, agentDescription, st
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                fontWeight: store.mode === 'chat' ? 500 : 'normal'
+                fontSize: '0.85rem',
+                fontWeight: store.mode === 'chat' ? 700 : 'normal'
               }}
             >
               💬 Chat
@@ -66,7 +68,7 @@ export function SetupChatPanel({ title, threadId, entityId, agentDescription, st
               type="button"
               onClick={() => store.setMode('agent')}
               style={{
-                padding: '6px 12px',
+                padding: '6px 14px',
                 background: store.mode === 'agent' ? 'var(--color-accent-primary)' : 'transparent',
                 color: store.mode === 'agent' ? 'var(--color-accent-foreground)' : 'var(--color-text-primary)',
                 border: 'none',
@@ -74,7 +76,8 @@ export function SetupChatPanel({ title, threadId, entityId, agentDescription, st
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                fontWeight: store.mode === 'agent' ? 500 : 'normal'
+                fontSize: '0.85rem',
+                fontWeight: store.mode === 'agent' ? 700 : 'normal'
               }}
             >
               📝 Agent
@@ -87,20 +90,26 @@ export function SetupChatPanel({ title, threadId, entityId, agentDescription, st
       </div>
       
       {store.error && (
-        <div style={{ background: 'var(--color-status-danger)', color: 'white', padding: '8px 12px', borderRadius: 'var(--radius-md)', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ background: 'var(--color-status-danger)', color: 'white', padding: '8px 12px', borderRadius: 'var(--radius-md)', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <span>{store.error}</span>
         </div>
       )}
 
-      <ChatMessageList messages={store.messages} streaming={store.streaming} />
+      {/* Message List (Scrollable) */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <ChatMessageList messages={store.messages} streaming={store.streaming} />
+      </div>
       
-      <ChatComposer 
-        onSend={handleSend} 
-        onContinue={() => store.retry(entityId)}
-        disabled={store.streaming} 
-        incompleteTurn={store.incompleteTurn}
-        canResume={store.canResume}
-      />
+      {/* Input Composer (Pinned at Bottom) */}
+      <div style={{ paddingTop: '12px', flexShrink: 0 }}>
+        <ChatComposer 
+          onSend={handleSend} 
+          onContinue={() => store.retry(entityId)}
+          disabled={store.streaming} 
+          incompleteTurn={store.incompleteTurn}
+          canResume={store.canResume}
+        />
+      </div>
     </div>
   )
 }

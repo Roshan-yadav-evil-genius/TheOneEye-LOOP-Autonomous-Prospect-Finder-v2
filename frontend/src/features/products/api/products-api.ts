@@ -8,6 +8,8 @@ export type ValidationResult = components['schemas']['ValidationResult']
 export const productsApi = {
   listProducts: async (organizationId: string) =>
     (await apiClient.get<Product[]>(`/api/v1/organizations/${organizationId}/products`)).data,
+  createProduct: async (organizationId: string, payload: Record<string, unknown> = {}) =>
+    (await apiClient.post<Product>(`/api/v1/organizations/${organizationId}/products`, payload)).data,
   getProduct: async (productId: string) =>
     (await apiClient.get<Product>(`/api/v1/products/${productId}`)).data,
   updateProductProfile: async (productId: string, data: ProductProfileUpdate) =>
@@ -16,4 +18,7 @@ export const productsApi = {
     (
       await apiClient.post<ValidationResult>(`/api/v1/products/${productId}/profile/validate`)
     ).data,
+  deleteProduct: async (productId: string) => {
+    await apiClient.delete(`/api/v1/products/${productId}`)
+  },
 }
