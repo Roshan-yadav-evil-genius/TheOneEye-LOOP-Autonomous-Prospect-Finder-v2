@@ -1,8 +1,28 @@
 from unittest.mock import AsyncMock, MagicMock
 
-from agents.setup_chat.org_tools import get_all_tools, set_identity, set_brand_positioning, set_unique_strengths
-from agents.setup_chat.strategy_tools import get_strategy_tools, set_strategy_overview, set_strategy_company_size
-from agents.setup_chat.product_tools import get_product_tools, set_product_identity, set_product_icp
+from agents.setup_chat.org_tools import (
+    get_all_tools,
+    get_organization_profile,
+    set_identity,
+    set_brand_positioning,
+    set_unique_strengths,
+    set_case_studies,
+)
+from agents.setup_chat.strategy_tools import (
+    get_strategy_tools,
+    get_strategy_profile,
+    set_strategy_overview,
+    set_strategy_company_size,
+    set_strategy_experiments,
+)
+from agents.setup_chat.product_tools import (
+    get_product_tools,
+    get_product_profile,
+    set_product_identity,
+    set_product_icp,
+    set_product_use_cases,
+    set_product_competitors,
+)
 from agents.setup_chat.common import SetupChatToolContext
 
 
@@ -45,6 +65,34 @@ async def test_org_tools_successful_update_returns_saved_data():
     assert res_strengths == {"section": "unique_strengths", "data": {"items": ["Fast", "Reliable"]}}
 
 
+async def test_case_studies_saved_as_direct_list_and_normalized():
+    mock_service = AsyncMock()
+    mock_org = MagicMock()
+    mock_org.name = "Acme"
+    mock_org.website = "https://acme.com"
+    mock_org.primary_contact_email = "a@b.com"
+    mock_org.org_form = {}
+    mock_service.get_organization.return_value = mock_org
+
+    ctx = SetupChatToolContext(organization_id="org-123", mode="agent", service=mock_service)
+    config = {"configurable": {"tool_context": ctx}}
+
+    cs_items = [{"title": "Case 1", "customer_type": "Enterprise", "challenge": "X", "outcome": "Y", "link": "http"}]
+    res = await set_case_studies.ainvoke({"items": cs_items}, config=config)
+    assert res == {"section": "case_studies", "data": {"items": cs_items}}
+
+    mock_service.update_organization_profile.assert_called_once()
+    saved_form = mock_service.update_organization_profile.call_args.kwargs["form"]
+    assert saved_form["case_studies"] == cs_items
+    assert isinstance(saved_form["case_studies"], list)
+
+    # Test get_organization_profile normalization for legacy dict values
+    mock_org.org_form = {"case_studies": {"items": cs_items}}
+    profile_res = await get_organization_profile.ainvoke({}, config=config)
+    assert profile_res["org_form"]["case_studies"] == cs_items
+    assert isinstance(profile_res["org_form"]["case_studies"], list)
+
+
 async def test_strategy_tools_returns_saved_data():
     mock_service = AsyncMock()
     mock_strategy = MagicMock()
@@ -65,6 +113,27 @@ async def test_strategy_tools_returns_saved_data():
     assert res_empty == "Error: No field values provided to update. Please pass at least one field value."
 
 
+async def test_strategy_experiments_saved_as_direct_list():
+    mock_service = AsyncMock()
+    mock_strategy = MagicMock()
+    mock_strategy.sales_strategy_form = {}
+    mock_service.get_strategy.return_value = mock_strategy
+
+    ctx = SetupChatToolContext(
+        organization_id="org-123", strategy_id="strat-123", mode="agent", service=mock_service
+    )
+    config = {"configurable": {"tool_context": ctx}}
+
+    exp_items = [{"hypothesis": "Test H1", "variant": "Var A"}]
+    res = await set_strategy_experiments.ainvoke({"items": exp_items}, config=config)
+    assert res == {"section": "experiments", "data": {"items": exp_items}}
+
+    mock_service.update_strategy_profile.assert_called_once()
+    saved_form = mock_service.update_strategy_profile.call_args.kwargs["form"]
+    assert saved_form["experiments"] == exp_items
+    assert isinstance(saved_form["experiments"], list)
+
+
 async def test_product_tools_returns_saved_data():
     mock_service = AsyncMock()
     mock_product = MagicMock()
@@ -81,3 +150,31 @@ async def test_product_tools_returns_saved_data():
 
     res = await set_product_icp.ainvoke({"company_size_employees_min": 10}, config=config)
     assert res == {"section": "icp", "data": {"company_size_employees_min": 10}}
+
+
+async def test_product_use_cases_and_competitors_saved_as_direct_list():
+    mock_service = AsyncMock()
+    mock_product = MagicMock()
+    mock_product.name = "Product Y"
+    mock_product.kind = "product"
+    mock_product.icp_form = {}
+    mock_service.get_product.return_value = mock_product
+
+    ctx = SetupChatToolContext(
+        organization_id="org-123", product_id="prod-123", mode="agent", service=mock_service
+    )
+    config = {"configurable": {"tool_context": ctx}}
+
+    uc_items = [{"name": "UC1", "trigger": "T1", "outcome": "O1"}]
+    res_uc = await set_product_use_cases.ainvoke({"items": uc_items}, config=config)
+    assert res_uc == {"section": "use_cases", "data": {"items": uc_items}}
+    saved_form = mock_service.update_product_profile.call_args.kwargs["form"]
+    assert saved_form["use_cases"] == uc_items
+    assert isinstance(saved_form["use_cases"], list)
+
+    comp_items = [{"name": "Comp A", "website": "https://compa.com", "type": "direct"}]
+    res_comp = await set_product_competitors.ainvoke({"items": comp_items}, config=config)
+    assert res_comp == {"section": "competitors", "data": {"items": comp_items}}
+    saved_form_comp = mock_service.update_product_profile.call_args.kwargs["form"]
+    assert saved_form_comp["competitors"] == comp_items
+    assert isinstance(saved_form_comp["competitors"], list)

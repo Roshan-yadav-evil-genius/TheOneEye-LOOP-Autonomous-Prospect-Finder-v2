@@ -17,14 +17,26 @@ async def get_product_profile(config: RunnableConfig) -> dict[str, Any]:
 
     product = await ctx.service.get_product(ctx.product_id)
 
+    ARRAY_SECTIONS = (
+        "customer_success_stories",
+        "use_cases",
+        "customer_triggers",
+        "competitors",
+        "differentiators",
+        "keywords",
+        "signals",
+    )
+
     full_product_form = {}
     for section in PRODUCT_FORM.sections:
         val = product.icp_form.get(section.key)
         if val is None:
-            if section.key == "customer_success_stories":
+            if section.key in ARRAY_SECTIONS:
                 val = []
             else:
                 val = {}
+        elif isinstance(val, dict) and "items" in val:
+            val = val["items"]
         full_product_form[section.key] = val
 
     return {
@@ -65,13 +77,22 @@ async def _save_product_section(
             kind=kind,
         )
     else:
-        section_data = current_form.get(form_key, {})
-        if not isinstance(section_data, dict) and form_key != "customer_success_stories":
-            section_data = {}
-
-        if form_key == "customer_success_stories" and "items" in updates:
-            current_form[form_key] = updates["items"]
+        ARRAY_SECTIONS = (
+            "customer_success_stories",
+            "use_cases",
+            "customer_triggers",
+            "competitors",
+            "differentiators",
+            "keywords",
+            "signals",
+        )
+        if form_key in ARRAY_SECTIONS:
+            val = updates.get("items")
+            current_form[form_key] = val if val is not None else []
         else:
+            section_data = current_form.get(form_key, {})
+            if not isinstance(section_data, dict):
+                section_data = {}
             for field, value in updates.items():
                 section_data[field] = value
             current_form[form_key] = section_data

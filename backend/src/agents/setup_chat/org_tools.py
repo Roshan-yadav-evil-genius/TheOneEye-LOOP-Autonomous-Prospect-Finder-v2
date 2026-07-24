@@ -18,10 +18,12 @@ async def get_organization_profile(config: RunnableConfig) -> dict[str, Any]:
     for section in ORGANIZATION_FORM.sections:
         val = org.org_form.get(section.key)
         if val is None:
-            if section.key == "unique_strengths":
+            if section.key in ("unique_strengths", "case_studies"):
                 val = []
             else:
                 val = {}
+        elif isinstance(val, dict) and "items" in val:
+            val = val["items"]
         full_org_form[section.key] = val
 
     return {
@@ -64,13 +66,13 @@ async def _save_org_section(
         if not isinstance(section_data, dict):
             section_data = {}
 
-        if section_key == "unique_strengths":
+        if section_key in ("unique_strengths", "case_studies"):
             val = (
                 updates.get("items")
                 if updates.get("items") is not None
                 else updates.get("strengths")
             )
-            current_form[section_key] = val
+            current_form[section_key] = val if val is not None else []
         else:
             for field, value in updates.items():
                 section_data[field] = value

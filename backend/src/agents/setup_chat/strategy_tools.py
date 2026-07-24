@@ -17,9 +17,18 @@ async def get_strategy_profile(config: RunnableConfig) -> dict[str, Any]:
 
     strategy = await ctx.service.get_strategy(ctx.strategy_id)
 
+    ARRAY_SECTIONS = ("best_practices", "experiments")
+
     full_strategy_form = {}
     for section in STRATEGY_FORM.sections:
-        val = strategy.sales_strategy_form.get(section.key, {})
+        val = strategy.sales_strategy_form.get(section.key)
+        if val is None:
+            if section.key in ARRAY_SECTIONS:
+                val = []
+            else:
+                val = {}
+        elif isinstance(val, dict) and "items" in val:
+            val = val["items"]
         full_strategy_form[section.key] = val
 
     return {
@@ -48,13 +57,15 @@ async def _save_strategy_section(
     strategy = await ctx.service.get_strategy(ctx.strategy_id)
     current_form = copy.deepcopy(strategy.sales_strategy_form)
 
-    section_data = current_form.get(section_key, {})
-    if not isinstance(section_data, dict):
-        section_data = {}
+    ARRAY_SECTIONS = ("best_practices", "experiments")
 
-    if section_key == "best_practices" and "items" in updates:
-        current_form[section_key] = updates["items"]
+    if section_key in ARRAY_SECTIONS:
+        val = updates.get("items")
+        current_form[section_key] = val if val is not None else []
     else:
+        section_data = current_form.get(section_key, {})
+        if not isinstance(section_data, dict):
+            section_data = {}
         for field, value in updates.items():
             section_data[field] = value
         current_form[section_key] = section_data
