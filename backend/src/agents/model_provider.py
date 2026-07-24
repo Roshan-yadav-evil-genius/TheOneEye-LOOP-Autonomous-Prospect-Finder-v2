@@ -78,6 +78,7 @@ def resolve_chat_model(settings: Settings | None = None) -> BaseChatModel:
         model = ChatOllama(
             model=config.model_name,
             base_url=base_url,
+            num_ctx=256000,
         )
     else:
         raise RuntimeError("The deterministic provider has no live BaseChatModel.")

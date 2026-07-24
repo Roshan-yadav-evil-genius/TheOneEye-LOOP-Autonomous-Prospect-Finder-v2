@@ -11,6 +11,128 @@ import { sharedMarkdownComponents, userMarkdownComponents } from './shared-markd
 import { Modal } from '../../../shared/components/modal'
 import { JsonHighlighter } from './json-highlighter'
 
+function UserMessageBubble({ content }: { content: string }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const isLong = content.length > 300
+
+  const displayedContent = isLong && !isExpanded
+    ? `${content.slice(0, 300)}...`
+    : content
+
+  const handleCopy = () => {
+    if (navigator.clipboard && content) {
+      void navigator.clipboard.writeText(content).then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }).catch(console.error)
+    }
+  }
+
+  return (
+    <div style={{ background: 'var(--color-accent-primary)', color: 'var(--color-accent-foreground)', padding: '10px 14px', borderRadius: '16px 16px 0 16px', maxWidth: '85%', wordBreak: 'break-word' }}>
+      <ReactMarkdown components={userMarkdownComponents as any}>
+        {displayedContent}
+      </ReactMarkdown>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginTop: '8px', paddingTop: '6px', borderTop: '1px solid rgba(0, 0, 0, 0.1)' }}>
+        {isLong && (
+          <button
+            type="button"
+            onClick={() => setIsExpanded(prev => !prev)}
+            style={{
+              background: 'rgba(255, 255, 255, 0.9)',
+              color: '#0f172a',
+              border: '1px solid rgba(0, 0, 0, 0.12)',
+              borderRadius: '6px',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              padding: '4px 10px',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span>{isExpanded ? 'Show less' : 'Show more'}</span>
+            <span style={{ fontSize: '0.7rem' }}>{isExpanded ? '🔼' : '🔽'}</span>
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={handleCopy}
+          title="Copy message"
+          style={{
+            background: copied ? '#15803d' : 'rgba(255, 255, 255, 0.9)',
+            color: copied ? '#ffffff' : '#0f172a',
+            border: `1px solid ${copied ? '#15803d' : 'rgba(0, 0, 0, 0.12)'}`,
+            borderRadius: '6px',
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            padding: '4px 10px',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <span style={{ fontSize: '0.85rem' }}>{copied ? '✓' : '📋'}</span>
+          <span>{copied ? 'Copied!' : 'Copy'}</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function AssistantMessageBubble({ content }: { content: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    if (navigator.clipboard && content) {
+      void navigator.clipboard.writeText(content).then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }).catch(console.error)
+    }
+  }
+
+  return (
+    <div className="markdown-chat" style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-primary)', padding: '10px 16px', borderRadius: '16px 16px 16px 0', width: '100%', wordBreak: 'break-word', border: '1px solid var(--color-border-default)', position: 'relative' }}>
+      <ReactMarkdown components={sharedMarkdownComponents as any}>
+        {content}
+      </ReactMarkdown>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px', paddingTop: '6px', borderTop: '1px solid var(--color-border-default)' }}>
+        <button
+          type="button"
+          onClick={handleCopy}
+          title="Copy response"
+          style={{
+            background: copied ? 'rgba(34, 197, 94, 0.18)' : 'var(--color-bg-subtle, rgba(255, 255, 255, 0.05))',
+            color: copied ? '#4ade80' : 'var(--color-text-secondary)',
+            border: `1px solid ${copied ? 'rgba(34, 197, 94, 0.4)' : 'var(--color-border-default)'}`,
+            borderRadius: '6px',
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            padding: '4px 10px',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            fontFamily: 'inherit',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <span style={{ fontSize: '0.85rem' }}>{copied ? '✓' : '📋'}</span>
+          <span>{copied ? 'Copied!' : 'Copy'}</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function ChatMessageList({ messages, streaming, emptyMessage }: { messages: ChatUiMessage[], streaming?: boolean, emptyMessage?: string }) {
   const endRef = useRef<HTMLDivElement>(null)
   const [rules, setRules] = useState<ToolCustomizationRuleRead[]>([])
@@ -119,11 +241,7 @@ export function ChatMessageList({ messages, streaming, emptyMessage }: { message
             if (msg.kind !== 'user') return null
             return (
               <div key={group.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', width: '100%' }}>
-                <div style={{ background: 'var(--color-accent-primary)', color: 'var(--color-accent-foreground)', padding: '8px 12px', borderRadius: '16px 16px 0 16px', maxWidth: '85%', wordBreak: 'break-word' }}>
-                  <ReactMarkdown components={userMarkdownComponents as any}>
-                    {msg.content}
-                  </ReactMarkdown>
-                </div>
+                <UserMessageBubble content={msg.content} />
               </div>
             )
           }
@@ -157,11 +275,7 @@ export function ChatMessageList({ messages, streaming, emptyMessage }: { message
                 {group.messages.map(msg => (
                   <div key={msg.id}>
                     {msg.kind === 'assistant' && msg.content && (
-                      <div className="markdown-chat" style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-primary)', padding: '8px 16px', borderRadius: '16px 16px 16px 0', width: '100%', wordBreak: 'break-word', border: '1px solid var(--color-border-default)' }}>
-                        <ReactMarkdown components={sharedMarkdownComponents as any}>
-                          {msg.content}
-                        </ReactMarkdown>
-                      </div>
+                      <AssistantMessageBubble content={msg.content} />
                     )}
                     {msg.kind === 'reasoning' && <ReasoningCard text={msg.text} />}
                     {msg.kind === 'tool_call' && <ToolCallCard name={msg.name} args={msg.args} rules={rules} />}
