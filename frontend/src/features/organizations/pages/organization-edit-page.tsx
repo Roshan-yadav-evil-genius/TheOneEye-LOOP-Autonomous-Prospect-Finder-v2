@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { SplitFormChatLayout } from '../../../shared/components/split-form-chat-layout'
 import { FormLiveEditor } from '../../forms/components/form-live-editor'
+import { UploadContext } from '../../forms/contexts/upload-context'
 import { organizationTemplate } from '../../forms/form-definitions'
 import { organizationFormSections } from '../../forms/form-field-schema'
 import { organizationFormThemes } from '../../forms/form-themes'
@@ -70,16 +71,18 @@ export function OrganizationEditPage() {
       ]}
       leftPanel={
         organization ? (
-          <FormLiveEditor
-            title="Organization Form"
-            sections={organizationFormSections}
-            themes={organizationFormThemes}
-            initialValue={toFormValue(organization)}
-            submitting={submitting}
-            serverError={error}
-            saved={saved}
-            onSubmit={handleSave}
-          />
+          <UploadContext.Provider value={`/api/v1/orgs/${orgId}/thumbnail`}>
+            <FormLiveEditor
+              title="Organization Form"
+              sections={organizationFormSections}
+              themes={organizationFormThemes}
+              initialValue={toFormValue(organization)}
+              submitting={submitting}
+              serverError={error}
+              saved={saved}
+              onSubmit={handleSave}
+            />
+          </UploadContext.Provider>
         ) : null
       }
       rightPanel={

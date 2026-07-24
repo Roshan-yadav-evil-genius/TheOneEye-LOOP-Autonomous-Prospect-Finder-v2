@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { SplitFormChatLayout } from '../../../shared/components/split-form-chat-layout'
 import { FormLiveEditor } from '../../forms/components/form-live-editor'
+import { UploadContext } from '../../forms/contexts/upload-context'
 import { strategyTemplate } from '../../forms/form-definitions'
 import { strategyFormSections } from '../../forms/form-field-schema'
 import { strategyFormThemes } from '../../forms/form-themes'
@@ -111,16 +112,18 @@ export function StrategyEditPage() {
       ]}
       leftPanel={
         strategy ? (
-          <FormLiveEditor
-            title="Sales Strategy Form"
-            sections={strategyFormSections}
-            themes={strategyFormThemes}
-            initialValue={toFormValue(strategy)}
-            submitting={submitting}
-            serverError={error}
-            saved={saved}
-            onSubmit={handleSave}
-          />
+          <UploadContext.Provider value={`/api/v1/orgs/${orgId}/products/${productId}/sales-strategies/${strategyId}/thumbnail`}>
+            <FormLiveEditor
+              title="Sales Strategy Form"
+              sections={strategyFormSections}
+              themes={strategyFormThemes}
+              initialValue={toFormValue(strategy)}
+              submitting={submitting}
+              serverError={error}
+              saved={saved}
+              onSubmit={handleSave}
+            />
+          </UploadContext.Provider>
         ) : null
       }
       rightPanel={

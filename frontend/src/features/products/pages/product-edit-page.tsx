@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { SplitFormChatLayout } from '../../../shared/components/split-form-chat-layout'
 import { FormLiveEditor } from '../../forms/components/form-live-editor'
+import { UploadContext } from '../../forms/contexts/upload-context'
 import { productTemplate } from '../../forms/form-definitions'
 import { productFormSections } from '../../forms/form-field-schema'
 import { productFormThemes } from '../../forms/form-themes'
@@ -69,16 +70,18 @@ export function ProductEditPage() {
       ]}
       leftPanel={
         product ? (
-          <FormLiveEditor
-            title="Product & ICP Form"
-            sections={productFormSections}
-            themes={productFormThemes}
-            initialValue={toFormValue(product)}
-            submitting={submitting}
-            serverError={error}
-            saved={saved}
-            onSubmit={handleSave}
-          />
+          <UploadContext.Provider value={`/api/v1/orgs/${orgId}/products/${productId}/thumbnail`}>
+            <FormLiveEditor
+              title="Product & ICP Form"
+              sections={productFormSections}
+              themes={productFormThemes}
+              initialValue={toFormValue(product)}
+              submitting={submitting}
+              serverError={error}
+              saved={saved}
+              onSubmit={handleSave}
+            />
+          </UploadContext.Provider>
         ) : null
       }
       rightPanel={
