@@ -41,9 +41,23 @@ export interface SetupChatApi {
   streamChat: (entityId: string, request: ChatStreamRequest, onEvent: (event: ChatStreamEvent) => void) => Promise<void>
 }
 
-export function createSetupChatStore(api: SetupChatApi): UseBoundStore<StoreApi<SetupChatStoreState>> {
+export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat_mode'): UseBoundStore<StoreApi<SetupChatStoreState>> {
+  const getInitialMode = (): 'chat' | 'agent' => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const saved = window.localStorage.getItem(storageKey)
+        if (saved === 'agent' || saved === 'chat') {
+          return saved
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return 'chat'
+  }
+
   return create<SetupChatStoreState>((set, get) => ({
-    mode: 'chat',
+    mode: getInitialMode(),
     messages: [],
     streaming: false,
     error: null,
@@ -52,7 +66,16 @@ export function createSetupChatStore(api: SetupChatApi): UseBoundStore<StoreApi<
     canResume: false,
     lastUserMessage: null,
 
-    setMode: (mode) => set({ mode }),
+    setMode: (mode) => {
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem(storageKey, mode)
+        }
+      } catch {
+        // Ignore storage errors
+      }
+      set({ mode })
+    },
 
     reset: () => set({ 
       messages: [], 
