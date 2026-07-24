@@ -66,6 +66,7 @@ class OrgChatService:
     ) -> AsyncGenerator[str, None]:
         thread_id = self._get_thread_id(organization_id)
         config = {
+            "recursion_limit": 100,
             "configurable": {
                 "thread_id": thread_id,
                 "tool_context": OrgChatToolContext(

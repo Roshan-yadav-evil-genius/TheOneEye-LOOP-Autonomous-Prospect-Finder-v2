@@ -65,6 +65,7 @@ class SetupChatService:
         fastapi_request=None
     ) -> AsyncGenerator[str, None]:
         config = {
+            "recursion_limit": 100,
             "configurable": {
                 "thread_id": self.thread_id,
                 "tool_context": self.tool_context
