@@ -89,6 +89,7 @@ export function StrategyPage() {
           sections={strategyFormSections}
           themes={strategyFormThemes}
           value={toViewerValue(strategy)}
+          getEditUrl={(sectionKey) => `/orgs/${orgId}/products/${productId}/sales-strategies/${strategyId}/edit?step=${sectionKey}`}
           actions={
             <div className="toolbar-row">
               Company finder attempt {strategy.company_finder_attempt}/

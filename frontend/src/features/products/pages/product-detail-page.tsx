@@ -151,6 +151,7 @@ export function ProductDetailPage() {
                     sections={productFormSections}
                     themes={productFormThemes}
                     value={toWizardValue(product)}
+                    getEditUrl={(sectionKey) => `/orgs/${orgId}/products/${productId}/edit?step=${sectionKey}`}
                   />
                 ),
               },

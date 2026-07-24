@@ -124,6 +124,7 @@ export function OrganizationDetailPage() {
                     sections={organizationFormSections}
                     themes={organizationFormThemes}
                     value={toWizardValue(organization)}
+                    getEditUrl={(sectionKey) => `/orgs/${orgId}/edit?step=${sectionKey}`}
                   />
                 ),
               },

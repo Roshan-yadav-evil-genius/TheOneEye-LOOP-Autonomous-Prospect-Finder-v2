@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 
 import { Badge } from '../../../shared/components/design-system'
 import { Card } from '../../../shared/components/card'
+import { EditIcon, IconLink } from '../../../shared/components/icon-button'
 import type { FormSectionDefinition } from '../form-field-schema'
 import type { FormTheme } from '../form-themes'
 import { FieldValueDisplay } from './field-value-display'
@@ -13,7 +14,8 @@ export function FormProfileViewer({
   value,
   themes,
   actions,
-  hint = 'Read-only profile — use the list edit icon to change values.',
+  hint = 'Read-only profile — click edit to modify values.',
+  getEditUrl,
 }: {
   title: string
   validated: boolean
@@ -23,6 +25,7 @@ export function FormProfileViewer({
   themes?: FormTheme[]
   actions?: ReactNode
   hint?: string
+  getEditUrl?: (sectionKey: string) => string
 }) {
   const groups =
     themes && themes.length > 0
@@ -51,23 +54,39 @@ export function FormProfileViewer({
             <h3 className="form-profile-viewer__group-title">{group.label}</h3>
           ) : null}
           <div className="form-profile-viewer__sections">
-            {group.sections.map((section) => (
-              <Card key={section.key} title={section.title}>
-                {section.help ? <p className="muted">{section.help}</p> : null}
-                <dl className="field-value-display__grid">
-                  {section.fields.map((field) => (
-                    <FieldValueDisplay
-                      key={`${section.key}.${field.path}.${field.label}`}
-                      field={field}
-                      sectionValue={value[section.key]}
-                    />
-                  ))}
-                </dl>
-              </Card>
-            ))}
+            {group.sections.map((section) => {
+              const editUrl = getEditUrl?.(section.key)
+              return (
+                <Card
+                  key={section.key}
+                  title={
+                    <div className="form-profile-viewer__section-header">
+                      <span>{section.title}</span>
+                      {editUrl ? (
+                        <IconLink to={editUrl} label={`Edit ${section.title}`}>
+                          <EditIcon />
+                        </IconLink>
+                      ) : null}
+                    </div>
+                  }
+                >
+                  {section.help ? <p className="muted">{section.help}</p> : null}
+                  <dl className="field-value-display__grid">
+                    {section.fields.map((field) => (
+                      <FieldValueDisplay
+                        key={`${section.key}.${field.path}.${field.label}`}
+                        field={field}
+                        sectionValue={value[section.key]}
+                      />
+                    ))}
+                  </dl>
+                </Card>
+              )
+            })}
           </div>
         </div>
       ))}
     </div>
   )
 }
+
