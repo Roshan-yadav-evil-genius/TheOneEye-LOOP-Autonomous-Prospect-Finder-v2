@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { SplitFormChatLayout } from '../../../shared/components/split-form-chat-layout'
 import { FormLiveEditor } from '../../forms/components/form-live-editor'
 import { UploadContext } from '../../forms/contexts/upload-context'
@@ -39,6 +39,9 @@ function toFormValue(strategy: SalesStrategy) {
 
 export function StrategyEditPage() {
   const { orgId = '', productId = '', strategyId = '' } = useParams()
+  const [searchParams] = useSearchParams()
+  const sectionParam = searchParams.get('section') ?? searchParams.get('step') ?? undefined
+  const themeParam = searchParams.get('theme') ?? undefined
   const [strategy, setStrategy] = useState<SalesStrategy | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -118,6 +121,8 @@ export function StrategyEditPage() {
               sections={strategyFormSections}
               themes={strategyFormThemes}
               initialValue={toFormValue(strategy)}
+              initialSectionKey={sectionParam}
+              initialThemeKey={themeParam}
               submitting={submitting}
               serverError={error}
               saved={saved}

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { SplitFormChatLayout } from '../../../shared/components/split-form-chat-layout'
 import { FormLiveEditor } from '../../forms/components/form-live-editor'
 import { UploadContext } from '../../forms/contexts/upload-context'
@@ -30,6 +30,9 @@ function toFormValue(organization: {
 
 export function OrganizationEditPage() {
   const { orgId = '' } = useParams()
+  const [searchParams] = useSearchParams()
+  const sectionParam = searchParams.get('section') ?? searchParams.get('step') ?? undefined
+  const themeParam = searchParams.get('theme') ?? undefined
   const { organization, loading, error, submitting, saved, load, save, reset } = useOrganizationDetailStore()
   const chatStore = useOrganizationChatStore()
 
@@ -77,6 +80,8 @@ export function OrganizationEditPage() {
               sections={organizationFormSections}
               themes={organizationFormThemes}
               initialValue={toFormValue(organization)}
+              initialSectionKey={sectionParam}
+              initialThemeKey={themeParam}
               submitting={submitting}
               serverError={error}
               saved={saved}

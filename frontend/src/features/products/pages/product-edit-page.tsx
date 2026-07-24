@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { SplitFormChatLayout } from '../../../shared/components/split-form-chat-layout'
 import { FormLiveEditor } from '../../forms/components/form-live-editor'
 import { UploadContext } from '../../forms/contexts/upload-context'
@@ -28,6 +28,9 @@ function toFormValue(product: {
 
 export function ProductEditPage() {
   const { orgId = '', productId = '' } = useParams()
+  const [searchParams] = useSearchParams()
+  const sectionParam = searchParams.get('section') ?? searchParams.get('step') ?? undefined
+  const themeParam = searchParams.get('theme') ?? undefined
   const { product, loading, error, submitting, saved, load, save, reset } = useProductDetailStore()
   const chatStore = useProductChatStore()
 
@@ -76,6 +79,8 @@ export function ProductEditPage() {
               sections={productFormSections}
               themes={productFormThemes}
               initialValue={toFormValue(product)}
+              initialSectionKey={sectionParam}
+              initialThemeKey={themeParam}
               submitting={submitting}
               serverError={error}
               saved={saved}

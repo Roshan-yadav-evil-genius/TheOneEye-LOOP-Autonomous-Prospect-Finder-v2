@@ -9,6 +9,8 @@ export interface FormLiveEditorProps {
   sections: FormSectionDefinition[]
   themes?: FormTheme[]
   initialValue: Record<string, unknown>
+  initialSectionKey?: string
+  initialThemeKey?: string
   submitting?: boolean
   serverError?: string | null
   saved?: boolean
@@ -20,16 +22,47 @@ export function FormLiveEditor({
   sections,
   themes,
   initialValue,
+  initialSectionKey,
+  initialThemeKey,
   submitting = false,
   serverError,
   saved = false,
   onSubmit,
 }: FormLiveEditorProps) {
-  const [themeKey, setThemeKey] = useState(themes?.[0]?.key ?? '')
-  const [sectionKey, setSectionKey] = useState(sections[0]?.key ?? '')
+  const defaultThemeKey = useMemo(() => {
+    if (initialThemeKey) return initialThemeKey
+    if (initialSectionKey && themes) {
+      const match = themes.find((t) => t.sectionKeys.includes(initialSectionKey))
+      if (match) return match.key
+    }
+    return themes?.[0]?.key ?? ''
+  }, [initialSectionKey, initialThemeKey, themes])
+
+  const defaultSectionKey = useMemo(() => {
+    if (initialSectionKey && sections.some((s) => s.key === initialSectionKey)) {
+      return initialSectionKey
+    }
+    return sections[0]?.key ?? ''
+  }, [initialSectionKey, sections])
+
+  const [themeKey, setThemeKey] = useState(defaultThemeKey)
+  const [sectionKey, setSectionKey] = useState(defaultSectionKey)
   const [form, setForm] = useState(initialValue)
   const [localError, setLocalError] = useState<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
+
+  // Update selection if initialSectionKey/initialThemeKey change externally
+  useEffect(() => {
+    if (initialSectionKey && sections.some((s) => s.key === initialSectionKey)) {
+      setSectionKey(initialSectionKey)
+      if (themes) {
+        const match = themes.find((t) => t.sectionKeys.includes(initialSectionKey))
+        if (match) setThemeKey(match.key)
+      }
+    } else if (initialThemeKey && themes?.some((t) => t.key === initialThemeKey)) {
+      setThemeKey(initialThemeKey)
+    }
+  }, [initialSectionKey, initialThemeKey, sections, themes])
 
   // Sync external initialValue when updated from backend / agent
   useEffect(() => {
