@@ -1,10 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { SplitFormChatLayout } from '../../../shared/components/split-form-chat-layout'
 import { FormLiveEditor } from '../../forms/components/form-live-editor'
 import { UploadContext } from '../../forms/contexts/upload-context'
 import { productFormSections } from '../../forms/form-field-schema'
 import { productFormThemes } from '../../forms/form-themes'
+import { organizationsApi } from '../../organizations/api/organizations-api'
 import { SetupChatPanel } from '../../setup-chat/components/SetupChatPanel'
 import { useProductChatStore } from '../stores/product-chat-store'
 import { useProductDetailStore } from '../stores/product-detail-store'
@@ -17,6 +18,22 @@ export function ProductEditPage() {
   const themeParam = searchParams.get('theme') ?? undefined
   const { product, loading, error, submitting, saved, load, save, reset } = useProductDetailStore()
   const chatStore = useProductChatStore()
+  const [parentOrg, setParentOrg] = useState<any>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    if (orgId) {
+      void organizationsApi
+        .getOrganization(orgId)
+        .then((org) => {
+          if (!cancelled) setParentOrg(org)
+        })
+        .catch(() => {})
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [orgId])
 
   useEffect(() => {
     reset()
@@ -51,8 +68,18 @@ export function ProductEditPage() {
       subtitle="Interactive split-panel mode. Manually edit ICP fields or work with the AI assistant."
       breadcrumbs={[
         { label: 'Organizations', to: '/orgs' },
-        { label: 'Organization', to: `/orgs/${orgId}` },
-        { label: product?.name ?? 'Product', to: `/orgs/${orgId}/products/${productId}` },
+        { 
+          label: parentOrg?.name ?? 'Organization', 
+          to: `/orgs/${orgId}`,
+          thumbnailUrl: parentOrg?.thumbnail_url,
+          fallbackThumbnailUrl: '/static/org_placeholder.png'
+        },
+        { 
+          label: product?.name ?? 'Product', 
+          to: `/orgs/${orgId}/products/${productId}`,
+          thumbnailUrl: product ? (product as any).thumbnail_url : null,
+          fallbackThumbnailUrl: '/static/product_service_placeholder.png'
+        },
         { label: 'Edit' },
       ]}
       leftPanel={

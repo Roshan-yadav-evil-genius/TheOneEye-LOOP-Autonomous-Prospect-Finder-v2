@@ -39,10 +39,11 @@ describe('icp-utils', () => {
     expect(formVal.icp.maturity).toEqual(['Series A+'])
   })
 
-  it('preserves entity identity name and kind even if icp_form has empty identity', () => {
+  it('preserves entity identity name, kind, and thumbnail_url even if icp_form has empty identity', () => {
     const product = {
       name: 'Cloud Platform',
       kind: 'service',
+      thumbnail_url: '/uploads/logo.png',
       icp_form: {
         identity: {},
       },
@@ -51,5 +52,6 @@ describe('icp-utils', () => {
     const formVal = toProductFormValue(product) as any
     expect(formVal.identity.name).toBe('Cloud Platform')
     expect(formVal.identity.kind).toBe('service')
+    expect(formVal.identity.thumbnail_url).toBe('/uploads/logo.png')
   })
 })

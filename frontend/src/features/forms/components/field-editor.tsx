@@ -10,6 +10,7 @@ interface FieldEditorProps {
   sectionValue: unknown
   readOnly?: boolean
   onChange: (nextSectionValue: unknown) => void
+  formKey?: string
 }
 
 export function FieldEditor({
@@ -17,6 +18,7 @@ export function FieldEditor({
   onChange,
   readOnly = false,
   sectionValue,
+  formKey,
 }: FieldEditorProps) {
   const value = getAtPath(sectionValue, field.path)
 
@@ -161,6 +163,7 @@ export function FieldEditor({
                 field={item}
                 sectionValue={row}
                 readOnly={readOnly}
+                formKey={formKey}
                 onChange={(nextRow) => {
                   const next = [...rows]
                   next[index] = nextRow as Record<string, unknown>
@@ -198,9 +201,8 @@ export function FieldEditor({
   }
 
   if (field.kind === 'file') {
-    if (!uploadUrl) return null
-
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (!uploadUrl) return
       const file = event.target.files?.[0]
       if (!file) return
       
@@ -224,53 +226,90 @@ export function FieldEditor({
     }
 
     const hasValue = typeof value === 'string' && value !== ''
-    const displayUrl = previewUrl || (hasValue ? `${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:7878'}${value}` : '')
+    const displayUrl = previewUrl || (hasValue ? (value.startsWith('http') || value.startsWith('data:') ? value : `${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:7878'}${value}`) : '')
+
+    const getFallbackPlaceholder = () => {
+      if (formKey === 'organization') return '/static/org_placeholder.png'
+      if (formKey === 'product') return '/static/product_service_placeholder.png'
+      if (formKey === 'sales-strategy' || formKey === 'strategy') return '/static/strategy_placeholder.png'
+      return null
+    }
+    const fallbackImage = getFallbackPlaceholder()
 
     return (
       <FormField label={field.label} required={field.required} help={field.help}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {displayUrl ? (
-            <div style={{ position: 'relative', width: 64, height: 64, border: '1px solid var(--border-color, #ccc)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--bg-muted, #f3f4f6)' }}>
+          <div
+            style={{
+              position: 'relative',
+              width: 64,
+              height: 64,
+              border: displayUrl ? '1px solid var(--border-color, #ccc)' : '1px dashed var(--border-color, #ccc)',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              backgroundColor: 'var(--bg-muted, #f3f4f6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-muted, #9ca3af)',
+              flexShrink: 0,
+            }}
+          >
+            {displayUrl ? (
+              <>
+                <img
+                  src={displayUrl}
+                  alt="Preview"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocalFile(null)
+                      setPreviewUrl('')
+                      update('')
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = ''
+                      }
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      background: 'rgba(0,0,0,0.6)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: 20,
+                      height: 20,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '12px',
+                      padding: 0,
+                    }}
+                    title="Remove file"
+                  >
+                    ✕
+                  </button>
+                )}
+              </>
+            ) : fallbackImage ? (
               <img
-                src={displayUrl}
-                alt="Preview"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                src={fallbackImage}
+                alt="Placeholder"
+                style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: 0.7 }}
               />
-              {!readOnly && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLocalFile(null)
-                    setPreviewUrl('')
-                    update('')
-                    if (fileInputRef.current) {
-                      fileInputRef.current.value = ''
-                    }
-                  }}
-                  style={{
-                    position: 'absolute',
-                    top: 4,
-                    right: 4,
-                    background: 'rgba(0,0,0,0.6)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: 20,
-                    height: 20,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                    padding: 0
-                  }}
-                  title="Remove file"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          ) : null}
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            )}
+          </div>
 
           {!readOnly && (
             <div>
@@ -280,11 +319,13 @@ export function FieldEditor({
                 accept="image/*"
                 onChange={(e) => void handleFileChange(e)}
                 style={{ display: 'none' }}
+                disabled={!uploadUrl}
               />
               <Button 
                 type="button" 
                 variant="ghost" 
                 onClick={() => fileInputRef.current?.click()}
+                disabled={!uploadUrl}
               >
                 Upload File
               </Button>

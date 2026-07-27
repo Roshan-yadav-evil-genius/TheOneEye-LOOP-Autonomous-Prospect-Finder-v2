@@ -6,6 +6,8 @@ import { UploadContext } from '../../forms/contexts/upload-context'
 import { strategyTemplate } from '../../forms/form-definitions'
 import { strategyFormSections } from '../../forms/form-field-schema'
 import { strategyFormThemes } from '../../forms/form-themes'
+import { organizationsApi } from '../../organizations/api/organizations-api'
+import { productsApi } from '../../products/api/products-api'
 import { SetupChatPanel } from '../../setup-chat/components/SetupChatPanel'
 import { salesStrategyApi, type SalesStrategy } from '../api/sales-strategy-api'
 import { useStrategyChatStore } from '../stores/strategy-chat-store'
@@ -27,7 +29,7 @@ function toFormValue(strategy: SalesStrategy) {
     overview: {
       ...overview,
       name: typeof overview.name === 'string' && overview.name ? overview.name : strategy.name,
-      thumbnail_url: (strategy as any).thumbnail_url,
+      thumbnail_url: (strategy as any).thumbnail_url ?? overview.thumbnail_url ?? '',
     },
     run_targets: {
       ...runTargets,
@@ -48,6 +50,31 @@ export function StrategyEditPage() {
   const [submitting, setSubmitting] = useState(false)
   const [saved, setSaved] = useState(false)
   const chatStore = useStrategyChatStore()
+  const [parentOrg, setParentOrg] = useState<any>(null)
+  const [parentProduct, setParentProduct] = useState<any>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    if (orgId) {
+      void organizationsApi
+        .getOrganization(orgId)
+        .then((org) => {
+          if (!cancelled) setParentOrg(org)
+        })
+        .catch(() => {})
+    }
+    if (productId) {
+      void productsApi
+        .getProduct(productId)
+        .then((prod) => {
+          if (!cancelled) setParentProduct(prod)
+        })
+        .catch(() => {})
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [orgId, productId])
 
   const loadStrategy = useCallback(async (id: string) => {
     setLoading(true)
@@ -108,9 +135,24 @@ export function StrategyEditPage() {
       subtitle="Interactive split-panel mode. Manually edit strategy fields or work with the AI assistant."
       breadcrumbs={[
         { label: 'Organizations', to: '/orgs' },
-        { label: 'Organization', to: `/orgs/${orgId}` },
-        { label: 'Product', to: `/orgs/${orgId}/products/${productId}` },
-        { label: strategy?.name ?? 'Strategy', to: `/orgs/${orgId}/products/${productId}/sales-strategies/${strategyId}` },
+        { 
+          label: parentOrg?.name ?? 'Organization', 
+          to: `/orgs/${orgId}`,
+          thumbnailUrl: parentOrg?.thumbnail_url,
+          fallbackThumbnailUrl: '/static/org_placeholder.png'
+        },
+        { 
+          label: parentProduct?.name ?? 'Product', 
+          to: `/orgs/${orgId}/products/${productId}`,
+          thumbnailUrl: parentProduct?.thumbnail_url,
+          fallbackThumbnailUrl: '/static/product_service_placeholder.png'
+        },
+        { 
+          label: strategy?.name ?? 'Strategy', 
+          to: `/orgs/${orgId}/products/${productId}/sales-strategies/${strategyId}`,
+          thumbnailUrl: strategy ? (strategy as any).thumbnail_url : null,
+          fallbackThumbnailUrl: '/static/strategy_placeholder.png'
+        },
         { label: 'Edit' },
       ]}
       leftPanel={

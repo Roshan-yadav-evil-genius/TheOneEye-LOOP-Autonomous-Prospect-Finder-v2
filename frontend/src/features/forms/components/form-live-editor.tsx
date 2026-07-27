@@ -281,6 +281,7 @@ export function FormLiveEditor({
                     key={`${currentSection.key}.${field.path}.${field.label}`}
                     field={field}
                     sectionValue={currentSectionValue}
+                    formKey={resolvedFormKey}
                     onChange={(next) => updateSection(currentSection.key, next)}
                   />
                 ))}

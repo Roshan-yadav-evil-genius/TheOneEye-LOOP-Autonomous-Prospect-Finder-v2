@@ -14,17 +14,21 @@ function toFormValue(organization: {
   name: string
   website: string
   primary_contact_email: string | null
+  thumbnail_url?: string | null
   org_form: Record<string, unknown>
 }) {
+  const orgForm = (organization.org_form ?? {}) as Record<string, unknown>
+  const identity = (orgForm.identity ?? {}) as Record<string, unknown>
   return {
+    ...organizationTemplate,
+    ...orgForm,
     identity: {
+      ...identity,
       name: organization.name,
       website: organization.website,
       primary_contact_email: organization.primary_contact_email ?? '',
-      thumbnail_url: (organization as any).thumbnail_url,
+      thumbnail_url: (organization as any).thumbnail_url ?? identity.thumbnail_url ?? '',
     },
-    ...organizationTemplate,
-    ...organization.org_form,
   }
 }
 
@@ -69,7 +73,12 @@ export function OrganizationEditPage() {
       subtitle="Interactive split-panel mode. Manually edit fields or work with the AI assistant."
       breadcrumbs={[
         { label: 'Organizations', to: '/orgs' },
-        { label: organization?.name ?? 'Organization', to: `/orgs/${orgId}` },
+        { 
+          label: organization?.name ?? 'Organization', 
+          to: `/orgs/${orgId}`,
+          thumbnailUrl: organization ? (organization as any).thumbnail_url : null,
+          fallbackThumbnailUrl: '/static/org_placeholder.png'
+        },
         { label: 'Edit' },
       ]}
       leftPanel={

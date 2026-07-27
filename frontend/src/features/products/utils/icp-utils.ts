@@ -14,10 +14,10 @@ export function toProductFormValue(product: {
     ...productTemplate,
     ...icpForm,
     identity: {
+      ...rawIdentity,
       name: product.name,
       kind: product.kind,
-      thumbnail_url: (product as any).thumbnail_url,
-      ...rawIdentity,
+      thumbnail_url: (product as any).thumbnail_url ?? rawIdentity.thumbnail_url ?? '',
     },
     icp: {
       ...templateIcp,

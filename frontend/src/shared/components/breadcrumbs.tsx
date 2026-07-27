@@ -14,7 +14,9 @@ export function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
     const hasIcon = item.thumbnailUrl !== undefined || item.fallbackThumbnailUrl !== undefined
     if (!hasIcon) return item.label
 
-    const src = item.thumbnailUrl || item.fallbackThumbnailUrl
+    const rawSrc = item.thumbnailUrl || item.fallbackThumbnailUrl
+    const src = rawSrc ? (rawSrc.startsWith('http') || rawSrc.startsWith('data:') ? rawSrc : rawSrc) : ''
+
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
         {src ? (
@@ -22,16 +24,18 @@ export function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
             src={src} 
             alt="" 
             style={{ 
-              width: 20, 
-              height: 20, 
+              width: 18, 
+              height: 18, 
               borderRadius: '4px', 
-              objectFit: 'contain' 
+              objectFit: 'cover' 
             }} 
             onError={(e) => {
-              if (item.fallbackThumbnailUrl && e.currentTarget.src !== item.fallbackThumbnailUrl) {
-                e.currentTarget.src = item.fallbackThumbnailUrl
+              const target = e.currentTarget
+              if (item.fallbackThumbnailUrl && !target.dataset.fallbackTried) {
+                target.dataset.fallbackTried = 'true'
+                target.src = item.fallbackThumbnailUrl
               } else {
-                e.currentTarget.style.display = 'none'
+                target.style.display = 'none'
               }
             }}
           />
