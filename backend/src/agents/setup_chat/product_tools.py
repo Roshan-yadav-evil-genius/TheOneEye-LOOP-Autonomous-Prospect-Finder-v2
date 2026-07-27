@@ -4,7 +4,7 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
-from application.form_definitions import PRODUCT_FORM
+from application.form_definitions import PRODUCT_FORM, build_agent_profile_dict
 from application.loop_service import ReentrantAsyncLock
 from agents.setup_chat.common import SetupChatToolContext
 
@@ -18,41 +18,14 @@ async def get_product_profile(config: RunnableConfig) -> dict[str, Any]:
 
     product = await ctx.service.get_product(ctx.product_id)
 
-    ARRAY_SECTIONS = (
-        "customer_success_stories",
-        "use_cases",
-        "customer_triggers",
-        "competitors",
-        "differentiators",
-        "keywords",
-        "signals",
-    )
-
-    full_product_form = {}
-    for section in PRODUCT_FORM.sections:
-        if section.key == "identity":
-            val = {
-                "name": product.name,
-                "kind": product.kind,
-            }
-        else:
-            val = product.icp_form.get(section.key)
-            if val is None:
-                if section.key in ARRAY_SECTIONS:
-                    val = []
-                else:
-                    val = {}
-            elif isinstance(val, dict) and "items" in val:
-                val = val["items"]
-        full_product_form[section.key] = val
-
-    return {
-        "identity": {
-            "name": product.name,
-            "kind": product.kind,
-        },
-        "icp_form": full_product_form,
+    icp_data = copy.deepcopy(product.icp_form)
+    icp_data["identity"] = {
+        "name": product.name,
+        "kind": product.kind,
     }
+
+    return build_agent_profile_dict(PRODUCT_FORM, icp_data)
+
 
 
 async def _save_product_section(

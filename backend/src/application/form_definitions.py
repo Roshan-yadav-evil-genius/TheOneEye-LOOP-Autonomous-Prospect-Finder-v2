@@ -846,3 +846,91 @@ FORM_TEMPLATES: dict[str, FormTemplateDef] = {
     "product": PRODUCT_FORM,
     "sales-strategy": STRATEGY_FORM,
 }
+
+
+def _clean_value(val: Any) -> Any:
+    if val is None:
+        return None
+    if val == "" or val == [] or val == {}:
+        return None
+    if isinstance(val, str) and not val.strip():
+        return None
+    return val
+
+
+def _extract_field_value(section_data: Any, path: str) -> Any:
+    if section_data is None:
+        return None
+
+    if path == ".":
+        if isinstance(section_data, dict) and "items" in section_data:
+            return section_data["items"]
+        return section_data
+
+    if not isinstance(section_data, dict):
+        return None
+
+    if path in section_data:
+        return section_data[path]
+
+    parts = path.split(".")
+    curr = section_data
+    for part in parts:
+        if isinstance(curr, dict) and part in curr:
+            curr = curr[part]
+        else:
+            return None
+    return curr
+
+
+def build_agent_profile_dict(
+    template: FormTemplateDef,
+    form_data: dict[str, Any],
+) -> dict[str, list[dict[str, Any]]]:
+    """Transform canonical form template definition and form data into agent profile dictionary.
+
+    Returns a dict mapping section keys to lists of field dicts:
+    {
+        section_key: [
+            {
+                "key": field.path,
+                "name": field.label,
+                "description": field.help,
+                "value": extracted_value_or_None,
+            }
+        ]
+    }
+    Empty values ("", [], {}) are normalized to None.
+    """
+    from typing import Any
+
+    result: dict[str, list[dict[str, Any]]] = {}
+
+    for section in template.sections:
+        section_key = section.key
+        section_data = form_data.get(section_key)
+        if section_data is None:
+            if section_key == "exclusion rules":
+                section_data = form_data.get("exclusion_rules")
+            elif section_key == "exclusion_rules":
+                section_data = form_data.get("exclusion rules")
+
+        field_list: list[dict[str, Any]] = []
+
+        for field in section.fields:
+            raw_value = _extract_field_value(section_data, field.path)
+            clean_val = _clean_value(raw_value)
+
+            field_list.append(
+                {
+                    "key": field.path,
+                    "name": field.label,
+                    "description": field.help,
+                    "value": clean_val,
+                }
+            )
+
+        result[section_key] = field_list
+
+    return result
+

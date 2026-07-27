@@ -86,21 +86,30 @@ async def test_case_studies_saved_as_direct_list_and_normalized():
     assert saved_form["case_studies"] == cs_items
     assert isinstance(saved_form["case_studies"], list)
 
-    # Test get_organization_profile normalization for legacy dict values
+    # Test get_organization_profile transformation for case_studies and identity
     mock_org.org_form = {"case_studies": {"items": cs_items}}
     profile_res = await get_organization_profile.ainvoke({}, config=config)
-    assert profile_res["org_form"]["case_studies"] == cs_items
-    assert isinstance(profile_res["org_form"]["case_studies"], list)
-    assert profile_res["org_form"]["identity"] == {
-        "name": "Acme",
-        "website": "https://acme.com",
-        "primary_contact_email": "a@b.com",
+    assert profile_res["case_studies"][0]["value"] == cs_items
+    assert profile_res["identity"][0] == {
+        "key": "name",
+        "name": "Organization name",
+        "description": "Legal or brand name",
+        "value": "Acme",
+    }
+    assert profile_res["identity"][1] == {
+        "key": "website",
+        "name": "Website",
+        "description": "Canonical company website URL",
+        "value": "https://acme.com",
     }
 
 
 async def test_strategy_tools_returns_saved_data():
     mock_service = AsyncMock()
     mock_strategy = MagicMock()
+    mock_strategy.name = "Outbound Run 1"
+    mock_strategy.target_companies = 100
+    mock_strategy.contacts_per_company_default = 5
     mock_strategy.sales_strategy_form = {}
     mock_service.get_strategy.return_value = mock_strategy
     mock_service.update_strategy_profile.return_value = None
@@ -117,10 +126,19 @@ async def test_strategy_tools_returns_saved_data():
     res_empty = await set_strategy_company_size.ainvoke({}, config=config)
     assert res_empty == "Error: No field values provided to update. Please pass at least one field value."
 
+    # Test get_strategy_profile transformer output
+    strategy_profile = await get_strategy_profile.ainvoke({}, config=config)
+    assert strategy_profile["overview"][0]["value"] == "Outbound Run 1"
+    assert strategy_profile["run_targets"][0]["value"] == 100
+    assert strategy_profile["run_targets"][1]["value"] == 5
+
 
 async def test_strategy_experiments_saved_as_direct_list():
     mock_service = AsyncMock()
     mock_strategy = MagicMock()
+    mock_strategy.name = "Strat"
+    mock_strategy.target_companies = 10
+    mock_strategy.contacts_per_company_default = 2
     mock_strategy.sales_strategy_form = {}
     mock_service.get_strategy.return_value = mock_strategy
 
@@ -205,11 +223,13 @@ async def test_product_icp_nested_storage_and_retrieval():
     config = {"configurable": {"tool_context": ctx}}
 
     profile = await get_product_profile.ainvoke({}, config=config)
-    assert profile["icp_form"]["identity"] == {"name": "Product Z", "kind": "product"}
-    icp = profile["icp_form"]["icp"]
-    assert icp["industries"]["primary"] == ["Software & SaaS"]
-    assert icp["company_size"]["employees_min"] == 50
-    assert icp["geography"]["countries"] == ["United States"]
+    assert profile["identity"][0]["value"] == "Product Z"
+    assert profile["identity"][1]["value"] == "product"
+
+    icp_fields = {f["key"]: f["value"] for f in profile["icp"]}
+    assert icp_fields["industries.primary"] == ["Software & SaaS"]
+    assert icp_fields["company_size.employees_min"] == 50
+    assert icp_fields["geography.countries"] == ["United States"]
 
 
 async def test_identity_stripped_from_form_json():
@@ -229,5 +249,40 @@ async def test_identity_stripped_from_form_json():
     mock_service.update_product_profile.assert_called_once()
     saved_form = mock_service.update_product_profile.call_args.kwargs["form"]
     assert "identity" not in saved_form
+
+
+def test_build_agent_profile_dict_normalization():
+    from application.form_definitions import ORGANIZATION_FORM, build_agent_profile_dict
+
+    form_data = {
+        "identity": {
+            "name": "Acme Inc",
+            "website": "",
+            "primary_contact_email": None,
+        },
+        "company_overview": {
+            "description": "   ",
+            "mission": [],
+            "founded_year": 0,
+        },
+        "unique_strengths": [],
+    }
+
+    result = build_agent_profile_dict(ORGANIZATION_FORM, form_data)
+
+    identity_fields = {f["key"]: f["value"] for f in result["identity"]}
+    assert identity_fields["name"] == "Acme Inc"
+    assert identity_fields["website"] is None
+    assert identity_fields["primary_contact_email"] is None
+
+    overview_fields = {f["key"]: f["value"] for f in result["company_overview"]}
+    assert overview_fields["description"] is None
+    assert overview_fields["mission"] is None
+    assert overview_fields["founded_year"] == 0
+
+    strengths_fields = {f["key"]: f["value"] for f in result["unique_strengths"]}
+    assert strengths_fields["."] is None
+
+
 
 

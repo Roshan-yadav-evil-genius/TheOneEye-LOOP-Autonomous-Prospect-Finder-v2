@@ -4,7 +4,7 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
-from application.form_definitions import STRATEGY_FORM
+from application.form_definitions import STRATEGY_FORM, build_agent_profile_dict
 from application.loop_service import ReentrantAsyncLock
 from agents.setup_chat.common import SetupChatToolContext
 
@@ -18,28 +18,26 @@ async def get_strategy_profile(config: RunnableConfig) -> dict[str, Any]:
 
     strategy = await ctx.service.get_strategy(ctx.strategy_id)
 
-    ARRAY_SECTIONS = ("best_practices", "experiments")
+    strategy_data = copy.deepcopy(strategy.sales_strategy_form)
 
-    full_strategy_form = {}
-    for section in STRATEGY_FORM.sections:
-        val = strategy.sales_strategy_form.get(section.key)
-        if val is None:
-            if section.key in ARRAY_SECTIONS:
-                val = []
-            else:
-                val = {}
-        elif isinstance(val, dict) and "items" in val:
-            val = val["items"]
-        full_strategy_form[section.key] = val
+    overview = strategy_data.get("overview")
+    if not isinstance(overview, dict):
+        overview = {}
+    if not overview.get("name") and strategy.name:
+        overview["name"] = strategy.name
+    strategy_data["overview"] = overview
 
-    return {
-        "identity": {
-            "name": strategy.name,
-            "target_companies": strategy.target_companies,
-            "contacts_per_company_default": strategy.contacts_per_company_default,
-        },
-        "sales_strategy_form": full_strategy_form,
-    }
+    run_targets = strategy_data.get("run_targets")
+    if not isinstance(run_targets, dict):
+        run_targets = {}
+    if run_targets.get("target_companies") is None and strategy.target_companies is not None:
+        run_targets["target_companies"] = strategy.target_companies
+    if run_targets.get("contacts_per_company_default") is None and strategy.contacts_per_company_default is not None:
+        run_targets["contacts_per_company_default"] = strategy.contacts_per_company_default
+    strategy_data["run_targets"] = run_targets
+
+    return build_agent_profile_dict(STRATEGY_FORM, strategy_data)
+
 
 
 async def _save_strategy_section(

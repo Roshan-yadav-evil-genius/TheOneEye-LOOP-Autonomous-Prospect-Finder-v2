@@ -4,7 +4,7 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
-from application.form_definitions import ORGANIZATION_FORM
+from application.form_definitions import ORGANIZATION_FORM, build_agent_profile_dict
 from application.loop_service import ReentrantAsyncLock
 from agents.setup_chat.common import SetupChatToolContext
 
@@ -15,33 +15,15 @@ async def get_organization_profile(config: RunnableConfig) -> dict[str, Any]:
     ctx: SetupChatToolContext = config["configurable"]["tool_context"]
     org = await ctx.service.get_organization(ctx.organization_id)
 
-    full_org_form = {}
-    for section in ORGANIZATION_FORM.sections:
-        if section.key == "identity":
-            val = {
-                "name": org.name,
-                "website": org.website,
-                "primary_contact_email": org.primary_contact_email,
-            }
-        else:
-            val = org.org_form.get(section.key)
-            if val is None:
-                if section.key in ("unique_strengths", "case_studies"):
-                    val = []
-                else:
-                    val = {}
-            elif isinstance(val, dict) and "items" in val:
-                val = val["items"]
-        full_org_form[section.key] = val
-
-    return {
-        "identity": {
-            "name": org.name,
-            "website": org.website,
-            "primary_contact_email": org.primary_contact_email,
-        },
-        "org_form": full_org_form,
+    org_data = copy.deepcopy(org.org_form)
+    org_data["identity"] = {
+        "name": org.name,
+        "website": org.website,
+        "primary_contact_email": org.primary_contact_email,
     }
+
+    return build_agent_profile_dict(ORGANIZATION_FORM, org_data)
+
 
 
 async def _save_org_section(
