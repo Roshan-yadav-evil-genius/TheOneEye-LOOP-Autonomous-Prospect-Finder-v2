@@ -8,15 +8,17 @@ export function toProductFormValue(product: {
   const icpForm = product.icp_form ?? {}
   const rawIcp = (icpForm.icp as Record<string, unknown>) || {}
   const templateIcp = (productTemplate.icp as Record<string, unknown>) || {}
+  const rawIdentity = (icpForm.identity as Record<string, unknown>) || {}
 
   return {
+    ...productTemplate,
+    ...icpForm,
     identity: {
       name: product.name,
       kind: product.kind,
       thumbnail_url: (product as any).thumbnail_url,
+      ...rawIdentity,
     },
-    ...productTemplate,
-    ...icpForm,
     icp: {
       ...templateIcp,
       ...rawIcp,

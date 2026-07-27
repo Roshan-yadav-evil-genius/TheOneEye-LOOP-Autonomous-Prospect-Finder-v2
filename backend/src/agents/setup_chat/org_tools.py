@@ -17,14 +17,21 @@ async def get_organization_profile(config: RunnableConfig) -> dict[str, Any]:
 
     full_org_form = {}
     for section in ORGANIZATION_FORM.sections:
-        val = org.org_form.get(section.key)
-        if val is None:
-            if section.key in ("unique_strengths", "case_studies"):
-                val = []
-            else:
-                val = {}
-        elif isinstance(val, dict) and "items" in val:
-            val = val["items"]
+        if section.key == "identity":
+            val = {
+                "name": org.name,
+                "website": org.website,
+                "primary_contact_email": org.primary_contact_email,
+            }
+        else:
+            val = org.org_form.get(section.key)
+            if val is None:
+                if section.key in ("unique_strengths", "case_studies"):
+                    val = []
+                else:
+                    val = {}
+            elif isinstance(val, dict) and "items" in val:
+                val = val["items"]
         full_org_form[section.key] = val
 
     return {
@@ -64,6 +71,7 @@ async def _do_save_org_section(
         name = updates.get("name", org.name)
         website = updates.get("website", org.website)
         email = updates.get("primary_contact_email", org.primary_contact_email)
+        current_form.pop("identity", None)
 
         await ctx.service.update_organization_profile(
             ctx.organization_id,

@@ -28,6 +28,7 @@ describe('icp-utils', () => {
 
     const formVal = toProductFormValue(product) as any
     expect(formVal.identity.name).toBe('Test Product')
+    expect(formVal.identity.kind).toBe('product')
     expect(formVal.icp.industries.primary).toEqual(['Software & SaaS', 'Technology Services'])
     expect(formVal.icp.industries.secondary).toEqual(['Consulting Firms'])
     expect(formVal.icp.industries.avoid).toEqual(['B2C Retail'])
@@ -36,5 +37,19 @@ describe('icp-utils', () => {
     expect(formVal.icp.geography.countries).toEqual(['United States', 'India'])
     expect(formVal.icp.geography.regions).toEqual(['North America'])
     expect(formVal.icp.maturity).toEqual(['Series A+'])
+  })
+
+  it('preserves entity identity name and kind even if icp_form has empty identity', () => {
+    const product = {
+      name: 'Cloud Platform',
+      kind: 'service',
+      icp_form: {
+        identity: {},
+      },
+    }
+
+    const formVal = toProductFormValue(product) as any
+    expect(formVal.identity.name).toBe('Cloud Platform')
+    expect(formVal.identity.kind).toBe('service')
   })
 })

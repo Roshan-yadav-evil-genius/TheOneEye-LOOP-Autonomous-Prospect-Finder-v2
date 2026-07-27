@@ -91,6 +91,11 @@ async def test_case_studies_saved_as_direct_list_and_normalized():
     profile_res = await get_organization_profile.ainvoke({}, config=config)
     assert profile_res["org_form"]["case_studies"] == cs_items
     assert isinstance(profile_res["org_form"]["case_studies"], list)
+    assert profile_res["org_form"]["identity"] == {
+        "name": "Acme",
+        "website": "https://acme.com",
+        "primary_contact_email": "a@b.com",
+    }
 
 
 async def test_strategy_tools_returns_saved_data():
@@ -200,8 +205,29 @@ async def test_product_icp_nested_storage_and_retrieval():
     config = {"configurable": {"tool_context": ctx}}
 
     profile = await get_product_profile.ainvoke({}, config=config)
+    assert profile["icp_form"]["identity"] == {"name": "Product Z", "kind": "product"}
     icp = profile["icp_form"]["icp"]
     assert icp["industries"]["primary"] == ["Software & SaaS"]
     assert icp["company_size"]["employees_min"] == 50
     assert icp["geography"]["countries"] == ["United States"]
+
+
+async def test_identity_stripped_from_form_json():
+    mock_service = AsyncMock()
+    mock_product = MagicMock()
+    mock_product.name = "Product A"
+    mock_product.kind = "product"
+    mock_product.icp_form = {"identity": {"name": "Old Name"}}
+    mock_service.get_product.return_value = mock_product
+
+    ctx = SetupChatToolContext(
+        organization_id="org-123", product_id="prod-123", mode="agent", service=mock_service
+    )
+    config = {"configurable": {"tool_context": ctx}}
+
+    await set_product_identity.ainvoke({"name": "New Name"}, config=config)
+    mock_service.update_product_profile.assert_called_once()
+    saved_form = mock_service.update_product_profile.call_args.kwargs["form"]
+    assert "identity" not in saved_form
+
 

@@ -30,14 +30,20 @@ async def get_product_profile(config: RunnableConfig) -> dict[str, Any]:
 
     full_product_form = {}
     for section in PRODUCT_FORM.sections:
-        val = product.icp_form.get(section.key)
-        if val is None:
-            if section.key in ARRAY_SECTIONS:
-                val = []
-            else:
-                val = {}
-        elif isinstance(val, dict) and "items" in val:
-            val = val["items"]
+        if section.key == "identity":
+            val = {
+                "name": product.name,
+                "kind": product.kind,
+            }
+        else:
+            val = product.icp_form.get(section.key)
+            if val is None:
+                if section.key in ARRAY_SECTIONS:
+                    val = []
+                else:
+                    val = {}
+            elif isinstance(val, dict) and "items" in val:
+                val = val["items"]
         full_product_form[section.key] = val
 
     return {
@@ -80,6 +86,7 @@ async def _do_save_product_section(
     if form_key == "identity":
         name = updates.get("name", product.name)
         kind = updates.get("kind", product.kind)
+        current_form.pop("identity", None)
 
         await ctx.service.update_product_profile(
             ctx.product_id,

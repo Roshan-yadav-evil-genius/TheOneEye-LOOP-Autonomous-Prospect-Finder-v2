@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import re
 from datetime import UTC, datetime
 from typing import Any
@@ -236,11 +237,13 @@ class LoopService:
             await self.session.commit()
 
     async def create_organization(self, data: OrganizationCreate) -> models.Organization:
+        org_form = copy.deepcopy(data.org_form) if data.org_form else {}
+        org_form.pop("identity", None)
         row = models.Organization(
             name=data.name,
             website=str(data.website),
             primary_contact_email=data.primary_contact_email,
-            org_form=data.org_form,
+            org_form=org_form,
             products=[],
         )
         self.session.add(row)
@@ -291,6 +294,8 @@ class LoopService:
         thumbnail_url: str | None = None,
     ) -> models.Organization:
         row = await self.get_organization(organization_id)
+        form = copy.deepcopy(form)
+        form.pop("identity", None)
         row.org_form = form
         row.profile_validated = False
         if name is not None:
@@ -323,11 +328,13 @@ class LoopService:
 
     async def create_product(self, organization_id: str, data: ProductCreate) -> models.Product:
         organization = await self.get_organization(organization_id)
+        icp_form = copy.deepcopy(data.icp_form) if data.icp_form else {}
+        icp_form.pop("identity", None)
         row = models.Product(
             organization_id=organization_id,
             name=data.name,
             kind=data.kind,
-            icp_form=data.icp_form,
+            icp_form=icp_form,
             sales_strategies=[],
         )
         self.session.add(row)
@@ -380,6 +387,8 @@ class LoopService:
         thumbnail_url: str | None = None,
     ) -> models.Product:
         row = await self.get_product(product_id)
+        form = copy.deepcopy(form)
+        form.pop("identity", None)
         row.icp_form = form
         row.profile_validated = False
         if name is not None:
