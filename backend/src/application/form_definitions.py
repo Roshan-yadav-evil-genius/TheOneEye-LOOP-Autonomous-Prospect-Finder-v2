@@ -893,7 +893,6 @@ def build_agent_profile_dict(
     {
         section_key: [
             {
-                "key": field.path,
                 "name": field.label,
                 "description": field.help,
                 "value": extracted_value_or_None,
@@ -923,7 +922,6 @@ def build_agent_profile_dict(
 
             field_list.append(
                 {
-                    "key": field.path,
                     "name": field.label,
                     "description": field.help,
                     "value": clean_val,

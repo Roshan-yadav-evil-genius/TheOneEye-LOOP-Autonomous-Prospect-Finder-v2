@@ -91,13 +91,11 @@ async def test_case_studies_saved_as_direct_list_and_normalized():
     profile_res = await get_organization_profile.ainvoke({}, config=config)
     assert profile_res["case_studies"][0]["value"] == cs_items
     assert profile_res["identity"][0] == {
-        "key": "name",
         "name": "Organization name",
         "description": "Legal or brand name",
         "value": "Acme",
     }
     assert profile_res["identity"][1] == {
-        "key": "website",
         "name": "Website",
         "description": "Canonical company website URL",
         "value": "https://acme.com",
@@ -226,10 +224,10 @@ async def test_product_icp_nested_storage_and_retrieval():
     assert profile["identity"][0]["value"] == "Product Z"
     assert profile["identity"][1]["value"] == "product"
 
-    icp_fields = {f["key"]: f["value"] for f in profile["icp"]}
-    assert icp_fields["industries.primary"] == ["Software & SaaS"]
-    assert icp_fields["company_size.employees_min"] == 50
-    assert icp_fields["geography.countries"] == ["United States"]
+    icp_fields = {f["name"]: f["value"] for f in profile["icp"]}
+    assert icp_fields["Primary industries"] == ["Software & SaaS"]
+    assert icp_fields["Employees min"] == 50
+    assert icp_fields["Countries"] == ["United States"]
 
 
 async def test_identity_stripped_from_form_json():
@@ -270,18 +268,19 @@ def test_build_agent_profile_dict_normalization():
 
     result = build_agent_profile_dict(ORGANIZATION_FORM, form_data)
 
-    identity_fields = {f["key"]: f["value"] for f in result["identity"]}
-    assert identity_fields["name"] == "Acme Inc"
-    assert identity_fields["website"] is None
-    assert identity_fields["primary_contact_email"] is None
+    identity_fields = {f["name"]: f["value"] for f in result["identity"]}
+    assert identity_fields["Organization name"] == "Acme Inc"
+    assert identity_fields["Website"] is None
+    assert identity_fields["Primary contact email"] is None
 
-    overview_fields = {f["key"]: f["value"] for f in result["company_overview"]}
-    assert overview_fields["description"] is None
-    assert overview_fields["mission"] is None
-    assert overview_fields["founded_year"] == 0
+    overview_fields = {f["name"]: f["value"] for f in result["company_overview"]}
+    assert overview_fields["What the company does"] is None
+    assert overview_fields["Mission or vision"] is None
+    assert overview_fields["Year founded"] == 0
 
-    strengths_fields = {f["key"]: f["value"] for f in result["unique_strengths"]}
-    assert strengths_fields["."] is None
+    strengths_fields = {f["name"]: f["value"] for f in result["unique_strengths"]}
+    assert strengths_fields["Strengths"] is None
+
 
 
 
