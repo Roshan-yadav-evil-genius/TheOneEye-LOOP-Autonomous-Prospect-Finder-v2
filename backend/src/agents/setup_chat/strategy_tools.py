@@ -5,6 +5,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
 from application.form_definitions import STRATEGY_FORM
+from application.loop_service import ReentrantAsyncLock
 from agents.setup_chat.common import SetupChatToolContext
 
 
@@ -54,6 +55,16 @@ async def _save_strategy_section(
     if not updates:
         return "Error: No field values provided to update. Please pass at least one field value."
 
+    lock = getattr(ctx.service, "_lock", None)
+    if isinstance(lock, ReentrantAsyncLock):
+        async with lock:
+            return await _do_save_strategy_section(ctx, section_key, updates)
+    return await _do_save_strategy_section(ctx, section_key, updates)
+
+
+async def _do_save_strategy_section(
+    ctx: SetupChatToolContext, section_key: str, updates: dict[str, Any]
+) -> dict[str, Any]:
     strategy = await ctx.service.get_strategy(ctx.strategy_id)
     current_form = copy.deepcopy(strategy.sales_strategy_form)
 

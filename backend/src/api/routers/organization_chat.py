@@ -9,7 +9,7 @@ from application.setup_chat_service import SetupChatService
 from agents.setup_chat.org_agent import create_organization_setup_agent
 from agents.setup_chat.common import SetupChatToolContext
 from contracts.domain import ChatStreamRequest, ChatHistoryRead
-from persistence.database import get_session
+from persistence.database import SessionFactory, get_session
 
 router = APIRouter(prefix="/api/v1", tags=["organization-chat"])
 Session = Annotated[AsyncSession, Depends(get_session)]
@@ -39,13 +39,17 @@ def chat_service(session: AsyncSession, request: Request, organization_id: str) 
 async def stream_chat(
     organization_id: str,
     data: ChatStreamRequest,
-    session: Session,
     request: Request,
 ) -> StreamingResponse:
-    service = chat_service(session, request, organization_id)
-    service.tool_context.mode = data.mode
+    async def _stream_with_session():
+        async with SessionFactory() as session:
+            service = chat_service(session, request, organization_id)
+            service.tool_context.mode = data.mode
+            async for chunk in service.stream_chat(data, fastapi_request=request):
+                yield chunk
+
     return StreamingResponse(
-        service.stream_chat(data, fastapi_request=request),
+        _stream_with_session(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )

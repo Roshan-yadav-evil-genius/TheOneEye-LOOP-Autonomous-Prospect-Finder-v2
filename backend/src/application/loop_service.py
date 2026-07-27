@@ -1,3 +1,4 @@
+import asyncio
 import re
 from datetime import UTC, datetime
 from typing import Any
@@ -36,6 +37,40 @@ class DomainError(Exception):
         self.message = message
         self.status_code = status_code
         super().__init__(message)
+
+
+class ReentrantAsyncLock:
+    """Task-reentrant async lock to serialize concurrent operations on a shared AsyncSession."""
+
+    def __init__(self) -> None:
+        self._lock = asyncio.Lock()
+        self._owner: asyncio.Task | None = None
+        self._count = 0
+
+    async def acquire(self) -> None:
+        me = asyncio.current_task()
+        if self._owner == me:
+            self._count += 1
+            return
+        await self._lock.acquire()
+        self._owner = me
+        self._count = 1
+
+    def release(self) -> None:
+        me = asyncio.current_task()
+        if self._owner != me:
+            raise RuntimeError("Cannot release un-owned lock")
+        self._count -= 1
+        if self._count == 0:
+            self._owner = None
+            self._lock.release()
+
+    async def __aenter__(self) -> "ReentrantAsyncLock":
+        await self.acquire()
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        self.release()
 
 
 def utcnow() -> datetime:
@@ -168,6 +203,7 @@ class LoopService:
     def __init__(self, session: AsyncSession, request_id: str | None = None) -> None:
         self.session = session
         self.request_id = request_id
+        self._lock = ReentrantAsyncLock()
 
     async def _commit_event(
         self,
@@ -178,25 +214,26 @@ class LoopService:
         after: dict[str, Any],
         reason: str | None = None,
     ) -> None:
-        self.session.add(
-            models.AuditEvent(
-                actor="operator",
-                action=action,
-                entity_type=entity_type,
-                entity_id=entity_id,
-                after=after,
-                reason=reason,
-                request_id=self.request_id,
+        async with self._lock:
+            self.session.add(
+                models.AuditEvent(
+                    actor="operator",
+                    action=action,
+                    entity_type=entity_type,
+                    entity_id=entity_id,
+                    after=after,
+                    reason=reason,
+                    request_id=self.request_id,
+                )
             )
-        )
-        self.session.add(
-            models.IntegrationEvent(
-                event_type=action,
-                correlation_id=self.request_id,
-                payload={"entity_type": entity_type, "entity_id": entity_id, **after},
+            self.session.add(
+                models.IntegrationEvent(
+                    event_type=action,
+                    correlation_id=self.request_id,
+                    payload={"entity_type": entity_type, "entity_id": entity_id, **after},
+                )
             )
-        )
-        await self.session.commit()
+            await self.session.commit()
 
     async def create_organization(self, data: OrganizationCreate) -> models.Organization:
         row = models.Organization(

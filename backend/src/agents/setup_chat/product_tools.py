@@ -5,6 +5,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
 from application.form_definitions import PRODUCT_FORM
+from application.loop_service import ReentrantAsyncLock
 from agents.setup_chat.common import SetupChatToolContext
 
 
@@ -61,6 +62,16 @@ async def _save_product_section(
     if not updates:
         return "Error: No field values provided to update. Please pass at least one field value."
 
+    lock = getattr(ctx.service, "_lock", None)
+    if isinstance(lock, ReentrantAsyncLock):
+        async with lock:
+            return await _do_save_product_section(ctx, section_key, updates)
+    return await _do_save_product_section(ctx, section_key, updates)
+
+
+async def _do_save_product_section(
+    ctx: SetupChatToolContext, section_key: str, updates: dict[str, Any]
+) -> dict[str, Any]:
     product = await ctx.service.get_product(ctx.product_id)
     current_form = copy.deepcopy(product.icp_form)
 
