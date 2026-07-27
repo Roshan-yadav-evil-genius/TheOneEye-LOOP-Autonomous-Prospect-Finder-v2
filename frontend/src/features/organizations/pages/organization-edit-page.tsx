@@ -76,6 +76,7 @@ export function OrganizationEditPage() {
         organization ? (
           <UploadContext.Provider value={`/api/v1/orgs/${orgId}/thumbnail`}>
             <FormLiveEditor
+              formKey="organization"
               title="Organization Form"
               sections={organizationFormSections}
               themes={organizationFormThemes}

@@ -117,6 +117,7 @@ export function StrategyEditPage() {
         strategy ? (
           <UploadContext.Provider value={`/api/v1/orgs/${orgId}/products/${productId}/sales-strategies/${strategyId}/thumbnail`}>
             <FormLiveEditor
+              formKey="sales-strategy"
               title="Sales Strategy Form"
               sections={strategyFormSections}
               themes={strategyFormThemes}

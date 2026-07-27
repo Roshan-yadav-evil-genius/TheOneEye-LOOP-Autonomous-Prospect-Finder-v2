@@ -3,6 +3,9 @@ import { Button } from '../../../shared/components/button'
 import type { FormSectionDefinition } from '../form-field-schema'
 import type { FormTheme } from '../form-themes'
 import { FieldEditor } from './field-editor'
+import { formsApi, type FormTemplateKey } from '../api/forms-api'
+import { downloadTextFile } from '../lib/download-markdown'
+import { exportFilledMarkdown } from '../lib/export-filled-markdown'
 
 export interface FormLiveEditorProps {
   title: string
@@ -15,6 +18,7 @@ export interface FormLiveEditorProps {
   serverError?: string | null
   saved?: boolean
   onSubmit: (value: Record<string, unknown>) => Promise<void>
+  formKey?: FormTemplateKey
 }
 
 export function FormLiveEditor({
@@ -28,6 +32,7 @@ export function FormLiveEditor({
   serverError,
   saved = false,
   onSubmit,
+  formKey,
 }: FormLiveEditorProps) {
   const defaultThemeKey = useMemo(() => {
     if (initialThemeKey) return initialThemeKey
@@ -50,6 +55,36 @@ export function FormLiveEditor({
   const [form, setForm] = useState(initialValue)
   const [localError, setLocalError] = useState<string | null>(null)
   const [isDirty, setIsDirty] = useState(false)
+
+  const resolvedFormKey = useMemo<FormTemplateKey | undefined>(() => {
+    if (formKey) return formKey
+    const lower = title.toLowerCase()
+    if (lower.includes('org')) return 'organization'
+    if (lower.includes('product')) return 'product'
+    if (lower.includes('strateg')) return 'sales-strategy'
+    return undefined
+  }, [formKey, title])
+
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+
+  const handleDownloadTemplate = async () => {
+    if (!resolvedFormKey) return
+    setDownloadingTemplate(true)
+    setDownloadError(null)
+    try {
+      const template = await formsApi.downloadTemplate(resolvedFormKey)
+      downloadTextFile(template.filename, template.content)
+    } catch {
+      setDownloadError('Could not download the offline form template.')
+    } finally {
+      setDownloadingTemplate(false)
+    }
+  }
+
+  const handleExportFilled = () => {
+    exportFilledMarkdown(title, sections, form)
+  }
 
   // Update selection if initialSectionKey/initialThemeKey change externally
   useEffect(() => {
@@ -154,9 +189,24 @@ export function FormLiveEditor({
             {isDirty ? '● Unsaved changes' : saved ? '✓ Saved' : 'Live Form Editor'}
           </span>
         </div>
-        <Button type="button" onClick={() => void handleSave()} disabled={submitting}>
-          {submitting ? 'Saving…' : 'Save Changes'}
-        </Button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {resolvedFormKey ? (
+            <Button
+              variant="ghost"
+              type="button"
+              disabled={downloadingTemplate}
+              onClick={() => void handleDownloadTemplate()}
+            >
+              {downloadingTemplate ? 'Downloading…' : 'Download Template'}
+            </Button>
+          ) : null}
+          <Button variant="secondary" type="button" onClick={handleExportFilled}>
+            Export Filled Markdown
+          </Button>
+          <Button type="button" onClick={() => void handleSave()} disabled={submitting}>
+            {submitting ? 'Saving…' : 'Save Changes'}
+          </Button>
+        </div>
       </div>
 
       {/* Theme Tabs Pill Navigation */}
@@ -238,6 +288,7 @@ export function FormLiveEditor({
             </>
           ) : null}
 
+          {downloadError ? <p role="alert" className="error-banner">{downloadError}</p> : null}
           {localError ? <p role="alert" className="error-banner">{localError}</p> : null}
           {serverError ? <p role="alert" className="error-banner">{serverError}</p> : null}
         </div>

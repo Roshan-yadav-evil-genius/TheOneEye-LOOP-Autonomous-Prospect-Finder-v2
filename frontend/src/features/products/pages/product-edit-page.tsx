@@ -75,6 +75,7 @@ export function ProductEditPage() {
         product ? (
           <UploadContext.Provider value={`/api/v1/orgs/${orgId}/products/${productId}/thumbnail`}>
             <FormLiveEditor
+              formKey="product"
               title="Product & ICP Form"
               sections={productFormSections}
               themes={productFormThemes}
