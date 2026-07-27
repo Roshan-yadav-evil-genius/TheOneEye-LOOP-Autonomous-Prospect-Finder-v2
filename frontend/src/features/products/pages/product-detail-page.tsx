@@ -12,6 +12,7 @@ import { PageHeader } from '../../../shared/components/page-header'
 import { Tabs } from '../../../shared/components/tabs'
 import { ProductStrategiesTab } from '../components/product-strategies-tab'
 import { useProductDetailStore } from '../stores/product-detail-store'
+import { toProductFormValue } from '../utils/icp-utils'
 
 const DETAILS_TAB = 'details'
 const STRATEGIES_TAB = 'strategies'
@@ -21,16 +22,8 @@ function toWizardValue(product: {
   kind: string
   icp_form: Record<string, unknown>
 }) {
-  const { form_version: _formVersion, ...formBody } = product.icp_form
-  return {
-    identity: {
-      name: product.name,
-      kind: product.kind,
-      thumbnail_url: (product as any).thumbnail_url,
-    },
-    ...productTemplate,
-    ...formBody,
-  }
+  const { form_version: _formVersion, ..._formBody } = product.icp_form ?? {}
+  return toProductFormValue(product)
 }
 
 function parseTab(value: string | null) {

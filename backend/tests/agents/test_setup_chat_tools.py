@@ -149,7 +149,7 @@ async def test_product_tools_returns_saved_data():
     config = {"configurable": {"tool_context": ctx}}
 
     res = await set_product_icp.ainvoke({"company_size_employees_min": 10}, config=config)
-    assert res == {"section": "icp", "data": {"company_size_employees_min": 10}}
+    assert res == {"section": "icp", "data": {"company_size": {"employees_min": 10}}}
 
 
 async def test_product_use_cases_and_competitors_saved_as_direct_list():
@@ -178,3 +178,30 @@ async def test_product_use_cases_and_competitors_saved_as_direct_list():
     saved_form_comp = mock_service.update_product_profile.call_args.kwargs["form"]
     assert saved_form_comp["competitors"] == comp_items
     assert isinstance(saved_form_comp["competitors"], list)
+
+
+async def test_product_icp_nested_storage_and_retrieval():
+    mock_service = AsyncMock()
+    mock_product = MagicMock()
+    mock_product.name = "Product Z"
+    mock_product.kind = "product"
+    mock_product.icp_form = {
+        "icp": {
+            "industries": {"primary": ["Software & SaaS"]},
+            "company_size": {"employees_min": 50},
+            "geography": {"countries": ["United States"]},
+        }
+    }
+    mock_service.get_product.return_value = mock_product
+
+    ctx = SetupChatToolContext(
+        organization_id="org-123", product_id="prod-123", mode="agent", service=mock_service
+    )
+    config = {"configurable": {"tool_context": ctx}}
+
+    profile = await get_product_profile.ainvoke({}, config=config)
+    icp = profile["icp_form"]["icp"]
+    assert icp["industries"]["primary"] == ["Software & SaaS"]
+    assert icp["company_size"]["employees_min"] == 50
+    assert icp["geography"]["countries"] == ["United States"]
+

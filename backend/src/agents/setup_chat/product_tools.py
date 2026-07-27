@@ -105,7 +105,10 @@ async def _do_save_product_section(
             if not isinstance(section_data, dict):
                 section_data = {}
             for field, value in updates.items():
-                section_data[field] = value
+                if isinstance(value, dict) and isinstance(section_data.get(field), dict):
+                    section_data[field].update(value)
+                else:
+                    section_data[field] = value
             current_form[form_key] = section_data
 
         await ctx.service.update_product_profile(
@@ -234,27 +237,40 @@ async def set_product_icp(
         company_types: Firm types that fit (e.g. ['SaaS']).
         maturity: Company maturity signals (e.g. ['Series B']).
     """
-    updates = {}
+    updates: dict[str, Any] = {}
+
+    industries: dict[str, Any] = {}
     if industries_primary is not None:
-        updates["industries_primary"] = industries_primary
+        industries["primary"] = industries_primary
     if industries_secondary is not None:
-        updates["industries_secondary"] = industries_secondary
+        industries["secondary"] = industries_secondary
     if industries_avoid is not None:
-        updates["industries_avoid"] = industries_avoid
+        industries["avoid"] = industries_avoid
+    if industries:
+        updates["industries"] = industries
+
+    company_size: dict[str, Any] = {}
     if company_size_employees_min is not None:
-        updates["company_size_employees_min"] = company_size_employees_min
+        company_size["employees_min"] = company_size_employees_min
     if company_size_employees_max is not None:
-        updates["company_size_employees_max"] = company_size_employees_max
+        company_size["employees_max"] = company_size_employees_max
     if company_size_revenue_min is not None:
-        updates["company_size_revenue_min"] = company_size_revenue_min
+        company_size["revenue_min"] = company_size_revenue_min
     if company_size_revenue_max is not None:
-        updates["company_size_revenue_max"] = company_size_revenue_max
+        company_size["revenue_max"] = company_size_revenue_max
+    if company_size:
+        updates["company_size"] = company_size
+
+    geography: dict[str, Any] = {}
     if geography_countries is not None:
-        updates["geography_countries"] = geography_countries
+        geography["countries"] = geography_countries
     if geography_regions is not None:
-        updates["geography_regions"] = geography_regions
+        geography["regions"] = geography_regions
     if geography_exclude_countries is not None:
-        updates["geography_exclude_countries"] = geography_exclude_countries
+        geography["exclude_countries"] = geography_exclude_countries
+    if geography:
+        updates["geography"] = geography
+
     if company_types is not None:
         updates["company_types"] = company_types
     if maturity is not None:

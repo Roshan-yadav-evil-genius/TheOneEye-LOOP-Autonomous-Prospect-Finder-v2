@@ -3,28 +3,12 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { SplitFormChatLayout } from '../../../shared/components/split-form-chat-layout'
 import { FormLiveEditor } from '../../forms/components/form-live-editor'
 import { UploadContext } from '../../forms/contexts/upload-context'
-import { productTemplate } from '../../forms/form-definitions'
 import { productFormSections } from '../../forms/form-field-schema'
 import { productFormThemes } from '../../forms/form-themes'
 import { SetupChatPanel } from '../../setup-chat/components/SetupChatPanel'
 import { useProductChatStore } from '../stores/product-chat-store'
 import { useProductDetailStore } from '../stores/product-detail-store'
-
-function toFormValue(product: {
-  name: string
-  kind: string
-  icp_form: Record<string, unknown>
-}) {
-  return {
-    identity: {
-      name: product.name,
-      kind: product.kind,
-      thumbnail_url: (product as any).thumbnail_url,
-    },
-    ...productTemplate,
-    ...product.icp_form,
-  }
-}
+import { toProductFormValue } from '../utils/icp-utils'
 
 export function ProductEditPage() {
   const { orgId = '', productId = '' } = useParams()
@@ -79,7 +63,7 @@ export function ProductEditPage() {
               title="Product & ICP Form"
               sections={productFormSections}
               themes={productFormThemes}
-              initialValue={toFormValue(product)}
+              initialValue={toProductFormValue(product)}
               initialSectionKey={sectionParam}
               initialThemeKey={themeParam}
               submitting={submitting}
