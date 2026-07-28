@@ -1,6 +1,7 @@
 from typing import Any
 
-from langgraph.prebuilt import create_react_agent
+from langchain.agents.factory import create_agent
+from langchain.agents.middleware import TodoListMiddleware
 from langgraph.graph.state import CompiledStateGraph
 
 from agents.model_provider import resolve_chat_model
@@ -26,11 +27,13 @@ def create_strategy_setup_agent(checkpointer: Any) -> CompiledStateGraph:
     tools = org_tools + product_tools + strategy_tools
     model = resolve_chat_model()
     
-    agent = create_react_agent(
-        model,
+    agent = create_agent(
+        model=model,
         tools=tools,
-        prompt=system_prompt,
+        system_prompt=system_prompt,
+        middleware=[TodoListMiddleware()],
         checkpointer=checkpointer,
     )
     
     return agent
+
