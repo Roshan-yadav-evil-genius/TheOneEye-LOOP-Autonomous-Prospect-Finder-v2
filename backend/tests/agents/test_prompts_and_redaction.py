@@ -46,3 +46,28 @@ def test_redaction_strips_cookies_and_tokens() -> None:
     assert payload["cookie"] == "[REDACTED]"
     assert payload["ok"] == "safe"
     assert payload["nested"]["access_token"] == "[REDACTED]"
+
+
+def test_render_organization_setup_prompt() -> None:
+    from agents.setup_chat.prompts import render_setup_prompt
+    rendered = render_setup_prompt("organization")
+    assert "You are the Organization Setup Assistant." in rendered
+    assert "mission, vision, business model" in rendered
+    assert "Ask only for the next missing field" in rendered
+
+
+def test_render_product_setup_prompt() -> None:
+    from agents.setup_chat.prompts import render_setup_prompt
+    rendered = render_setup_prompt("product")
+    assert "You are the Product Setup Assistant." in rendered
+    assert "value proposition, target customers, customer pain points" in rendered
+    assert "Ask only for the next missing field" in rendered
+
+
+def test_render_strategy_setup_prompt() -> None:
+    from agents.setup_chat.prompts import render_setup_prompt
+    rendered = render_setup_prompt("strategy")
+    assert "You are the Strategy Setup Assistant." in rendered
+    assert "prospect discovery strategy" in rendered
+    assert "Ask only for the next missing field" in rendered
+

@@ -11,7 +11,7 @@ from agents.setup_chat.prompts import render_setup_prompt
 
 def create_organization_setup_agent(checkpointer: Any) -> CompiledStateGraph:
     """Build the organization setup chat agent."""
-    system_prompt = render_setup_prompt(form_name="Organization")
+    system_prompt = render_setup_prompt(form_type="organization")
     
     tools = get_all_tools()
     model = resolve_chat_model()

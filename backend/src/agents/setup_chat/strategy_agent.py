@@ -13,7 +13,7 @@ from agents.setup_chat.prompts import render_setup_prompt
 
 def create_strategy_setup_agent(checkpointer: Any) -> CompiledStateGraph:
     """Build the strategy setup chat agent."""
-    system_prompt = render_setup_prompt(form_name="Strategy")
+    system_prompt = render_setup_prompt(form_type="strategy")
     
     # Org read only
     org_tools = [t for t in get_org_tools() if t.name == "get_organization_profile"]
