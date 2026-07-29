@@ -19,6 +19,7 @@ from contracts.domain import (
     CompanyDetail,
     CompanyProfileUpdate,
     CompanySummary,
+    EffortDetailRead,
     OrganizationCreate,
     OrganizationProfileUpdate,
     OrganizationRead,
@@ -565,3 +566,36 @@ async def global_threads() -> list[str]:
 @router.get("/threads/{thread_id:path}/chat/history", response_model=ChatHistoryRead)
 async def chat_history(thread_id: str) -> object:
     return await ThreadChatHistoryService.get_history(thread_id)
+
+
+@router.get("/loop/strategies/{sales_strategy_id}/efforts", response_model=list[AgentRunSummary])
+@router.get("/sales-strategies/{sales_strategy_id}/efforts", response_model=list[AgentRunSummary])
+async def list_company_finder_efforts(
+    sales_strategy_id: str, session: Session, role: str | None = None
+) -> object:
+    return await ProcessService(session).list_efforts(
+        sales_strategy_id, role=role or "company-finder"
+    )
+
+
+@router.get(
+    "/loop/strategies/{sales_strategy_id}/companies/{company_id}/efforts",
+    response_model=list[AgentRunSummary],
+)
+@router.get(
+    "/sales-strategies/{sales_strategy_id}/companies/{company_id}/efforts",
+    response_model=list[AgentRunSummary],
+)
+async def list_contact_finder_efforts(
+    sales_strategy_id: str, company_id: str, session: Session
+) -> object:
+    return await ProcessService(session).list_efforts(
+        sales_strategy_id, role="contact-finder", company_id=company_id
+    )
+
+
+@router.get("/loop/efforts/{effort_prefix:path}", response_model=EffortDetailRead)
+@router.get("/efforts/{effort_prefix:path}", response_model=EffortDetailRead)
+async def get_effort_detail(effort_prefix: str, session: Session) -> object:
+    return await ProcessService(session).effort_detail(effort_prefix)
+

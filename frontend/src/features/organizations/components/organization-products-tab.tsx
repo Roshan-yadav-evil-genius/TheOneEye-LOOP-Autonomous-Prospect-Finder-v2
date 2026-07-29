@@ -55,7 +55,7 @@ export function OrganizationProductsTab() {
       {deleteError ? <p role="alert" className="error-banner">{deleteError}</p> : null}
       <EntityList>
         {products.map((product) => {
-          const hasNoChildren = (product.strategies_count ?? 0) === 0
+          const hasNoChildren = ((product as any).strategies_count ?? 0) === 0
           return (
             <EntityListItem
               key={product.id}

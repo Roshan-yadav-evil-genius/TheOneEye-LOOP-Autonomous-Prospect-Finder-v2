@@ -58,7 +58,7 @@ function TabButton({
   )
 }
 
-export function SetupChatPanel({ title, threadId, entityId, agentDescription, store }: SetupChatPanelProps) {
+export function SetupChatPanel({ title: _title, threadId: _threadId, entityId, agentDescription: _agentDescription, store }: SetupChatPanelProps) {
   const handleSend = (msg: string) => {
     void store.send(entityId, msg)
   }
@@ -74,8 +74,6 @@ export function SetupChatPanel({ title, threadId, entityId, agentDescription, st
     }
     store.setMode(mode)
   }
-
-  const effectiveThreadId = store.activeThreadId ?? threadId
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', flex: 1, minHeight: 0 }}>

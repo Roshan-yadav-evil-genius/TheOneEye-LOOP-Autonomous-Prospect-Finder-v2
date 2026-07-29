@@ -57,7 +57,7 @@ export function ProductStrategiesTab() {
       {deleteError ? <p role="alert" className="error-banner">{deleteError}</p> : null}
       <EntityList>
         {strategies.map((strategy) => {
-          const hasNoChildren = (strategy.companies_count ?? 0) === 0
+          const hasNoChildren = ((strategy as any).companies_count ?? 0) === 0
           return (
             <EntityListItem
               key={strategy.id}

@@ -56,7 +56,7 @@ export function OrganizationsPage() {
       ) : (
         <EntityList>
           {organizations.map((organization) => {
-            const hasNoChildren = (organization.products_count ?? 0) === 0
+            const hasNoChildren = ((organization as any).products_count ?? 0) === 0
             return (
               <EntityListItem
                 key={organization.id}

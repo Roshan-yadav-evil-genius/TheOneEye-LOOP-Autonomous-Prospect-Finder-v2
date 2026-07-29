@@ -8,6 +8,8 @@ export interface SplitFormChatLayoutProps {
   actions?: React.ReactNode
   leftPanel: React.ReactNode
   rightPanel: React.ReactNode
+  leftPanelStyle?: React.CSSProperties
+  rightPanelStyle?: React.CSSProperties
 }
 
 export function SplitFormChatLayout({
@@ -17,6 +19,8 @@ export function SplitFormChatLayout({
   actions,
   leftPanel,
   rightPanel,
+  leftPanelStyle,
+  rightPanelStyle,
 }: SplitFormChatLayoutProps) {
   return (
     <div className="split-layout-container">
@@ -41,13 +45,13 @@ export function SplitFormChatLayout({
 
       {/* Main Full-Height Content Area */}
       <div className="split-panel-grid">
-        <div className="split-panel-left">
+        <div className="split-panel-left" style={leftPanelStyle}>
           {leftPanel}
         </div>
-        <div className="split-panel-right">
+        <div className="split-panel-right" style={rightPanelStyle}>
           {rightPanel}
         </div>
-      </div>
+        </div>
     </div>
   )
 }

@@ -260,6 +260,25 @@ class AgentRunSummary(OrmModel):
     created_at: datetime
 
 
+class EffortDetailRead(OrmModel):
+    id: str
+    sales_strategy_id: str
+    product_id: str
+    agent_role: str
+    effort_prefix: str
+    primary_thread_id: str
+    company_id: str | None = None
+    sales_strategy_prospect_id: str | None = None
+    status: str
+    attempt_iteration: int
+    contact_attempt_iteration: int | None = None
+    child_thread_ids: list[str] = Field(default_factory=list)
+    active_subagent_threads: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    completed_at: datetime | None = None
+
+
+
 class ThreadSnapshot(BaseModel):
     thread_id: str
     effort_prefix: str

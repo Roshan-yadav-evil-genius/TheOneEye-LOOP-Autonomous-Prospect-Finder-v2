@@ -178,3 +178,25 @@ async def test_contact_queue_empty_auto_stops_without_error(session: AsyncSessio
     status = await ProcessService(session).status(strategy_id, "contact-finder")
     assert status.desired_state == "stopped"
     assert status.actual_state == "stopped"
+
+
+@pytest.mark.asyncio
+async def test_effort_listing_and_detail(session: AsyncSession) -> None:
+    from agents.model_provider import DeterministicDiscoveryModel
+    from agents.orchestration import CompanyFinderEffort
+
+    strategy_id = await _seed_strategy(session, target=1)
+    model = DeterministicDiscoveryModel(responses=[{"action": "no_candidate"}])
+    process = ProcessService(session)
+    await process.start(strategy_id, "company-finder")
+    run = await CompanyFinderEffort(session, model).execute(strategy_id)
+    assert run is not None
+
+    efforts = await process.list_efforts(strategy_id, role="company-finder")
+    assert len(efforts) == 1
+    assert efforts[0].effort_prefix == run.effort_prefix
+
+    detail = await process.effort_detail(run.effort_prefix)
+    assert detail.effort_prefix == run.effort_prefix
+    assert detail.primary_thread_id == run.primary_thread_id
+

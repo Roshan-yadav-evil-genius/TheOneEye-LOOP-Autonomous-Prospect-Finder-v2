@@ -19,12 +19,19 @@ export function WorkspaceShell({
   pageTitle,
   pageSubtitle,
   actions,
+  extraBreadcrumbs,
 }: {
   children: ReactNode
   /** Optional page-level title override under the strategy name. */
   pageTitle?: string
   pageSubtitle?: string
   actions?: ReactNode
+  extraBreadcrumbs?: Array<{
+    label: string
+    to?: string
+    thumbnailUrl?: string | null
+    fallbackThumbnailUrl?: string
+  }>
 }) {
   const { orgId = '', strategyId = '', companyId } = useParams()
   const { bundle, load, loading } = useWorkspaceContextStore()
@@ -60,11 +67,12 @@ export function WorkspaceShell({
       : []),
     {
       label: strategyName,
-      to: companyId ? `${base}/companies` : undefined,
+      to: (companyId || extraBreadcrumbs) ? `${base}/companies` : undefined,
       thumbnailUrl: strategy ? (strategy as any).thumbnail_url : null,
       fallbackThumbnailUrl: '/static/strategy_placeholder.png'
     },
-    ...(companyId
+    ...(extraBreadcrumbs ?? []),
+    ...(companyId && !extraBreadcrumbs
       ? [
           { label: 'Company', to: `${base}/companies` },
           { label: pageTitle ?? 'Company' },
@@ -84,7 +92,7 @@ export function WorkspaceShell({
         }
         breadcrumbs={breadcrumbs}
         actions={
-          actions ?? (
+          actions !== undefined ? actions : (
             <Button asChild variant="ghost">
               <Link to={companyId ? `${base}/companies` : org ? `/orgs/${org.id}` : '/orgs'}>
                 {companyId ? '← Company' : '← Organization'}

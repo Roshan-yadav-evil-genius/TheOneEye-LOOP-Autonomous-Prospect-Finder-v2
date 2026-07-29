@@ -55,7 +55,8 @@ a {
 }
 
 /* Full-width and full-height single-panel split layout */
-.page-content:has(.split-layout-container) {
+.page-content:has(.split-layout-container),
+.page-content:has(.effort-workspace-container) {
   width: 100%;
   max-width: 100%;
   margin: 0;

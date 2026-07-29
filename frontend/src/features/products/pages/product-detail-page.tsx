@@ -2,7 +2,6 @@ import { Link, useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 
 import { FormProfileViewer } from '../../forms/components/form-profile-viewer'
-import { productTemplate } from '../../forms/form-definitions'
 import { productFormSections } from '../../forms/form-field-schema'
 import { productFormThemes } from '../../forms/form-themes'
 import { organizationsApi } from '../../organizations/api/organizations-api'
@@ -22,7 +21,6 @@ function toWizardValue(product: {
   kind: string
   icp_form: Record<string, unknown>
 }) {
-  const { form_version: _formVersion, ..._formBody } = product.icp_form ?? {}
   return toProductFormValue(product)
 }
 

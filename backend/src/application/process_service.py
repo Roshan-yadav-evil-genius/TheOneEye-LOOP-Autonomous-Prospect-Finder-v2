@@ -2,7 +2,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.loop_service import DomainError, LoopService, utcnow
-from contracts.domain import AgentRunSummary, ProcessLogRead, ProcessStatus, WhiteboardRead
+from contracts.domain import AgentRunSummary, EffortDetailRead, ProcessLogRead, ProcessStatus, WhiteboardRead
 from observability.logging import get_logger
 from persistence import models
 
@@ -176,3 +176,59 @@ class ProcessService:
             )
         ).all()
         return [AgentRunSummary.model_validate(row) for row in rows]
+
+    async def list_efforts(
+        self, strategy_id: str, role: str | None = None, company_id: str | None = None
+    ) -> list[AgentRunSummary]:
+        query = select(models.AgentRun).where(models.AgentRun.sales_strategy_id == strategy_id)
+        if role:
+            db_role = role.replace("-", "_")
+            query = query.where(models.AgentRun.agent_role == db_role)
+        if company_id:
+            query = query.where(models.AgentRun.company_id == company_id)
+        query = query.order_by(models.AgentRun.created_at.desc())
+        rows = (await self.session.scalars(query)).all()
+        return [AgentRunSummary.model_validate(row) for row in rows]
+
+    async def effort_detail(self, effort_prefix: str) -> EffortDetailRead:
+        from agents.checkpoints import ThreadCheckpointStore
+
+        run = await self.session.scalar(
+            select(models.AgentRun).where(models.AgentRun.effort_prefix == effort_prefix)
+        )
+        if not run:
+            raise DomainError("effort_not_found", f"Effort prefix '{effort_prefix}' not found.", 404)
+
+        store = ThreadCheckpointStore()
+        cp_threads = await store.search_threads(prefix=effort_prefix)
+
+        all_children = set(run.child_thread_ids or [])
+        all_children.update(cp_threads)
+        if run.primary_thread_id in all_children:
+            all_children.remove(run.primary_thread_id)
+
+        subagent_row = await self.session.scalar(
+            select(models.AgentSubagentState).where(
+                models.AgentSubagentState.parent_thread_id == run.primary_thread_id
+            )
+        )
+        active_subagents = subagent_row.active_subagent_threads if subagent_row else {}
+
+        return EffortDetailRead(
+            id=run.id,
+            sales_strategy_id=run.sales_strategy_id,
+            product_id=run.product_id,
+            company_id=run.company_id,
+            sales_strategy_prospect_id=run.sales_strategy_prospect_id,
+            agent_role=run.agent_role,
+            effort_prefix=run.effort_prefix,
+            primary_thread_id=run.primary_thread_id,
+            status=run.status,
+            attempt_iteration=run.attempt_iteration,
+            contact_attempt_iteration=run.contact_attempt_iteration,
+            child_thread_ids=sorted(list(all_children)),
+            active_subagent_threads=active_subagents or {},
+            created_at=run.created_at,
+            completed_at=run.completed_at,
+        )
+

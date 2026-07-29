@@ -233,7 +233,8 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
       const userMsg: ChatUiMessage = { id: `user-${Date.now()}`, kind: 'user', content: message }
       set({ messages: [...messages, userMsg], streaming: true, error: null, lastUserMessage: message })
 
-      await get()._runStream(entityId, { message, mode, thread_id: activeThreadId })
+      const modeArg = mode === 'history' ? 'chat' : mode
+      await get()._runStream(entityId, { message, mode: modeArg, thread_id: activeThreadId })
     },
     
     retry: async (entityId: string) => {
@@ -243,7 +244,8 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
       const redo_last = !canResume
       const message = (redo_last && lastUserMessage) ? lastUserMessage : ''
       
-      await get()._runStream(entityId, { message, mode, retry: true, redo_last, thread_id: activeThreadId })
+      const modeArg = mode === 'history' ? 'chat' : mode
+      await get()._runStream(entityId, { message, mode: modeArg, retry: true, redo_last, thread_id: activeThreadId })
     },
 
     _runStream: async (entityId: string, request: ChatStreamRequest) => {

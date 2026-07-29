@@ -12,6 +12,7 @@ import { ProductEditPage } from './features/products/pages/product-edit-page'
 import { ProductDraftInitializer } from './features/products/pages/product-draft-initializer'
 
 import { CompanyDetailPage } from './features/sales-strategies/pages/company-detail-page'
+import { EffortDetailPage } from './features/sales-strategies/pages/effort-detail-page'
 import { ProcessPage } from './features/sales-strategies/pages/process-page'
 import { RecordsPage } from './features/sales-strategies/pages/records-page'
 import { StrategiesListPage } from './features/sales-strategies/pages/strategies-list-page'
@@ -86,8 +87,20 @@ function App() {
           element={<ProcessPage role="company-finder" />}
         />
         <Route
+          path="/orgs/:orgId/sales-strategies/:strategyId/company-finder/effort/:effortSeq"
+          element={<EffortDetailPage role="company-finder" />}
+        />
+        <Route
           path="/orgs/:orgId/sales-strategies/:strategyId/contact-finder"
           element={<ProcessPage role="contact-finder" />}
+        />
+        <Route
+          path="/orgs/:orgId/sales-strategies/:strategyId/contact-finder/effort/:effortSeq"
+          element={<EffortDetailPage role="contact-finder" />}
+        />
+        <Route
+          path="/orgs/:orgId/sales-strategies/:strategyId/companies/:companyId/contact-finder/effort/:effortSeq"
+          element={<EffortDetailPage role="contact-finder" />}
         />
         <Route
           path="/orgs/:orgId/sales-strategies/:strategyId/threads"
