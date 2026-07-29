@@ -42,7 +42,7 @@ async def get_strategy_profile(config: RunnableConfig) -> dict[str, Any]:
 
 async def _save_strategy_section(
     config: RunnableConfig, section_key: str, updates: dict[str, Any]
-) -> dict[str, Any] | str:
+) -> str:
     ctx: SetupChatToolContext = config["configurable"]["tool_context"]
     if ctx.mode == "chat":
         return "Error: Cannot write in chat mode. Ask the user to switch to Agent mode."
@@ -62,7 +62,7 @@ async def _save_strategy_section(
 
 async def _do_save_strategy_section(
     ctx: SetupChatToolContext, section_key: str, updates: dict[str, Any]
-) -> dict[str, Any]:
+) -> str:
     strategy = await ctx.service.get_strategy(ctx.strategy_id)
     current_form = copy.deepcopy(strategy.sales_strategy_form)
 
@@ -87,7 +87,7 @@ async def _do_save_strategy_section(
         name=name,
     )
 
-    return {"section": section_key, "data": updates}
+    return "Saved!"
 
 
 @tool
@@ -96,7 +96,7 @@ async def set_strategy_overview(
     name: str | None = None,
     description: str | None = None,
     target_companies_narrative: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy overview section.
 
     Args:
@@ -122,7 +122,7 @@ async def set_strategy_target_company_profile(
     similar_companies: list[dict[str, Any]] | None = None,
     keywords: list[str] | None = None,
     problems_they_should_have: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy target company profile section.
 
     Args:
@@ -153,7 +153,7 @@ async def set_strategy_target_decision_makers(
     secondary_titles: list[str] | None = None,
     seniority_order: list[str] | None = None,
     contact_buying_signals: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy target decision makers section.
 
     Args:
@@ -180,7 +180,7 @@ async def set_strategy_priority_industries(
     primary: list[str] | None = None,
     secondary: list[str] | None = None,
     deprioritized: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy priority industries section.
 
     Args:
@@ -206,7 +206,7 @@ async def set_strategy_priority_geographies(
     cities: list[str] | None = None,
     remote_only: bool | None = None,
     exclude_countries: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy priority geographies section.
 
     Args:
@@ -238,7 +238,7 @@ async def set_strategy_company_size(
     revenue_min: int | None = None,
     revenue_max: int | None = None,
     segments: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy company size section.
 
     Args:
@@ -267,7 +267,7 @@ async def set_strategy_buying_signals(
     config: RunnableConfig,
     selected: list[str] | None = None,
     custom: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy buying signals section.
 
     Args:
@@ -286,7 +286,7 @@ async def set_strategy_buying_signals(
 async def set_strategy_prospecting_strategy(
     config: RunnableConfig,
     sources: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy prospecting sources section.
 
     Args:
@@ -305,7 +305,7 @@ async def set_strategy_outreach_strategy(
     channels: list[str] | None = None,
     sequence_notes: str | None = None,
     do_not_contact_rules: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy outreach strategy section.
 
     Args:
@@ -334,7 +334,7 @@ async def set_strategy_messaging_hypotheses(
     proof_points: list[str] | None = None,
     tone: str | None = None,
     message_guidance: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy messaging hypotheses section.
 
     Args:
@@ -364,7 +364,7 @@ async def set_strategy_qualification_criteria(
     must_have: list[str] | None = None,
     nice_to_have: list[str] | None = None,
     min_confidence_hint: int | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy qualification criteria section.
 
     Args:
@@ -386,7 +386,7 @@ async def set_strategy_qualification_criteria(
 async def set_strategy_blacklist_criteria(
     config: RunnableConfig,
     rules: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy blacklist criteria section.
 
     Args:
@@ -402,7 +402,7 @@ async def set_strategy_blacklist_criteria(
 async def set_strategy_prioritization_rules(
     config: RunnableConfig,
     rules: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy prioritization rules section.
 
     Args:
@@ -420,7 +420,7 @@ async def set_strategy_competitor_targeting(
     incumbents_to_target: list[str] | None = None,
     switch_triggers: list[str] | None = None,
     avoid_unless_scaling: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy competitor targeting section.
 
     Args:
@@ -445,7 +445,7 @@ async def set_strategy_exclusion_rules(
     domains: list[str] | None = None,
     industries: list[str] | None = None,
     regions: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy exclusion rules section.
 
     Args:
@@ -470,7 +470,7 @@ async def set_strategy_exclusion_rules(
 async def set_strategy_experiments(
     config: RunnableConfig,
     items: list[dict[str, Any]] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy experiments section.
 
     Args:
@@ -486,7 +486,7 @@ async def set_strategy_experiments(
 async def set_strategy_success_metrics(
     config: RunnableConfig,
     targets: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy success metrics section.
 
     Args:
@@ -503,7 +503,7 @@ async def set_strategy_lessons_learned(
     config: RunnableConfig,
     worked: list[str] | None = None,
     did_not_work: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy lessons learned section.
 
     Args:
@@ -522,7 +522,7 @@ async def set_strategy_lessons_learned(
 async def set_strategy_best_practices(
     config: RunnableConfig,
     items: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy best practices section.
 
     Args:
@@ -539,7 +539,7 @@ async def set_strategy_run_targets(
     config: RunnableConfig,
     target_companies: int | None = None,
     contacts_per_company_default: int | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the strategy run targets section.
 
     Args:

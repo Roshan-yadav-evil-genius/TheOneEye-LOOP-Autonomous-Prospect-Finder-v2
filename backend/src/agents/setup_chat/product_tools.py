@@ -30,7 +30,7 @@ async def get_product_profile(config: RunnableConfig) -> dict[str, Any]:
 
 async def _save_product_section(
     config: RunnableConfig, section_key: str, updates: dict[str, Any]
-) -> dict[str, Any] | str:
+) -> str:
     ctx: SetupChatToolContext = config["configurable"]["tool_context"]
     if ctx.mode == "chat":
         return "Error: Cannot write in chat mode. Ask the user to switch to Agent mode."
@@ -50,7 +50,7 @@ async def _save_product_section(
 
 async def _do_save_product_section(
     ctx: SetupChatToolContext, section_key: str, updates: dict[str, Any]
-) -> dict[str, Any]:
+) -> str:
     product = await ctx.service.get_product(ctx.product_id)
     current_form = copy.deepcopy(product.icp_form)
 
@@ -98,7 +98,7 @@ async def _do_save_product_section(
             kind=product.kind,
         )
 
-    return {"section": section_key, "data": updates}
+    return "Saved!"
 
 
 @tool
@@ -106,7 +106,7 @@ async def set_product_identity(
     config: RunnableConfig,
     name: str | None = None,
     kind: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the product identity section.
 
     Args:
@@ -126,7 +126,7 @@ async def set_product_product_overview(
     config: RunnableConfig,
     summary: str | None = None,
     offering_scope: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the product overview section.
 
     Args:
@@ -147,7 +147,7 @@ async def set_product_problem_solved(
     primary: str | None = None,
     secondary: list[str] | None = None,
     cost_of_inaction: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the problem solved section.
 
     Args:
@@ -170,7 +170,7 @@ async def set_product_value_proposition(
     config: RunnableConfig,
     primary: str | None = None,
     outcomes: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the value proposition section.
 
     Args:
@@ -200,7 +200,7 @@ async def set_product_icp(
     geography_exclude_countries: list[str] | None = None,
     company_types: list[str] | None = None,
     maturity: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the ideal customer profile (ICP) section.
 
     Args:
@@ -265,7 +265,7 @@ async def set_product_buyer_personas(
     economic_buyer: str | None = None,
     technical_evaluator: str | None = None,
     seniority: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the buyer personas section.
 
     Args:
@@ -290,7 +290,7 @@ async def set_product_buyer_personas(
 async def set_product_use_cases(
     config: RunnableConfig,
     items: list[dict[str, Any]] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the product use cases section.
 
     Args:
@@ -306,7 +306,7 @@ async def set_product_use_cases(
 async def set_product_customer_triggers(
     config: RunnableConfig,
     items: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the customer triggers section.
 
     Args:
@@ -323,7 +323,7 @@ async def set_product_exclusion_rules(
     config: RunnableConfig,
     rules: list[str] | None = None,
     free_text: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the product exclusion rules (blacklist) section.
 
     Args:
@@ -342,7 +342,7 @@ async def set_product_exclusion_rules(
 async def set_product_competitors(
     config: RunnableConfig,
     items: list[dict[str, Any]] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the competitors section.
 
     Args:
@@ -358,7 +358,7 @@ async def set_product_competitors(
 async def set_product_differentiators(
     config: RunnableConfig,
     items: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the differentiators section.
 
     Args:
@@ -378,7 +378,7 @@ async def set_product_pricing(
     min_deal_size: str | None = None,
     sales_cycle: str | None = None,
     engagement_model: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the product pricing section.
 
     Args:
@@ -409,7 +409,7 @@ async def set_product_implementation(
     onboarding_duration: str | None = None,
     technical_requirements: list[str] | None = None,
     customer_resources: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the implementation section.
 
     Args:
@@ -436,7 +436,7 @@ async def set_product_integrations(
     must_have: list[str] | None = None,
     nice_to_have: list[str] | None = None,
     ecosystems: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the product integrations section.
 
     Args:
@@ -458,7 +458,7 @@ async def set_product_integrations(
 async def set_product_customer_success_stories(
     config: RunnableConfig,
     items: list[dict[str, Any]] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the customer success stories section.
 
     Args:
@@ -477,7 +477,7 @@ async def set_product_compliance_restrictions(
     certifications: list[str] | None = None,
     legal_notes: str | None = None,
     technical_limits: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the compliance and restrictions section.
 
     Args:
@@ -502,7 +502,7 @@ async def set_product_compliance_restrictions(
 async def set_product_keywords(
     config: RunnableConfig,
     items: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the product keywords section.
 
     Args:
@@ -518,7 +518,7 @@ async def set_product_keywords(
 async def set_product_signals(
     config: RunnableConfig,
     items: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the product signals section.
 
     Args:

@@ -28,7 +28,7 @@ async def get_organization_profile(config: RunnableConfig) -> dict[str, Any]:
 
 async def _save_org_section(
     config: RunnableConfig, section_key: str, updates: dict[str, Any]
-) -> dict[str, Any] | str:
+) -> str:
     ctx: SetupChatToolContext = config["configurable"]["tool_context"]
     if ctx.mode == "chat":
         return "Error: Cannot write in chat mode. Ask the user to switch to Agent mode."
@@ -45,7 +45,7 @@ async def _save_org_section(
 
 async def _do_save_org_section(
     ctx: SetupChatToolContext, section_key: str, updates: dict[str, Any]
-) -> dict[str, Any]:
+) -> str:
     org = await ctx.service.get_organization(ctx.organization_id)
     current_form = copy.deepcopy(org.org_form)
 
@@ -87,7 +87,7 @@ async def _do_save_org_section(
             primary_contact_email=org.primary_contact_email,
         )
 
-    return {"section": section_key, "data": updates}
+    return "Saved!"
 
 
 @tool
@@ -96,7 +96,7 @@ async def set_identity(
     name: str | None = None,
     website: str | None = None,
     primary_contact_email: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the identity section of the organization profile.
 
     Args:
@@ -121,7 +121,7 @@ async def set_company_overview(
     mission: str | None = None,
     founded_year: int | None = None,
     headquarters: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the company overview section.
 
     Args:
@@ -148,7 +148,7 @@ async def set_industry(
     primary: str | None = None,
     secondary: list[str] | None = None,
     sub_verticals: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the industry section.
 
     Args:
@@ -171,7 +171,7 @@ async def set_business_model(
     config: RunnableConfig,
     types: list[str] | None = None,
     description: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the business model section.
 
     Args:
@@ -192,7 +192,7 @@ async def set_company_size(
     employees: str | None = None,
     revenue_range: str | None = None,
     years_in_business: int | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the company size section.
 
     Args:
@@ -217,7 +217,7 @@ async def set_target_markets(
     regions: list[str] | None = None,
     industries: list[str] | None = None,
     excluded: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the target markets section.
 
     Args:
@@ -243,7 +243,7 @@ async def set_existing_customers(
     config: RunnableConfig,
     typical_profile: str | None = None,
     strong_industries: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the existing customers section.
 
     Args:
@@ -264,7 +264,7 @@ async def set_customer_segments(
     primary: list[str] | None = None,
     secondary: list[str] | None = None,
     avoid: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the customer segments section.
 
     Args:
@@ -287,7 +287,7 @@ async def set_brand_positioning(
     config: RunnableConfig,
     position: str | None = None,
     statement: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the brand positioning section.
 
     Args:
@@ -307,7 +307,7 @@ async def set_unique_strengths(
     config: RunnableConfig,
     items: list[str] | None = None,
     strengths: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the unique strengths section.
 
     Args:
@@ -328,7 +328,7 @@ async def set_competitive_landscape(
     competitors: list[str] | None = None,
     differentiators: list[str] | None = None,
     win_loss_notes: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the competitive landscape section.
 
     Args:
@@ -352,7 +352,7 @@ async def set_sales_goals(
     revenue_targets: str | None = None,
     strategic_industries: list[str] | None = None,
     expansion_markets: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the sales goals section.
 
     Args:
@@ -376,7 +376,7 @@ async def set_partnership_strategy(
     model: str | None = None,
     regions: str | None = None,
     notes: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the partnership strategy section.
 
     Args:
@@ -401,7 +401,7 @@ async def set_delivery_capability(
     languages: list[str] | None = None,
     support_hours: str | None = None,
     implementation_capacity: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the delivery capability section.
 
     Args:
@@ -428,7 +428,7 @@ async def set_certifications_compliance(
     certifications: list[str] | None = None,
     frameworks: list[str] | None = None,
     data_residency: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the certifications and compliance section.
 
     Args:
@@ -453,7 +453,7 @@ async def set_technology_expertise(
     languages: list[str] | None = None,
     platforms: list[str] | None = None,
     tools: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the technology expertise section.
 
     Args:
@@ -478,7 +478,7 @@ async def set_technology_expertise(
 async def set_case_studies(
     config: RunnableConfig,
     items: list[dict[str, Any]] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the case studies section.
 
     Args:
@@ -495,7 +495,7 @@ async def set_references(
     config: RunnableConfig,
     clients: list[dict[str, Any]] | None = None,
     industries: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the references section.
 
     Args:
@@ -516,7 +516,7 @@ async def set_pricing_position(
     band: str | None = None,
     typical_contract_size: str | None = None,
     positioning_notes: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the pricing position section.
 
     Args:
@@ -540,7 +540,7 @@ async def set_sales_process(
     stages: list[str] | None = None,
     cycle_length: str | None = None,
     stakeholders: list[str] | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the sales process section.
 
     Args:
@@ -566,7 +566,7 @@ async def set_deal_constraints(
     excluded_industries: list[str] | None = None,
     geographic_limits: list[str] | None = None,
     other: str | None = None,
-) -> dict[str, Any] | str:
+) -> str:
     """Agent mode only. Update the deal constraints section.
 
     Args:

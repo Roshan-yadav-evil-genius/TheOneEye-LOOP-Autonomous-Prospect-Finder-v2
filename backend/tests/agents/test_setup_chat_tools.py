@@ -59,10 +59,10 @@ async def test_org_tools_successful_update_returns_saved_data():
     config = {"configurable": {"tool_context": ctx}}
 
     res = await set_brand_positioning.ainvoke({"position": "Premium"}, config=config)
-    assert res == {"section": "brand_positioning", "data": {"position": "Premium"}}
+    assert res == "Saved!"
 
     res_strengths = await set_unique_strengths.ainvoke({"items": ["Fast", "Reliable"]}, config=config)
-    assert res_strengths == {"section": "unique_strengths", "data": {"items": ["Fast", "Reliable"]}}
+    assert res_strengths == "Saved!"
 
 
 async def test_case_studies_saved_as_direct_list_and_normalized():
@@ -79,7 +79,7 @@ async def test_case_studies_saved_as_direct_list_and_normalized():
 
     cs_items = [{"title": "Case 1", "customer_type": "Enterprise", "challenge": "X", "outcome": "Y", "link": "http"}]
     res = await set_case_studies.ainvoke({"items": cs_items}, config=config)
-    assert res == {"section": "case_studies", "data": {"items": cs_items}}
+    assert res == "Saved!"
 
     mock_service.update_organization_profile.assert_called_once()
     saved_form = mock_service.update_organization_profile.call_args.kwargs["form"]
@@ -118,7 +118,7 @@ async def test_strategy_tools_returns_saved_data():
     config = {"configurable": {"tool_context": ctx}}
 
     res = await set_strategy_overview.ainvoke({"name": "New Strategy"}, config=config)
-    assert res == {"section": "overview", "data": {"name": "New Strategy"}}
+    assert res == "Saved!"
 
     # Test empty payload guard on strategy tool
     res_empty = await set_strategy_company_size.ainvoke({}, config=config)
@@ -147,7 +147,7 @@ async def test_strategy_experiments_saved_as_direct_list():
 
     exp_items = [{"hypothesis": "Test H1", "variant": "Var A"}]
     res = await set_strategy_experiments.ainvoke({"items": exp_items}, config=config)
-    assert res == {"section": "experiments", "data": {"items": exp_items}}
+    assert res == "Saved!"
 
     mock_service.update_strategy_profile.assert_called_once()
     saved_form = mock_service.update_strategy_profile.call_args.kwargs["form"]
@@ -170,7 +170,7 @@ async def test_product_tools_returns_saved_data():
     config = {"configurable": {"tool_context": ctx}}
 
     res = await set_product_icp.ainvoke({"company_size_employees_min": 10}, config=config)
-    assert res == {"section": "icp", "data": {"company_size": {"employees_min": 10}}}
+    assert res == "Saved!"
 
 
 async def test_product_use_cases_and_competitors_saved_as_direct_list():
@@ -188,14 +188,14 @@ async def test_product_use_cases_and_competitors_saved_as_direct_list():
 
     uc_items = [{"name": "UC1", "trigger": "T1", "outcome": "O1"}]
     res_uc = await set_product_use_cases.ainvoke({"items": uc_items}, config=config)
-    assert res_uc == {"section": "use_cases", "data": {"items": uc_items}}
+    assert res_uc == "Saved!"
     saved_form = mock_service.update_product_profile.call_args.kwargs["form"]
     assert saved_form["use_cases"] == uc_items
     assert isinstance(saved_form["use_cases"], list)
 
     comp_items = [{"name": "Comp A", "website": "https://compa.com", "type": "direct"}]
     res_comp = await set_product_competitors.ainvoke({"items": comp_items}, config=config)
-    assert res_comp == {"section": "competitors", "data": {"items": comp_items}}
+    assert res_comp == "Saved!"
     saved_form_comp = mock_service.update_product_profile.call_args.kwargs["form"]
     assert saved_form_comp["competitors"] == comp_items
     assert isinstance(saved_form_comp["competitors"], list)

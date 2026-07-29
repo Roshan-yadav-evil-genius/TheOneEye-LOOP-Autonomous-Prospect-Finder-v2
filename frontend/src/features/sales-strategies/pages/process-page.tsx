@@ -175,17 +175,40 @@ export function ProcessPage({ role }: { role: 'company-finder' | 'contact-finder
             {agentThreads.map((threadId) => (
               <tr key={threadId}>
                 <td>
-                  <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', wordBreak: 'break-all' }}>
-                    {threadId}
-                  </span>
-                </td>
-                <td className="row-actions">
                   <Link
                     to={`/threads/${encodeURIComponent(threadId)}`}
-                    style={{ textDecoration: 'underline', fontSize: '0.85rem' }}
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem',
+                      wordBreak: 'break-all',
+                      color: 'var(--color-accent-primary)',
+                      textDecoration: 'none',
+                    }}
+                    title="Click to view thread"
                   >
-                    View →
+                    {threadId}
                   </Link>
+                </td>
+                <td className="row-actions">
+                  <button
+                    type="button"
+                    title="Copy thread ID"
+                    onClick={() => void navigator.clipboard.writeText(threadId)}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '0.8rem',
+                      background: 'var(--color-bg-elevated)',
+                      border: '1px solid var(--color-border-default)',
+                      borderRadius: 'var(--radius-md)',
+                      color: 'var(--color-text-primary)',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    📋 Copy
+                  </button>
                 </td>
               </tr>
             ))}
