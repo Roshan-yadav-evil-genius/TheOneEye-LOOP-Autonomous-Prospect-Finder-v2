@@ -1077,11 +1077,7 @@ input[type='radio'] {
   white-space: pre-wrap;
 }
 
-.whiteboard-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(18rem, 3fr);
-  gap: 1rem;
-}
+
 
 .side-rail {
   border: 1px solid var(--color-border-default);
@@ -1442,10 +1438,6 @@ input[type='radio'] {
 }
 
 @media (max-width: 1280px) {
-  .whiteboard-layout {
-    grid-template-columns: 1fr;
-  }
-
   .wizard-layout {
     grid-template-columns: 1fr;
   }

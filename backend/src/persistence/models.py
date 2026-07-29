@@ -221,15 +221,7 @@ class AgentRun(Timestamped, Base):
     child_thread_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
 
 
-class Whiteboard(Timestamped, Base):
-    __tablename__ = "whiteboard"
-    sales_strategy_id: Mapped[str] = mapped_column(
-        ForeignKey("sales_strategy.id", ondelete="CASCADE")
-    )
-    role: Mapped[str] = mapped_column(String(30))
-    effort_prefix: Mapped[str | None] = mapped_column(String(512))
-    content: Mapped[str] = mapped_column(Text, default="")
-    __table_args__ = (UniqueConstraint("sales_strategy_id", "role"),)
+
 
 
 class ProcessLog(Timestamped, Base):

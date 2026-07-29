@@ -10,7 +10,6 @@ const tabs = [
   ['companies', 'Company'],
   ['company-finder', 'Company finder'],
   ['contact-finder', 'Contact finder'],
-  ['threads', 'Threads'],
   ['details', 'Details'],
 ] as const
 

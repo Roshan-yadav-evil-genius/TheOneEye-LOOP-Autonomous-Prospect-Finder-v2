@@ -36,10 +36,7 @@ from contracts.domain import (
     SalesStrategyBundle,
     SalesStrategyCreate,
     SalesStrategyRead,
-    ThreadSnapshot,
     ValidationResult,
-    WhiteboardRead,
-    WhiteboardUpdate,
 )
 from persistence.database import get_session
 import shutil
@@ -478,20 +475,7 @@ async def process_status(strategy_id: str, role: AgentRole, session: Session) ->
     return await ProcessService(session).status(strategy_id, role)
 
 
-@router.get(
-    "/sales-strategies/{strategy_id}/agents/{role}/whiteboard", response_model=WhiteboardRead
-)
-async def whiteboard(strategy_id: str, role: AgentRole, session: Session) -> object:
-    return await ProcessService(session).whiteboard(strategy_id, role)
 
-
-@router.patch(
-    "/sales-strategies/{strategy_id}/agents/{role}/whiteboard", response_model=WhiteboardRead
-)
-async def update_whiteboard(
-    strategy_id: str, role: AgentRole, data: WhiteboardUpdate, session: Session
-) -> object:
-    return await ProcessService(session).update_whiteboard(strategy_id, role, data.content)
 
 
 @router.get("/sales-strategies/{strategy_id}/agents/company-finder/threads", response_model=list[str])
@@ -506,41 +490,7 @@ async def contact_finder_threads(strategy_id: str) -> list[str]:
     return await store.search_threads(contains=f"_{strategy_id}_", suffix="contact_finder")
 
 
-@router.get("/sales-strategies/{strategy_id}/threads", response_model=list[AgentRunSummary])
-async def threads(strategy_id: str, session: Session) -> object:
-    return await ProcessService(session).threads(strategy_id)
 
-
-@router.get(
-    "/sales-strategies/{strategy_id}/snapshots/{thread_id:path}", response_model=ThreadSnapshot
-)
-async def snapshot(strategy_id: str, thread_id: str, session: Session) -> ThreadSnapshot:
-    runs = await ProcessService(session).threads(strategy_id)
-    run = next(
-        (
-            item
-            for item in runs
-            if thread_id == item.primary_thread_id
-            or thread_id in item.child_thread_ids
-            or thread_id.startswith(f"{item.primary_thread_id}_GPA_")
-        ),
-        None,
-    )
-    store = ThreadCheckpointStore()
-    available = await store.search_threads(contains=f"_{strategy_id}_")
-    if not available and run:
-        available = await store.list_threads(run.effort_prefix)
-    
-    state = await store.latest(thread_id)
-    from agents.redaction import redact_payload
-
-    return ThreadSnapshot(
-        thread_id=thread_id,
-        effort_prefix=run.effort_prefix if run else thread_id,
-        available_threads=available,
-        state=redact_payload(state) if state else None,
-        checkpoint_backend="postgresql" if store.database_url else "unavailable",
-    )
 
 
 @router.get("/threads", response_model=list[str])

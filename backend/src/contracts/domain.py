@@ -235,15 +235,6 @@ class ProcessStatus(BaseModel):
     logs: list[ProcessLogRead]
 
 
-class WhiteboardRead(BaseModel):
-    role: AgentRole
-    content: str
-    effort_prefix: str | None
-    updated_at: datetime | None
-
-
-class WhiteboardUpdate(BaseModel):
-    content: str
 
 
 class AgentRunSummary(OrmModel):

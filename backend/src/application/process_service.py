@@ -2,7 +2,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.loop_service import DomainError, LoopService, utcnow
-from contracts.domain import AgentRunSummary, EffortDetailRead, ProcessLogRead, ProcessStatus, WhiteboardRead
+from contracts.domain import AgentRunSummary, EffortDetailRead, ProcessLogRead, ProcessStatus
 from observability.logging import get_logger
 from persistence import models
 
@@ -141,31 +141,7 @@ class ProcessService:
             logs=[ProcessLogRead.model_validate(item) for item in logs],
         )
 
-    async def whiteboard(self, strategy_id: str, role: str) -> WhiteboardRead:
-        row = await self.session.scalar(
-            select(models.Whiteboard).where(
-                models.Whiteboard.sales_strategy_id == strategy_id, models.Whiteboard.role == role
-            )
-        )
-        return WhiteboardRead(
-            role=role,  # type: ignore[arg-type]
-            content=row.content if row else "",
-            effort_prefix=row.effort_prefix if row else None,
-            updated_at=row.updated_at if row else None,
-        )
 
-    async def update_whiteboard(self, strategy_id: str, role: str, content: str) -> WhiteboardRead:
-        row = await self.session.scalar(
-            select(models.Whiteboard).where(
-                models.Whiteboard.sales_strategy_id == strategy_id, models.Whiteboard.role == role
-            )
-        )
-        if not row:
-            row = models.Whiteboard(sales_strategy_id=strategy_id, role=role)
-            self.session.add(row)
-        row.content = content
-        await self.session.commit()
-        return await self.whiteboard(strategy_id, role)
 
     async def threads(self, strategy_id: str) -> list[AgentRunSummary]:
         rows = (

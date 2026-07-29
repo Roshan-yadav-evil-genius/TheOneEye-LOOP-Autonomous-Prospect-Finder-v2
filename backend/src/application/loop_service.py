@@ -446,7 +446,6 @@ class LoopService:
         await self.session.flush()
         for role in ("company-finder", "contact-finder"):
             self.session.add(models.AgentProcessState(sales_strategy_id=row.id, role=role))
-            self.session.add(models.Whiteboard(sales_strategy_id=row.id, role=role))
         await self._commit_event(
             action="SalesStrategyCreated",
             entity_type="sales_strategy",

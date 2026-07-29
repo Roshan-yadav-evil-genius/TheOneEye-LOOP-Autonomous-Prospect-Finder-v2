@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
 import { Link, useParams } from 'react-router-dom'
 
 import { Button } from '../../../shared/components/button'
 import {
   DataTable,
   ProcessControls,
-  SideRail,
-  WhiteboardPanel,
 } from '../../../shared/components/design-system'
 import { ExpandablePanel } from '../../../shared/components/expandable-panel'
 import { KpiStrip } from '../../../shared/components/kpi-strip'
@@ -28,10 +25,9 @@ export function ProcessPage({ role }: { role: 'company-finder' | 'contact-finder
   const { orgId = '', strategyId = '' } = useParams()
   const companyStore = useCompanyFinderProcessStore()
   const contactStore = useContactFinderProcessStore()
-  const { load, saveWhiteboard, start, status, stop, whiteboard } =
+  const { load, start, status, stop } =
     role === 'company-finder' ? companyStore : contactStore
-  const [view, setView] = useState<'control' | 'whiteboard' | 'efforts'>('control')
-  const [content, setContent] = useState('')
+  const [view, setView] = useState<'control' | 'efforts'>('control')
   const [streamState, setStreamState] = useState<'idle' | 'live' | 'error'>('idle')
   const [efforts, setEfforts] = useState<AgentRunSummary[]>([])
   const [effortsLoading, setEffortsLoading] = useState(false)
@@ -53,8 +49,6 @@ export function ProcessPage({ role }: { role: 'company-finder' | 'contact-finder
     }
     return () => source.close()
   }, [load, role, strategyId])
-
-  useEffect(() => setContent(whiteboard?.content ?? ''), [whiteboard])
 
   const fetchEfforts = async () => {
     setEffortsLoading(true)
@@ -79,7 +73,7 @@ export function ProcessPage({ role }: { role: 'company-finder' | 'contact-finder
     }
   }, [role, strategyId, view])
 
-  const handleViewChange = (next: 'control' | 'whiteboard' | 'efforts') => {
+  const handleViewChange = (next: 'control' | 'efforts') => {
     setView(next)
   }
 
@@ -94,13 +88,6 @@ export function ProcessPage({ role }: { role: 'company-finder' | 'contact-finder
           onClick={() => handleViewChange('control')}
         >
           Control
-        </button>
-        <button
-          type="button"
-          className={view === 'whiteboard' ? 'active' : ''}
-          onClick={() => handleViewChange('whiteboard')}
-        >
-          Whiteboard
         </button>
         <button
           type="button"
@@ -148,17 +135,6 @@ export function ProcessPage({ role }: { role: 'company-finder' | 'contact-finder
             </DataTable>
           </ExpandablePanel>
         </>
-      ) : view === 'whiteboard' ? (
-        <div className="whiteboard-layout">
-          <WhiteboardPanel
-            content={content}
-            onChange={setContent}
-            onSave={() => void saveWhiteboard(strategyId, role, content)}
-          />
-          <SideRail title="Preview">
-            <ReactMarkdown>{content}</ReactMarkdown>
-          </SideRail>
-        </div>
       ) : (
         /* Efforts Hierarchy view */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

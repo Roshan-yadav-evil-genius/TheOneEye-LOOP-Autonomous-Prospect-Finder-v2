@@ -10,7 +10,6 @@ from contracts.domain import (
     RegisterCompanyRequest,
     RegisterContactRequest,
 )
-from persistence import models
 
 
 def company_finder_tools(
@@ -48,26 +47,7 @@ def company_finder_tools(
         )
         return result.model_dump(mode="json")
 
-    @tool
-    async def set_scratch_pad(content: str) -> dict[str, str]:
-        """Persist the Company Finder process whiteboard/scratchpad markdown."""
-        from sqlalchemy import select
-
-        row = await session.scalar(
-            select(models.Whiteboard).where(
-                models.Whiteboard.sales_strategy_id == strategy_id,
-                models.Whiteboard.role == "company-finder",
-            )
-        )
-        if not row:
-            row = models.Whiteboard(sales_strategy_id=strategy_id, role="company-finder")
-            session.add(row)
-        row.content = content
-        row.effort_prefix = thread_id.rsplit("_company_finder", 1)[0]
-        await session.commit()
-        return {"status": "saved"}
-
-    return [get_sales_strategy_bundle, register_company, set_scratch_pad]
+    return [get_sales_strategy_bundle, register_company]
 
 
 def contact_finder_tools(
@@ -156,32 +136,12 @@ def contact_finder_tools(
         )
         return result.model_dump(mode="json")
 
-    @tool
-    async def set_scratch_pad(content: str) -> dict[str, str]:
-        """Persist the Contact Finder process whiteboard/scratchpad markdown."""
-        from sqlalchemy import select
-
-        row = await session.scalar(
-            select(models.Whiteboard).where(
-                models.Whiteboard.sales_strategy_id == strategy_id,
-                models.Whiteboard.role == "contact-finder",
-            )
-        )
-        if not row:
-            row = models.Whiteboard(sales_strategy_id=strategy_id, role="contact-finder")
-            session.add(row)
-        row.content = content
-        row.effort_prefix = thread_id.rsplit("_contact_finder", 1)[0]
-        await session.commit()
-        return {"status": "saved"}
-
     return [
         get_sales_strategy_bundle,
         get_company,
         is_profile_present,
         register_contact,
         blacklist_prospect,
-        set_scratch_pad,
     ]
 
 

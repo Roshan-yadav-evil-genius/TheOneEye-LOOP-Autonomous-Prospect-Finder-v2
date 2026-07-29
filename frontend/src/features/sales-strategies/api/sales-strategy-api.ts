@@ -8,9 +8,7 @@ export type CompanyDetail = components['schemas']['CompanyDetail']
 export type ProspectRead = components['schemas']['ProspectRead']
 export type Progress = components['schemas']['ProgressRead']
 export type ProcessStatus = components['schemas']['ProcessStatus']
-export type Whiteboard = components['schemas']['WhiteboardRead']
 export type AgentRun = components['schemas']['AgentRunSummary']
-export type ThreadSnapshot = components['schemas']['ThreadSnapshot']
 export type OutreachUpdate = components['schemas']['OutreachUpdate']
 export type RegisterCompanyRequest = components['schemas']['RegisterCompanyRequest']
 export type RegisterCompanyResult = components['schemas']['RegisterCompanyResult']
@@ -146,27 +144,7 @@ export const salesStrategyApi = {
         `${strategyPath(strategyId)}/agents/${role}/stop`,
       )
     ).data,
-  getWhiteboard: async (strategyId: string, role: string) =>
-    (
-      await apiClient.get<Whiteboard>(
-        `${strategyPath(strategyId)}/agents/${role}/whiteboard`,
-      )
-    ).data,
-  updateWhiteboard: async (strategyId: string, role: string, content: string) =>
-    (
-      await apiClient.patch<Whiteboard>(
-        `${strategyPath(strategyId)}/agents/${role}/whiteboard`,
-        { content },
-      )
-    ).data,
-  getThreads: async (strategyId: string) =>
-    (await apiClient.get<AgentRun[]>(`${strategyPath(strategyId)}/threads`)).data,
-  getSnapshot: async (strategyId: string, threadId: string) =>
-    (
-      await apiClient.get<ThreadSnapshot>(
-        `${strategyPath(strategyId)}/snapshots/${encodeURIComponent(threadId)}`,
-      )
-    ).data,
+
   processEventsUrl: (strategyId: string, role: string) =>
     `${apiClient.defaults.baseURL ?? ''}${strategyPath(strategyId)}/agents/${role}/events`,
 }

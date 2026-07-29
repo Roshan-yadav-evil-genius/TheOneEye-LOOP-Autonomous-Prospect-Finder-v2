@@ -1,7 +1,6 @@
 import type { HTMLAttributes, PropsWithChildren, ReactNode } from 'react'
 import { clsx } from 'clsx'
 
-import { Button } from './button'
 import { Card } from './card'
 
 export function Badge({
@@ -91,22 +90,7 @@ export function SideRail({
   )
 }
 
-export function WhiteboardPanel({
-  content,
-  onChange,
-  onSave,
-}: {
-  content: string
-  onChange: (value: string) => void
-  onSave: () => void
-}) {
-  return (
-    <Card title="Whiteboard">
-      <textarea rows={16} value={content} onChange={(event) => onChange(event.target.value)} />
-      <Button onClick={onSave}>Save</Button>
-    </Card>
-  )
-}
+
 
 export function EmptyState({
   title,

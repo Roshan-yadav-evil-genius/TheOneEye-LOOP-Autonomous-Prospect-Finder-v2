@@ -19,7 +19,6 @@ import { StrategiesListPage } from './features/sales-strategies/pages/strategies
 import { StrategyPage } from './features/sales-strategies/pages/strategy-page'
 import { StrategyEditPage } from './features/sales-strategies/pages/strategy-edit-page'
 import { StrategyDraftInitializer } from './features/sales-strategies/pages/strategy-draft-initializer'
-import { ThreadsPage } from './features/sales-strategies/pages/threads-page'
 
 import { GlobalThreadsPage } from './features/system/pages/global-threads-page'
 import { ThreadChatPage } from './features/system/pages/thread-chat-page'
@@ -102,10 +101,7 @@ function App() {
           path="/orgs/:orgId/sales-strategies/:strategyId/companies/:companyId/contact-finder/effort/:effortSeq"
           element={<EffortDetailPage role="contact-finder" />}
         />
-        <Route
-          path="/orgs/:orgId/sales-strategies/:strategyId/threads"
-          element={<ThreadsPage />}
-        />
+
         <Route
           path="/orgs/:orgId/sales-strategies/:strategyId/companies/:companyId"
           element={<CompanyDetailPage />}

@@ -566,16 +566,6 @@ class SeedService:
         domain_to_company: dict[str, str],
     ) -> None:
         acme_id = domain_to_company["acme-robotics.example"]
-        await self.process.update_whiteboard(
-            strategy.id,
-            "company-finder",
-            "Seed whiteboard: prioritize Series B SaaS with AE hiring signals.",
-        )
-        await self.process.update_whiteboard(
-            strategy.id,
-            "contact-finder",
-            "Seed whiteboard: prefer CTO / VP Sales titles with budget ownership.",
-        )
         self.session.add_all(
             [
                 models.ProcessLog(
