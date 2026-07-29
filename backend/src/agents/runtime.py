@@ -26,6 +26,19 @@ def build_role_thread_id(*, effort_prefix: str, role_suffix: str) -> str:
     return f"{effort_prefix}_{role_suffix}"
 
 
+def build_org_setup_thread_id(organization_id: str) -> str:
+    return f"LOOP_{organization_id}_org_setup_chat"
+
+
+def build_product_setup_thread_id(organization_id: str, product_id: str) -> str:
+    return f"LOOP_{organization_id}_{product_id}_product_setup_chat"
+
+
+def build_strategy_setup_thread_id(organization_id: str, product_id: str, strategy_id: str) -> str:
+    return f"LOOP_{organization_id}_{product_id}_{strategy_id}_strategy_setup_chat"
+
+
+
 def build_company_effort_prefix(org_id: str, product_id: str, strategy_id: str, effort_seq: int) -> str:
     return f"LOOP_{org_id}_{product_id}_{strategy_id}_{effort_seq}"
 

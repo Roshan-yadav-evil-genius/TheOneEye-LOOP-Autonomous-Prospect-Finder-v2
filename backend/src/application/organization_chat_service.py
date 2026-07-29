@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator
 from agents.checkpoint_runtime import checkpoint_scope
 from agents.organization_setup.factory import create_organization_setup_agent
 from agents.organization_setup.tools import OrgChatToolContext
+from agents.runtime import build_org_setup_thread_id
 from application.loop_service import LoopService
 from contracts.domain import ChatStreamRequest, ChatHistoryRead
 from core.config import get_settings
@@ -15,7 +16,7 @@ class OrgChatService:
         self.loop_service = loop_service
 
     def _get_thread_id(self, organization_id: str) -> str:
-        return f"org_{organization_id}_setup_chat"
+        return build_org_setup_thread_id(organization_id)
 
     async def get_history(self, organization_id: str) -> ChatHistoryRead:
         thread_id = self._get_thread_id(organization_id)

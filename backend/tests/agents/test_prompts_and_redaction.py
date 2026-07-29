@@ -71,3 +71,15 @@ def test_render_strategy_setup_prompt() -> None:
     assert "prospect discovery strategy" in rendered
     assert "Ask only for the next missing field" in rendered
 
+
+def test_setup_assistant_thread_ids() -> None:
+    from agents.runtime import (
+        build_org_setup_thread_id,
+        build_product_setup_thread_id,
+        build_strategy_setup_thread_id,
+    )
+    assert build_org_setup_thread_id("org123") == "LOOP_org123_org_setup_chat"
+    assert build_product_setup_thread_id("org123", "prod456") == "LOOP_org123_prod456_product_setup_chat"
+    assert build_strategy_setup_thread_id("org123", "prod456", "strat789") == "LOOP_org123_prod456_strat789_strategy_setup_chat"
+
+
