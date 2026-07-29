@@ -146,7 +146,8 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
     loadHistory: async (entityId, threadId) => {
       try {
         set({ error: null })
-        const history = await api.getHistory(entityId, threadId ?? get().activeThreadId)
+        const targetThreadId = threadId ?? get().activeThreadId
+        const history = await api.getHistory(entityId, targetThreadId)
         
         const messages: ChatUiMessage[] = []
         let lastUserMsg: string | null = null
@@ -203,6 +204,7 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
         
         set({ 
           messages, 
+          activeThreadId: targetThreadId ?? get().activeThreadId,
           lastUserMessage: lastUserMsg,
           incompleteTurn: history.can_resume,
           canResume: history.can_resume

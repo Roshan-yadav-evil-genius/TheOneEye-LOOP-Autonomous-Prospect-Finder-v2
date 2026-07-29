@@ -8,6 +8,7 @@ from core.config import get_settings
 from api.errors import register_error_handlers
 from api.middleware.request_id import request_id_middleware
 from api.routers.admin import router as admin_router
+from api.routers.effort_chat import router as effort_chat_router
 from api.routers.events import router as events_router
 from api.routers.forms import router as forms_router
 from api.routers.loop import router as loop_router
@@ -60,6 +61,7 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     app.include_router(system_router)
     app.include_router(forms_router)
+    app.include_router(effort_chat_router)
     app.include_router(loop_router)
     app.include_router(events_router)
     app.include_router(admin_router)
