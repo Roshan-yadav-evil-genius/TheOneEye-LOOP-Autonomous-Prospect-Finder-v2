@@ -9,6 +9,7 @@ export interface ChatStreamRequest {
   mode: 'chat' | 'agent'
   retry?: boolean
   redo_last?: boolean
+  thread_id?: string | null
 }
 
 export type ChatStreamEvent = 

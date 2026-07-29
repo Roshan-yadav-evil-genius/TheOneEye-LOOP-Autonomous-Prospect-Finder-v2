@@ -27,6 +27,36 @@ class ThreadCheckpointStore:
                 )
                 return [cast(dict[str, Any], row)["thread_id"] async for row in rows]
 
+    async def search_threads(
+        self,
+        prefix: str | None = None,
+        suffix: str | None = None,
+        contains: str | None = None,
+    ) -> list[str]:
+        if not self.database_url:
+            return []
+        async with AsyncConnectionPool(
+            self.database_url, open=False, kwargs={"autocommit": True, "row_factory": dict_row}
+        ) as pool:
+            await pool.open()
+            async with pool.connection() as connection:
+                conditions = []
+                params: list[str] = []
+                if prefix:
+                    conditions.append("thread_id LIKE %s")
+                    params.append(f"{prefix}%")
+                if suffix:
+                    conditions.append("thread_id LIKE %s")
+                    params.append(f"%{suffix}")
+                if contains:
+                    conditions.append("thread_id LIKE %s")
+                    params.append(f"%{contains}%")
+
+                where_clause = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+                query = f"SELECT DISTINCT thread_id FROM checkpoints{where_clause} ORDER BY thread_id"
+                rows = await connection.execute(query, tuple(params))
+                return [cast(dict[str, Any], row)["thread_id"] async for row in rows]
+
     async def latest(self, thread_id: str) -> dict[str, Any] | None:
         if not self.database_url:
             return None

@@ -493,6 +493,18 @@ async def update_whiteboard(
     return await ProcessService(session).update_whiteboard(strategy_id, role, data.content)
 
 
+@router.get("/sales-strategies/{strategy_id}/agents/company-finder/threads", response_model=list[str])
+async def company_finder_threads(strategy_id: str) -> list[str]:
+    store = ThreadCheckpointStore()
+    return await store.search_threads(contains=f"_{strategy_id}_", suffix="company_finder")
+
+
+@router.get("/sales-strategies/{strategy_id}/agents/contact-finder/threads", response_model=list[str])
+async def contact_finder_threads(strategy_id: str) -> list[str]:
+    store = ThreadCheckpointStore()
+    return await store.search_threads(contains=f"_{strategy_id}_", suffix="contact_finder")
+
+
 @router.get("/sales-strategies/{strategy_id}/threads", response_model=list[AgentRunSummary])
 async def threads(strategy_id: str, session: Session) -> object:
     return await ProcessService(session).threads(strategy_id)
@@ -513,18 +525,17 @@ async def snapshot(strategy_id: str, thread_id: str, session: Session) -> Thread
         ),
         None,
     )
-    if not run:
-        from application.loop_service import DomainError
-
-        raise DomainError("thread_not_found", "Thread was not found for this strategy.", 404)
     store = ThreadCheckpointStore()
-    available = await store.list_threads(run.effort_prefix)
+    available = await store.search_threads(contains=f"_{strategy_id}_")
+    if not available and run:
+        available = await store.list_threads(run.effort_prefix)
+    
     state = await store.latest(thread_id)
     from agents.redaction import redact_payload
 
     return ThreadSnapshot(
         thread_id=thread_id,
-        effort_prefix=run.effort_prefix,
+        effort_prefix=run.effort_prefix if run else thread_id,
         available_threads=available,
         state=redact_payload(state) if state else None,
         checkpoint_backend="postgresql" if store.database_url else "unavailable",

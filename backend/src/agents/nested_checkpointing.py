@@ -49,8 +49,9 @@ def resolve_compiled_child_thread_id(
     if current and current.get("status") == "running" and current.get("thread_id"):
         return str(current["thread_id"]), parent_state
 
-    if allocation_mode == "incremental":
-        if not parent_role_thread or not child_suffix:
+    if allocation_mode in ("incremental", "gpa"):
+        effective_suffix = child_suffix or ("GPA" if allocation_mode == "gpa" else None)
+        if not parent_role_thread or not effective_suffix:
             raise ValueError("parent_role_thread and child_suffix are required for incremental allocation")
         from agents.runtime import allocate_incremental_thread_id, collect_incremental_thread_ids
 
@@ -59,13 +60,13 @@ def resolve_compiled_child_thread_id(
             thread_id_candidate = str(item.get("thread_id") or "")
             if (
                 item.get("status") == "running"
-                and thread_id_candidate.startswith(f"{parent_role_thread}_{child_suffix}_")
+                and thread_id_candidate.startswith(f"{parent_role_thread}_{effective_suffix}_")
             ):
                 return thread_id_candidate, parent_state
-        known = collect_incremental_thread_ids(parent_role_thread, active, child_suffix) + list(
+        known = collect_incremental_thread_ids(parent_role_thread, active, effective_suffix) + list(
             existing_thread_ids or []
         )
-        thread_id = allocate_incremental_thread_id(parent_role_thread, known, child_suffix)
+        thread_id = allocate_incremental_thread_id(parent_role_thread, known, effective_suffix)
     elif allocation_mode == "role":
         if not role_suffix:
             raise ValueError("role_suffix is required for role allocation")

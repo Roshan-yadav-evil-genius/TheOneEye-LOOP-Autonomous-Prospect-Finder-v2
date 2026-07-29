@@ -22,20 +22,55 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.store.base import BaseStore
 
 
+def validate_registration_authority(agent_role: str, tool_names: set[str]) -> None:
+    if "browser" in agent_role and ("register_company" in tool_names or "register_contact" in tool_names):
+        raise ValueError("Browser agent cannot possess registration tools")
+    if agent_role == "company_finder" and "register_contact" in tool_names:
+        raise ValueError("Company finder cannot register contact")
+    if agent_role == "contact_finder" and "register_company" in tool_names:
+        raise ValueError("Contact finder cannot register company")
+
+
 def build_role_thread_id(*, effort_prefix: str, role_suffix: str) -> str:
     return f"{effort_prefix}_{role_suffix}"
 
 
 def build_org_setup_thread_id(organization_id: str) -> str:
-    return f"LOOP_{organization_id}_org_setup_chat"
+    return f"LOOP_{organization_id}_org_setup_chat_1"
 
 
 def build_product_setup_thread_id(organization_id: str, product_id: str) -> str:
-    return f"LOOP_{organization_id}_{product_id}_product_setup_chat"
+    return f"LOOP_{organization_id}_{product_id}_product_setup_chat_1"
 
 
 def build_strategy_setup_thread_id(organization_id: str, product_id: str, strategy_id: str) -> str:
-    return f"LOOP_{organization_id}_{product_id}_{strategy_id}_strategy_setup_chat"
+    return f"LOOP_{organization_id}_{product_id}_{strategy_id}_strategy_setup_chat_1"
+
+
+def allocate_next_setup_thread_id(base_thread_id: str, existing_thread_ids: list[str]) -> str:
+    """Return the next sequenced setup-chat thread ID.
+
+    Every setup thread ID includes a sequence suffix (``_<n>``), starting with
+    ``_1`` for the initial thread.
+
+        LOOP_{org}_org_setup_chat_1      → seq 1
+        LOOP_{org}_org_setup_chat_2      → seq 2
+        LOOP_{org}_org_setup_chat_3      → seq 3
+        ...
+
+    Callers must include all known thread IDs (including any still-running ones)
+    in *existing_thread_ids* to avoid gaps or conflicts.
+    """
+    stem = re.sub(r"_\d+$", "", base_thread_id)
+    pattern = re.compile(rf"^{re.escape(stem)}_(\d+)$")
+    numbers: list[int] = []
+    for tid in existing_thread_ids:
+        if tid == stem:
+            numbers.append(1)
+        elif m := pattern.match(tid):
+            numbers.append(int(m.group(1)))
+    next_seq = max(numbers, default=0) + 1
+    return f"{stem}_{next_seq}"
 
 
 

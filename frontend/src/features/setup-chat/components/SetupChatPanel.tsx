@@ -1,6 +1,6 @@
 import { ChatMessageList } from './chat-message-list'
 import { ChatComposer } from './chat-composer'
-import { Button } from '../../../shared/components/button'
+import { ThreadHistoryList } from './thread-history-list'
 import type { SetupChatStoreState } from '../stores/store-factory'
 
 export interface SetupChatPanelProps {
@@ -11,105 +11,176 @@ export interface SetupChatPanelProps {
   store: SetupChatStoreState
 }
 
+type TabMode = 'chat' | 'agent' | 'history'
+
+const tabs: { mode: TabMode; icon: string; label: string }[] = [
+  { mode: 'chat', icon: '💬', label: 'Chat' },
+  { mode: 'agent', icon: '📝', label: 'Agent' },
+  { mode: 'history', icon: '📜', label: 'History' },
+]
+
+function TabButton({
+  mode,
+  icon,
+  label,
+  active,
+  disabled,
+  onClick,
+}: {
+  mode: TabMode
+  icon: string
+  label: string
+  active: boolean
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      id={`setup-chat-tab-${mode}`}
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        padding: '6px 14px',
+        background: active ? 'var(--color-accent-primary)' : 'transparent',
+        color: active ? 'var(--color-accent-foreground)' : 'var(--color-text-primary)',
+        border: 'none',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        fontSize: '0.85rem',
+        fontWeight: active ? 700 : 'normal',
+      }}
+    >
+      {icon} {label}
+    </button>
+  )
+}
+
 export function SetupChatPanel({ title, threadId, entityId, agentDescription, store }: SetupChatPanelProps) {
   const handleSend = (msg: string) => {
     void store.send(entityId, msg)
   }
 
-  const handleClear = () => {
-    if (confirm('Are you sure you want to clear the chat history?')) {
-      void store.clearHistory(entityId)
-    }
+  const handleNewChat = () => {
+    void store.createNewThread(entityId)
   }
+
+  const handleTabClick = (mode: TabMode) => {
+    if (mode === 'history' && store.mode !== 'history') {
+      // Eagerly fetch threads when the tab is first opened
+      void store.fetchThreads(entityId)
+    }
+    store.setMode(mode)
+  }
+
+  const effectiveThreadId = store.activeThreadId ?? threadId
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', flex: 1, minHeight: 0 }}>
       {/* Panel Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border-default)', paddingBottom: '14px', marginBottom: '14px', flexShrink: 0 }}>
-        <div>
-          <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700 }}>{title}</h3>
-          <p className="muted" style={{ margin: '4px 0 0 0', fontSize: '0.825rem' }}>
-            {store.mode === 'chat' 
-              ? `Thread: ${threadId}` 
-              : `Agent: ${agentDescription}`}
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img 
+            src="/static/ChatBotAvatar.png" 
+            alt="Masha" 
+            style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover', border: '1px solid var(--color-border-default)' }} 
+          />
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700 }}>Masha</h3>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <div 
-            style={{ 
-              display: 'flex', 
-              background: 'var(--color-bg-elevated)', 
-              borderRadius: 'var(--radius-md)', 
-              border: '1px solid var(--color-border-default)', 
+          {/* Tab switcher */}
+          <div
+            style={{
+              display: 'flex',
+              background: 'var(--color-bg-elevated)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-border-default)',
               overflow: 'hidden',
               opacity: store.streaming ? 0.6 : 1,
-              pointerEvents: store.streaming ? 'none' : 'auto'
+              pointerEvents: store.streaming ? 'none' : 'auto',
             }}
           >
-            <button
-              type="button"
-              onClick={() => store.setMode('chat')}
-              style={{
-                padding: '6px 14px',
-                background: store.mode === 'chat' ? 'var(--color-accent-primary)' : 'transparent',
-                color: store.mode === 'chat' ? 'var(--color-accent-foreground)' : 'var(--color-text-primary)',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.85rem',
-                fontWeight: store.mode === 'chat' ? 700 : 'normal'
-              }}
-            >
-              💬 Chat
-            </button>
-            <button
-              type="button"
-              onClick={() => store.setMode('agent')}
-              style={{
-                padding: '6px 14px',
-                background: store.mode === 'agent' ? 'var(--color-accent-primary)' : 'transparent',
-                color: store.mode === 'agent' ? 'var(--color-accent-foreground)' : 'var(--color-text-primary)',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.85rem',
-                fontWeight: store.mode === 'agent' ? 700 : 'normal'
-              }}
-            >
-              📝 Agent
-            </button>
+            {tabs.map(({ mode, icon, label }) => (
+              <TabButton
+                key={mode}
+                mode={mode}
+                icon={icon}
+                label={label}
+                active={store.mode === mode}
+                disabled={store.streaming}
+                onClick={() => handleTabClick(mode)}
+              />
+            ))}
+            {store.mode !== 'history' && (
+              <button
+                type="button"
+                id="setup-chat-new-thread-btn"
+                onClick={handleNewChat}
+                disabled={store.streaming || store.loadingThreads || store.messages.length === 0}
+                title={store.messages.length === 0 ? 'Already in a new chat' : 'Start a new sequenced chat thread'}
+                style={{
+                  padding: '6px 14px',
+                  background: 'transparent',
+                  color: 'var(--color-text-primary)',
+                  border: 'none',
+                  borderLeft: '1px solid var(--color-border-default)',
+                  cursor: store.streaming || store.loadingThreads || store.messages.length === 0 ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.85rem',
+                  opacity: store.streaming || store.loadingThreads || store.messages.length === 0 ? 0.4 : 1,
+                  transition: 'background 0.15s, opacity 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  if (!e.currentTarget.disabled) e.currentTarget.style.background = 'var(--color-bg-subtle)'
+                }}
+                onMouseLeave={(e) => {
+                  if (!e.currentTarget.disabled) e.currentTarget.style.background = 'transparent'
+                }}
+              >
+                ➕ New
+              </button>
+            )}
           </div>
-          <Button type="button" variant="ghost" onClick={handleClear} disabled={store.streaming}>
-            Clear
-          </Button>
         </div>
       </div>
-      
+
+
       {store.error && (
         <div style={{ background: 'var(--color-status-danger)', color: 'white', padding: '8px 12px', borderRadius: 'var(--radius-md)', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <span>{store.error}</span>
         </div>
       )}
 
-      {/* Message List (Scrollable) */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-        <ChatMessageList messages={store.messages} streaming={store.streaming} />
-      </div>
-      
-      {/* Input Composer (Pinned at Bottom) */}
-      <div style={{ paddingTop: '12px', flexShrink: 0 }}>
-        <ChatComposer 
-          onSend={handleSend} 
-          onContinue={() => store.retry(entityId)}
-          disabled={store.streaming} 
-          incompleteTurn={store.incompleteTurn}
-          canResume={store.canResume}
-        />
-      </div>
+      {/* Main content area */}
+      {store.mode === 'history' ? (
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          <ThreadHistoryList entityId={entityId} store={store} />
+        </div>
+      ) : (
+        <>
+          {/* Message List (Scrollable) */}
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            <ChatMessageList messages={store.messages} streaming={store.streaming} />
+          </div>
+
+          {/* Input Composer (Pinned at Bottom) */}
+          <div style={{ paddingTop: '12px', flexShrink: 0 }}>
+            <ChatComposer
+              onSend={handleSend}
+              onContinue={() => store.retry(entityId)}
+              disabled={store.streaming}
+              incompleteTurn={store.incompleteTurn}
+              canResume={store.canResume}
+            />
+          </div>
+        </>
+      )}
     </div>
   )
 }

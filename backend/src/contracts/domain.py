@@ -359,12 +359,18 @@ class ChatStreamRequest(BaseModel):
     mode: Literal["chat", "agent"]
     retry: bool = False
     redo_last: bool = False
+    thread_id: str | None = None
 
 
 class ChatHistoryRead(BaseModel):
     thread_id: str
     messages: list[dict[str, Any]]
     can_resume: bool = False
+
+
+class NewThreadResponse(BaseModel):
+    thread_id: str
+
 
 
 class ToolCustomizationRuleCreate(BaseModel):

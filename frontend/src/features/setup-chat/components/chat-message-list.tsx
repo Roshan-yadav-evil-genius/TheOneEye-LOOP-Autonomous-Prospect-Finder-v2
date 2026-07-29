@@ -261,13 +261,21 @@ export function ChatMessageList({ messages, streaming, emptyMessage }: { message
           // AI Group
           const metadata = group.messages.length > 0 ? (group.messages[group.messages.length - 1] as any).metadata : undefined
           return (
-            <div key={group.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
+            <div key={group.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '4px' }}>
+                <img 
+                  src="/static/ChatBotAvatar.png" 
+                  alt="Masha" 
+                  style={{ width: '24px', height: '24px', borderRadius: '4px', objectFit: 'cover' }} 
+                />
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>Masha</span>
+              </div>
               <div style={{ 
                 width: '100%', 
                 maxWidth: '85%', 
                 borderLeft: '3px solid #eab308', 
                 paddingLeft: '12px', 
-                marginLeft: '4px',
+                marginLeft: '14px',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '8px'
@@ -293,8 +301,18 @@ export function ChatMessageList({ messages, streaming, emptyMessage }: { message
         })
       )}
       {streaming && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
-          <TypingIndicator />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '4px' }}>
+            <img 
+              src="/static/ChatBotAvatar.png" 
+              alt="Masha" 
+              style={{ width: '24px', height: '24px', borderRadius: '4px', objectFit: 'cover' }} 
+            />
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>Masha</span>
+          </div>
+          <div style={{ marginLeft: '14px', paddingLeft: '12px', borderLeft: '3px solid #eab308' }}>
+            <TypingIndicator />
+          </div>
         </div>
       )}
       <div ref={endRef} />

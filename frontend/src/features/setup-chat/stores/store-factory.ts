@@ -14,7 +14,7 @@ export type ChatUiMessage =
   | { id: string; kind: 'tool_result'; name: string; content: string }
 
 export interface SetupChatStoreState {
-  mode: 'chat' | 'agent'
+  mode: 'chat' | 'agent' | 'history'
   messages: ChatUiMessage[]
   streaming: boolean
   error: string | null
@@ -23,22 +23,32 @@ export interface SetupChatStoreState {
   incompleteTurn: boolean
   canResume: boolean
   lastUserMessage: string | null
+
+  /** Thread state */
+  threadsList: string[]
+  activeThreadId: string | null
+  loadingThreads: boolean
   
-  setMode: (mode: 'chat' | 'agent') => void
-  loadHistory: (entityId: string) => Promise<void>
+  setMode: (mode: 'chat' | 'agent' | 'history') => void
+  loadHistory: (entityId: string, threadId?: string | null) => Promise<void>
   clearHistory: (entityId: string) => Promise<void>
   send: (entityId: string, message: string) => Promise<void>
   retry: (entityId: string) => Promise<void>
   reset: () => void
   clearDirtyFlag: () => void
+  fetchThreads: (entityId: string) => Promise<void>
+  selectThread: (entityId: string, threadId: string) => Promise<void>
+  createNewThread: (entityId: string) => Promise<void>
   
   _runStream: (entityId: string, request: ChatStreamRequest) => Promise<void>
 }
 
 export interface SetupChatApi {
-  getHistory: (entityId: string) => Promise<ChatHistoryRead>
+  getHistory: (entityId: string, threadId?: string | null) => Promise<ChatHistoryRead>
   clearChat: (entityId: string) => Promise<any>
   streamChat: (entityId: string, request: ChatStreamRequest, onEvent: (event: ChatStreamEvent) => void) => Promise<void>
+  getThreads?: (entityId: string) => Promise<string[]>
+  newThread?: (entityId: string) => Promise<{ thread_id: string }>
 }
 
 export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat_mode'): UseBoundStore<StoreApi<SetupChatStoreState>> {
@@ -57,7 +67,7 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
   }
 
   return create<SetupChatStoreState>((set, get) => ({
-    mode: getInitialMode(),
+    mode: getInitialMode() as 'chat' | 'agent' | 'history',
     messages: [],
     streaming: false,
     error: null,
@@ -65,6 +75,9 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
     incompleteTurn: false,
     canResume: false,
     lastUserMessage: null,
+    threadsList: [],
+    activeThreadId: null,
+    loadingThreads: false,
 
     setMode: (mode) => {
       try {
@@ -84,15 +97,56 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
       profileDirtyFromChat: false,
       incompleteTurn: false,
       canResume: false,
-      lastUserMessage: null
+      lastUserMessage: null,
+      threadsList: [],
+      activeThreadId: null,
+      loadingThreads: false,
     }),
     
     clearDirtyFlag: () => set({ profileDirtyFromChat: false }),
 
-    loadHistory: async (entityId) => {
+    fetchThreads: async (entityId) => {
+      if (!api.getThreads) return
+      try {
+        set({ loadingThreads: true, error: null })
+        const threads = await api.getThreads(entityId)
+        set({ threadsList: threads })
+      } catch (e: any) {
+        set({ error: e.message || 'Failed to load threads' })
+      } finally {
+        set({ loadingThreads: false })
+      }
+    },
+
+    selectThread: async (entityId, threadId) => {
+      set({ activeThreadId: threadId, mode: 'chat' })
+      await get().loadHistory(entityId, threadId)
+    },
+
+    createNewThread: async (entityId) => {
+      if (!api.newThread) return
+      try {
+        set({ error: null, loadingThreads: true })
+        const { thread_id } = await api.newThread(entityId)
+        set({
+          activeThreadId: thread_id,
+          messages: [],
+          mode: 'chat',
+          incompleteTurn: false,
+          canResume: false,
+          lastUserMessage: null,
+        })
+      } catch (e: any) {
+        set({ error: e.message || 'Failed to create new thread' })
+      } finally {
+        set({ loadingThreads: false })
+      }
+    },
+
+    loadHistory: async (entityId, threadId) => {
       try {
         set({ error: null })
-        const history = await api.getHistory(entityId)
+        const history = await api.getHistory(entityId, threadId ?? get().activeThreadId)
         
         const messages: ChatUiMessage[] = []
         let lastUserMsg: string | null = null
@@ -174,22 +228,22 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
     },
 
     send: async (entityId, message) => {
-      const { mode, messages } = get()
+      const { mode, messages, activeThreadId } = get()
       
       const userMsg: ChatUiMessage = { id: `user-${Date.now()}`, kind: 'user', content: message }
       set({ messages: [...messages, userMsg], streaming: true, error: null, lastUserMessage: message })
 
-      await get()._runStream(entityId, { message, mode })
+      await get()._runStream(entityId, { message, mode, thread_id: activeThreadId })
     },
     
     retry: async (entityId: string) => {
-      const { mode, canResume, lastUserMessage } = get()
+      const { mode, canResume, lastUserMessage, activeThreadId } = get()
       set({ streaming: true, error: null })
       
       const redo_last = !canResume
       const message = (redo_last && lastUserMessage) ? lastUserMessage : ''
       
-      await get()._runStream(entityId, { message, mode, retry: true, redo_last })
+      await get()._runStream(entityId, { message, mode, retry: true, redo_last, thread_id: activeThreadId })
     },
 
     _runStream: async (entityId: string, request: ChatStreamRequest) => {
