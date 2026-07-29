@@ -1,5 +1,5 @@
 import ReactMarkdown from 'react-markdown'
-import { sharedMarkdownComponents } from './shared-markdown-components'
+import { sharedMarkdownComponents, sharedRemarkPlugins } from './shared-markdown-components'
 
 export function ReasoningCard({ text }: { text: string }) {
   return (
@@ -9,7 +9,7 @@ export function ReasoningCard({ text }: { text: string }) {
         <span style={{ fontStyle: 'italic' }}>Thinking</span>
       </summary>
       <div style={{ marginTop: '8px', fontSize: '0.85em', color: 'var(--color-text-primary)' }}>
-        <ReactMarkdown components={sharedMarkdownComponents as any}>
+        <ReactMarkdown remarkPlugins={sharedRemarkPlugins} components={sharedMarkdownComponents as any}>
           {text}
         </ReactMarkdown>
       </div>

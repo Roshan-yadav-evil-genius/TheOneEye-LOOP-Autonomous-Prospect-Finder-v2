@@ -1,4 +1,5 @@
 import { useState, isValidElement, type ReactNode } from 'react'
+import remarkGfm from 'remark-gfm'
 
 function extractTextContent(node: ReactNode): string {
   if (typeof node === 'string') return node
@@ -74,6 +75,8 @@ export function PreBlock({ children, ...props }: any) {
   )
 }
 
+export const sharedRemarkPlugins = [remarkGfm]
+
 export const sharedMarkdownComponents = {
   code: ({children, ...props}: any) => (
     <code style={{ color: '#abb2bf', background: '#282c34', padding: '0.1em 0.3em', borderRadius: 4, fontFamily: 'monospace' }} {...props}>
@@ -85,11 +88,30 @@ export const sharedMarkdownComponents = {
   ul: ({_node, ...props}: any) => <ul style={{margin: '0 0 4px 24px', padding: 0, listStyleType: 'disc'}} {...props} />,
   ol: ({_node, ...props}: any) => <ol style={{margin: '0 0 4px 24px', padding: 0, listStyleType: 'decimal'}} {...props} />,
   li: ({_node, ...props}: any) => <li style={{margin: '2px 0'}} {...props} />,
-  a: ({_node, ...props}: any) => <a style={{color: 'var(--color-accent-primary)', textDecoration: 'underline'}} target="_blank" rel="noopener noreferrer" {...props} />
+  a: ({_node, ...props}: any) => <a style={{color: 'var(--color-accent-primary)', textDecoration: 'underline'}} target="_blank" rel="noopener noreferrer" {...props} />,
+  table: ({_node, ...props}: any) => (
+    <div style={{ overflowX: 'auto', margin: '8px 0', maxWidth: '100%', borderRadius: '6px', border: '1px solid var(--color-border-default)' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', textAlign: 'left' }} {...props} />
+    </div>
+  ),
+  thead: ({_node, ...props}: any) => (
+    <thead style={{ background: 'var(--color-bg-subtle, rgba(255, 255, 255, 0.05))', borderBottom: '1px solid var(--color-border-default)' }} {...props} />
+  ),
+  tbody: ({_node, ...props}: any) => <tbody {...props} />,
+  tr: ({_node, ...props}: any) => (
+    <tr style={{ borderBottom: '1px solid var(--color-border-default)' }} {...props} />
+  ),
+  th: ({_node, ...props}: any) => (
+    <th style={{ padding: '8px 12px', fontWeight: 600, color: 'var(--color-text-primary)' }} {...props} />
+  ),
+  td: ({_node, ...props}: any) => (
+    <td style={{ padding: '8px 12px', color: 'var(--color-text-secondary)' }} {...props} />
+  )
 }
 
 export const userMarkdownComponents = {
   ...sharedMarkdownComponents,
   a: ({_node, ...props}: any) => <a style={{color: 'inherit', textDecoration: 'underline'}} target="_blank" rel="noopener noreferrer" {...props} />
 }
+
 

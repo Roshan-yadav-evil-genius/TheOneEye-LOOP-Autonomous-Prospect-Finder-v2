@@ -7,7 +7,7 @@ import { ToolResultCard } from './tool-result-card'
 import { TypingIndicator } from './typing-indicator'
 import { getPublicToolCustomizations } from '../api/tool-customization-api'
 import type { ToolCustomizationRuleRead } from '../api/tool-customization-api'
-import { sharedMarkdownComponents, userMarkdownComponents } from './shared-markdown-components'
+import { sharedMarkdownComponents, userMarkdownComponents, sharedRemarkPlugins } from './shared-markdown-components'
 import { Modal } from '../../../shared/components/modal'
 import { JsonHighlighter } from './json-highlighter'
 
@@ -31,7 +31,7 @@ function UserMessageBubble({ content }: { content: string }) {
 
   return (
     <div style={{ background: 'var(--color-accent-primary)', color: 'var(--color-accent-foreground)', padding: '10px 14px', borderRadius: '16px 16px 0 16px', maxWidth: '85%', wordBreak: 'break-word' }}>
-      <ReactMarkdown components={userMarkdownComponents as any}>
+      <ReactMarkdown remarkPlugins={sharedRemarkPlugins} components={userMarkdownComponents as any}>
         {displayedContent}
       </ReactMarkdown>
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginTop: '8px', paddingTop: '6px', borderTop: '1px solid rgba(0, 0, 0, 0.1)' }}>
@@ -101,7 +101,7 @@ function AssistantMessageBubble({ content }: { content: string }) {
 
   return (
     <div className="markdown-chat" style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-primary)', padding: '10px 16px', borderRadius: '16px 16px 16px 0', width: '100%', wordBreak: 'break-word', border: '1px solid var(--color-border-default)', position: 'relative' }}>
-      <ReactMarkdown components={sharedMarkdownComponents as any}>
+      <ReactMarkdown remarkPlugins={sharedRemarkPlugins} components={sharedMarkdownComponents as any}>
         {content}
       </ReactMarkdown>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px', paddingTop: '6px', borderTop: '1px solid var(--color-border-default)' }}>

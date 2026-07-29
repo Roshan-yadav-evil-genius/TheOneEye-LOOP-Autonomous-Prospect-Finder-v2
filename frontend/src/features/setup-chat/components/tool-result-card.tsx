@@ -2,7 +2,7 @@ import type { ToolCustomizationRuleRead } from '../api/tool-customization-api'
 import { JsonHighlighter } from './json-highlighter'
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { sharedMarkdownComponents } from './shared-markdown-components'
+import { sharedMarkdownComponents, sharedRemarkPlugins } from './shared-markdown-components'
 
 export function ToolResultCard({ name, content, rules }: { name: string; content: string; rules?: ToolCustomizationRuleRead[] }) {
   const [showMarkdown, setShowMarkdown] = useState(false)
@@ -60,7 +60,7 @@ export function ToolResultCard({ name, content, rules }: { name: string; content
       <div style={{ marginTop: '8px', overflowX: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {showMarkdown ? (
           <div className="markdown-chat" style={{ color: 'var(--color-text-primary)', wordBreak: 'break-word', fontSize: '0.9em' }}>
-            <ReactMarkdown components={sharedMarkdownComponents as any}>
+            <ReactMarkdown remarkPlugins={sharedRemarkPlugins} components={sharedMarkdownComponents as any}>
               {content}
             </ReactMarkdown>
           </div>
