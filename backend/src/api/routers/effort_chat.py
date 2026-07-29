@@ -14,6 +14,7 @@ from agents.factory import (
     company_finder_agent_scope,
     contact_finder_agent_scope,
 )
+from application.chat_history_service import ThreadChatHistoryService
 from contracts.domain import ChatHistoryRead, ChatStreamRequest, NewThreadResponse
 from core.config import get_settings
 from persistence import models
@@ -196,25 +197,7 @@ async def get_history(
     thread_id: str | None = None,
 ) -> ChatHistoryRead:
     target_thread_id = thread_id or f"{effort_prefix}_planner"
-    async with checkpoint_scope() as checkpointer:
-        config = {"configurable": {"thread_id": target_thread_id}}
-
-        if hasattr(checkpointer, "aget"):
-            checkpoint = await checkpointer.aget(config)
-        else:
-            checkpoint = checkpointer.get(config)
-
-        messages = []
-        if (
-            checkpoint
-            and "channel_values" in checkpoint
-            and "messages" in checkpoint["channel_values"]
-        ):
-            raw_messages = checkpoint["channel_values"]["messages"]
-            for msg in raw_messages:
-                messages.append(message_to_dict(msg))
-
-        return ChatHistoryRead(thread_id=target_thread_id, messages=messages, can_resume=False)
+    return await ThreadChatHistoryService.get_history(target_thread_id)
 
 
 @router.delete("/{effort_prefix}/chat", status_code=status.HTTP_204_NO_CONTENT)
@@ -224,11 +207,12 @@ async def clear_chat(
 ) -> None:
     target_thread_id = thread_id or f"{effort_prefix}_planner"
     settings = get_settings()
-    if settings.threads_enabled and settings.threads_database_url:
+    conn_string = settings.resolved_threads_database_url
+    if conn_string:
         from psycopg_pool import AsyncConnectionPool
 
         async with AsyncConnectionPool(
-            settings.threads_database_url, open=False, kwargs={"autocommit": True}
+            conn_string, open=False, kwargs={"autocommit": True}
         ) as pool:
             await pool.open()
             async with pool.connection() as conn:

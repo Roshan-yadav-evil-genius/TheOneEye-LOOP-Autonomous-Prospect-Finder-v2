@@ -49,6 +49,7 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
 
   useEffect(() => {
     if (effort?.effort_prefix && plannerThreadId) {
+      useEffortChatStore.setState({ activeThreadId: plannerThreadId })
       void chatStore.loadHistory(effort.effort_prefix, plannerThreadId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,6 +98,10 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
         if (!mounted) return
         if (effortDetail) {
           setEffort(effortDetail)
+          const pThreadId = `${effortDetail.effort_prefix}_planner`
+          useEffortChatStore.setState({ activeThreadId: pThreadId })
+          void chatStore.loadHistory(effortDetail.effort_prefix, pThreadId)
+
           // Default to primary thread if not selected
           const threads = Array.from(
             new Set([effortDetail.primary_thread_id, ...(effortDetail.child_thread_ids || [])])

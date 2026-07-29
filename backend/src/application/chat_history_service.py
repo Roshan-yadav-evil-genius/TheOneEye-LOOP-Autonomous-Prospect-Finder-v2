@@ -10,6 +10,8 @@ from agents.model_provider import resolve_chat_model
 from contracts.domain import ChatHistoryRead
 from core.config import get_settings
 
+from langchain_core.language_models import FakeListChatModel
+
 def _thread_config(thread_id: str) -> dict[str, Any]:
     return {"configurable": {"thread_id": thread_id}}
 
@@ -21,17 +23,23 @@ class ThreadChatHistoryService:
         if not conn_string:
             return ChatHistoryRead(thread_id=thread_id, messages=[], can_resume=False)
 
-        async with AsyncPostgresSaver.from_conn_string(conn_string) as checkpointer:
-            model = resolve_chat_model()
-            agent = create_deep_agent(model, checkpointer=checkpointer)
-            state = await agent.aget_state(_thread_config(thread_id))
-            can_resume = bool(state.next) if state else False
-            messages = []
-            
-            if state and state.values and "messages" in state.values:
-                raw_messages = state.values["messages"]
-                for msg in raw_messages:
-                    msg_dict = message_to_dict(msg)
-                    messages.append(msg_dict)
+        try:
+            async with AsyncPostgresSaver.from_conn_string(conn_string) as checkpointer:
+                try:
+                    model = resolve_chat_model()
+                except Exception:
+                    model = FakeListChatModel(responses=[""])
 
-            return ChatHistoryRead(thread_id=thread_id, messages=messages, can_resume=can_resume)
+                agent = create_deep_agent(model, checkpointer=checkpointer)
+                state = await agent.aget_state(_thread_config(thread_id))
+                can_resume = bool(state.next) if state else False
+                messages = []
+
+                if state and state.values and "messages" in state.values:
+                    raw_messages = state.values["messages"]
+                    for msg in raw_messages:
+                        messages.append(message_to_dict(msg))
+
+                return ChatHistoryRead(thread_id=thread_id, messages=messages, can_resume=can_resume)
+        except Exception:
+            return ChatHistoryRead(thread_id=thread_id, messages=[], can_resume=False)
