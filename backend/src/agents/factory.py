@@ -25,6 +25,7 @@ from agents.tools import (
     company_finder_tools,
     company_planner_tools,
     contact_finder_tools,
+    sales_manager_tools,
 )
 from application.loop_service import LoopService
 from browser.policy import (
@@ -162,9 +163,15 @@ async def company_finder_agent_scope(
     ) as browser_session:
         log.info("company_finder_scope.stack_build", strategy_id=strategy_id, parent_thread=parent_thread)
         if is_planner:
-            company_tools_list = company_planner_tools(session, strategy_id, effort_prefix) + company_finder_tools(session, strategy_id, parent_thread)
+            all_finder_tools = company_finder_tools(session, strategy_id, parent_thread)
+            planner_finder_tools = [
+                t for t in all_finder_tools if getattr(t, "name", "") != "get_sales_strategy_bundle"
+            ]
+            company_tools_list = company_planner_tools(session, strategy_id, effort_prefix) + planner_finder_tools
+            sm_tools = sales_manager_tools(session, strategy_id)
         else:
             company_tools_list = company_finder_tools(session, strategy_id, parent_thread)
+            sm_tools = None
 
         stack = build_company_finder_stack(
             effort_prefix=effort_prefix,
@@ -173,6 +180,7 @@ async def company_finder_agent_scope(
             browser_tools=await _browser_tools(browser_session),
             brain_tools=brain_tools(session, strategy_id, effective_role_suffix),
             checkpointer=checkpointer,
+            sales_manager_tools=sm_tools,
             model=model,
             company_middlewares=orchestrator_middlewares(),
             browser_middlewares=browser_middlewares(),

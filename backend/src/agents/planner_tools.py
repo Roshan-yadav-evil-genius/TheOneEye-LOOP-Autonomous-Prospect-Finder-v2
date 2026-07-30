@@ -41,11 +41,42 @@ def company_planner_tools(
         return plan.model_dump(mode="json")
 
     @tool
+    async def update_plan_context(
+        goal: Optional[str] = None,
+        objective: Optional[str] = None,
+        success_criteria: Optional[List[str]] = None,
+        constraints: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Update top-level strategic goal, operational objective, success criteria checklist, or operational constraints of the plan."""
+        plan = await _get_plan()
+        if goal is not None:
+            plan.goal = goal
+        if objective is not None:
+            plan.objective = objective
+        if success_criteria is not None:
+            plan.success_criteria = success_criteria
+        if constraints is not None:
+            plan.constraints = constraints
+
+        updated_plan = await planner_service.save_plan(
+            effort_prefix, plan, strategy_id=strategy_id
+        )
+        return {
+            "status": "success",
+            "goal": updated_plan.goal,
+            "objective": updated_plan.objective,
+            "success_criteria": updated_plan.success_criteria,
+            "constraints": updated_plan.constraints,
+        }
+
+    @tool
     async def add_task(
         phase_id: str,
         title: str,
         description: str = "",
         dependencies: Optional[List[str]] = None,
+        tools: Optional[List[str]] = None,
+        completion_criteria: Optional[List[str]] = None,
         expected_output: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Add a new task to an existing phase in the planner roadmap."""
@@ -66,6 +97,8 @@ def company_planner_tools(
             title=title,
             description=description,
             dependencies=dependencies or [],
+            tools=tools or [],
+            completion_criteria=completion_criteria or [],
             expected_output=expected_output,
             status=TaskStatus.PENDING,
         )
@@ -274,6 +307,7 @@ def company_planner_tools(
 
     return [
         get_plan_summary,
+        update_plan_context,
         add_task,
         add_step,
         update_task_status,

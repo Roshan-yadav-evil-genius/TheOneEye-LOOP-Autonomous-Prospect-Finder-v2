@@ -12,9 +12,10 @@ async def test_planner_tool_suite_execution(session):
     tools_list = company_planner_tools(session, strategy_id, effort_prefix)
     tool_map = {t.name: t for t in tools_list}
 
-    # Verify all 8 tools exist
+    # Verify all 9 tools exist
     expected_tools = {
         "get_plan_summary",
+        "update_plan_context",
         "add_task",
         "add_step",
         "update_task_status",
@@ -30,6 +31,15 @@ async def test_planner_tool_suite_execution(session):
     assert summary["planner_id"] == f"planner-{effort_prefix}"
     assert len(summary["phases"]) == 1
     phase_id = summary["phases"][0]["id"]
+
+    # 1b. Tool: update_plan_context
+    context_res = await tool_map["update_plan_context"].ainvoke({
+        "success_criteria": ["Find at least 10 qualified companies", "Verify contact email"],
+        "constraints": ["EU GDPR compliance required", "Exclude agency model companies"],
+    })
+    assert context_res["status"] == "success"
+    assert len(context_res["success_criteria"]) == 2
+    assert len(context_res["constraints"]) == 2
 
     # 2. Tool 2: add_task
     task_res = await tool_map["add_task"].ainvoke({

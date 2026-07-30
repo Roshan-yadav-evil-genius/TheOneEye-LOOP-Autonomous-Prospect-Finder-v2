@@ -9,6 +9,7 @@ COMPANY_FINDER_PLANNER_PROMPT = (PROMPTS_ROOT / "company_finder_planner.md").rea
 CONTACT_FINDER_PROMPT = (PROMPTS_ROOT / "contact_finder.md").read_text(encoding="utf-8")
 BROWSER_AGENT_PROMPT = (PROMPTS_ROOT / "browser.md").read_text(encoding="utf-8")
 BRAIN_AGENT_PROMPT = (PROMPTS_ROOT / "brain.md").read_text(encoding="utf-8")
+SALES_MANAGER_PROMPT = (PROMPTS_ROOT / "sales_manager.md").read_text(encoding="utf-8")
 
 
 

@@ -109,3 +109,7 @@ def brain_prompt_values() -> dict[str, str]:
 
 def browser_prompt_values() -> dict[str, str]:
     return {}
+
+
+def sales_manager_prompt_values() -> dict[str, str]:
+    return {}

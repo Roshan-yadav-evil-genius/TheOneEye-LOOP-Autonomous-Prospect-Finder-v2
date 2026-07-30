@@ -25,6 +25,12 @@ def company_finder_tools(
         return (await service.bundle(strategy_id)).model_dump(mode="json")
 
     @tool
+    async def get_sales_strategy() -> dict[str, Any]:
+        """Read the active sales strategy targeting rules, narratives, and targets."""
+        bundle = await service.bundle(strategy_id)
+        return bundle.sales_strategy.model_dump(mode="json")
+
+    @tool
     async def register_company(
         name: str,
         website_url: str,
@@ -49,7 +55,28 @@ def company_finder_tools(
         )
         return result.model_dump(mode="json")
 
-    return [get_sales_strategy_bundle, register_company]
+    return [get_sales_strategy_bundle, get_sales_strategy, register_company]
+
+
+def sales_manager_tools(
+    session: AsyncSession, strategy_id: str
+) -> list[BaseTool]:
+    service = LoopService(session)
+
+    @tool
+    async def get_org() -> dict[str, Any]:
+        """Read the organization overview, mission, business model, and deal constraints."""
+        bundle = await service.bundle(strategy_id)
+        return bundle.organization.model_dump(mode="json")
+
+    @tool
+    async def get_product() -> dict[str, Any]:
+        """Read product details, value proposition, pricing, and ICP forms."""
+        bundle = await service.bundle(strategy_id)
+        return bundle.product.model_dump(mode="json")
+
+    return [get_org, get_product]
+
 
 
 def contact_finder_tools(
