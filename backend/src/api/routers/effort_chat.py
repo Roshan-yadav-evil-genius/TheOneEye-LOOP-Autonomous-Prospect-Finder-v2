@@ -1,6 +1,6 @@
 import json
 import re
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request, status
 from langchain_core.messages import message_to_dict
@@ -15,6 +15,7 @@ from agents.factory import (
     contact_finder_agent_scope,
 )
 from application.chat_history_service import ThreadChatHistoryService
+from application.planner_service import PlannerService
 from contracts.domain import ChatHistoryRead, ChatStreamRequest, NewThreadResponse
 from core.config import get_settings
 from persistence import models
@@ -214,3 +215,20 @@ async def clear_chat(
 ) -> None:
     target_thread_id = thread_id or f"{effort_prefix}_planner"
     await ThreadChatHistoryService.delete_thread(target_thread_id)
+
+
+@router.get("/{effort_prefix}/plan")
+async def get_effort_plan(
+    effort_prefix: str,
+    session: Session,
+) -> dict[str, Any]:
+    """Retrieve structured Planner domain state (plan_data) for an effort."""
+    strategy_id = None
+    try:
+        strategy_id, _, _ = await get_effort_info(session, effort_prefix)
+    except Exception:
+        pass
+    svc = PlannerService(session)
+    plan = await svc.get_or_create_plan(effort_prefix, strategy_id=strategy_id)
+    return plan.model_dump(mode="json")
+

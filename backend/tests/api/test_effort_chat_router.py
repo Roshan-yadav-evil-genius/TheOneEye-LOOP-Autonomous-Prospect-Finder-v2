@@ -18,3 +18,23 @@ def test_effort_chat_history_route_resolution():
     data = response.json()
     assert data["thread_id"] == planner_thread_id
     assert "messages" in data
+
+
+import asyncio
+from persistence.database import create_schema
+
+
+def test_effort_plan_route():
+    asyncio.run(create_schema())
+    client = TestClient(app)
+    effort_prefix = "LOOP_org1_prod1_strat1_1"
+
+    response = client.get(f"/api/v1/efforts/{effort_prefix}/plan")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["planner_id"] == f"planner-{effort_prefix}"
+    assert "phases" in data
+    assert "runtime" in data
+    assert "knowledge" in data
+
+

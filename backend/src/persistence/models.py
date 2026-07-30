@@ -333,3 +333,13 @@ class ToolCustomizationRule(Timestamped, Base):
     icon_url: Mapped[str | None] = mapped_column(String(2048))
     request_color: Mapped[str | None] = mapped_column(String(20))
     response_color: Mapped[str | None] = mapped_column(String(20))
+
+
+class PlannerState(Timestamped, Base):
+    __tablename__ = "planner_state"
+    effort_prefix: Mapped[str] = mapped_column(String(512), unique=True, index=True)
+    sales_strategy_id: Mapped[str | None] = mapped_column(
+        ForeignKey("sales_strategy.id", ondelete="CASCADE"), nullable=True
+    )
+    plan_data: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+

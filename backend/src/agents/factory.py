@@ -23,6 +23,7 @@ from agents.stack_builders import (
 from agents.tools import (
     brain_tools,
     company_finder_tools,
+    company_planner_tools,
     contact_finder_tools,
 )
 from application.loop_service import LoopService
@@ -160,10 +161,15 @@ async def company_finder_agent_scope(
         "playwright"
     ) as browser_session:
         log.info("company_finder_scope.stack_build", strategy_id=strategy_id, parent_thread=parent_thread)
+        if is_planner:
+            company_tools_list = company_planner_tools(session, strategy_id, effort_prefix) + company_finder_tools(session, strategy_id, parent_thread)
+        else:
+            company_tools_list = company_finder_tools(session, strategy_id, parent_thread)
+
         stack = build_company_finder_stack(
             effort_prefix=effort_prefix,
             loop_context=loop_context,
-            company_tools=company_finder_tools(session, strategy_id, parent_thread),
+            company_tools=company_tools_list,
             browser_tools=await _browser_tools(browser_session),
             brain_tools=brain_tools(session, strategy_id, effective_role_suffix),
             checkpointer=checkpointer,
