@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from application.planner_service import PlannerService
 from domain.planner_models import (
     Action,
-    ActionType,
     Artifact,
     Phase,
     Planner,
@@ -215,7 +214,6 @@ def company_planner_tools(
         action_status = TaskStatus.FAILED if error else TaskStatus.COMPLETED
         new_action = Action(
             id=action_id,
-            type=ActionType.TOOL_CALL if tool else ActionType.REASONING,
             description=description,
             tool=tool,
             inputs=inputs or {},

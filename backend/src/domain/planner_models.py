@@ -35,25 +35,10 @@ class TaskStatus(str, Enum):
     SKIPPED = "skipped"
 
 
-class ActionType(str, Enum):
-    TOOL_CALL = "tool_call"
-    REASONING = "reasoning"
-    SEARCH = "search"
-    CODE_EXECUTION = "code_execution"
-    HTTP_REQUEST = "http_request"
-    HUMAN_INPUT = "human_input"
-    CHECKPOINT = "checkpoint"
-    UPDATE_KNOWLEDGE = "update_knowledge"
-
-
 class Action(BaseModel):
     id: str = Field(
         ...,
         description="Unique identifier for the atomic action (e.g. 'act-101')"
-    )
-    type: ActionType = Field(
-        default=ActionType.TOOL_CALL,
-        description="Categorical type of the action (tool call, search, reasoning, code execution, etc.)"
     )
     description: str = Field(
         ...,
