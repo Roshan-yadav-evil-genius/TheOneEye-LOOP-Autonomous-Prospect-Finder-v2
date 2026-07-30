@@ -370,6 +370,8 @@ class ChatStreamRequest(BaseModel):
     retry: bool = False
     redo_last: bool = False
     thread_id: str | None = None
+    is_planner: bool = False
+
 
 
 class ChatHistoryRead(BaseModel):

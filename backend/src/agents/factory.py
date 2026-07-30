@@ -105,21 +105,26 @@ async def company_finder_agent_scope(
     effort_prefix: str,
     *,
     lease_owner: str | None = None,
+    is_planner: bool = False,
+    role_suffix: str | None = None,
 ) -> AsyncIterator[tuple[Any, dict[str, Any], ParentSubagentStateStore]]:
-    """Build Company Finder via stack builders with Browser and Brain compiled subagents.
+    """Build Company Finder / Planner via stack builders with Browser and Brain compiled subagents.
 
     ``lease_owner`` documents exclusive ownership of the shared operator MCP session.
     The caller must hold a BrowserPool lease before entering this scope.
     """
     _ = lease_owner  # exclusive lock is enforced by BrowserPool; retained for API clarity
+    effective_role_suffix = role_suffix or ("planner" if is_planner else "company_finder")
     log.info(
         "company_finder_scope.build_start",
         strategy_id=strategy_id,
         effort_prefix=effort_prefix,
+        is_planner=is_planner,
+        role_suffix=effective_role_suffix,
     )
     model = resolve_chat_model()
     parent_thread = build_role_thread_id(
-        effort_prefix=effort_prefix, role_suffix="company_finder"
+        effort_prefix=effort_prefix, role_suffix=effective_role_suffix
     )
     store = ParentSubagentStateStore(session)
     initial = await store.load(parent_thread)
@@ -160,7 +165,7 @@ async def company_finder_agent_scope(
             loop_context=loop_context,
             company_tools=company_finder_tools(session, strategy_id, parent_thread),
             browser_tools=await _browser_tools(browser_session),
-            brain_tools=brain_tools(session, strategy_id, "company_finder"),
+            brain_tools=brain_tools(session, strategy_id, effective_role_suffix),
             checkpointer=checkpointer,
             model=model,
             company_middlewares=orchestrator_middlewares(),
@@ -169,6 +174,8 @@ async def company_finder_agent_scope(
             backend=default_filesystem_backend(),
             permissions=default_filesystem_permissions(),
             strategy_bundle=bundle,
+            is_planner=is_planner,
+            role_suffix=effective_role_suffix,
         )
         try:
             log.info(

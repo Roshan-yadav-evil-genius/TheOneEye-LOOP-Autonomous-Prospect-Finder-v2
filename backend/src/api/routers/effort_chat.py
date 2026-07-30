@@ -76,9 +76,16 @@ async def stream_chat(
         async with SessionFactory() as session:
             strategy_id, role, company_id = await get_effort_info(session, effort_prefix)
             thread_id = data.thread_id or f"{effort_prefix}_planner"
+            is_planner = data.is_planner or thread_id.endswith("_planner")
 
-            if role in ("company_finder", "company-finder"):
-                scope_cm = company_finder_agent_scope(session, strategy_id, effort_prefix)
+            if role in ("company_finder", "company-finder", "company_planner", "planner"):
+                scope_cm = company_finder_agent_scope(
+                    session,
+                    strategy_id,
+                    effort_prefix,
+                    is_planner=is_planner,
+                    role_suffix="planner" if is_planner else "company_finder",
+                )
             else:
                 scope_cm = contact_finder_agent_scope(
                     session, strategy_id, company_id or "", effort_prefix

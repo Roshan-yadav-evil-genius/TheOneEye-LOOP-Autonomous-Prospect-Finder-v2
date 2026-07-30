@@ -19,6 +19,77 @@ def test_company_prompt_placeholders_filled() -> None:
     assert "Logistics" in rendered
 
 
+def test_company_planner_prompt_placeholders_filled() -> None:
+    from agents.prompts import COMPANY_FINDER_PLANNER_PROMPT
+    bundle = {
+        "sales_strategy": {
+            "sales_strategy_form": {
+                "overview": {"target_companies_narrative": "Find logistics SaaS"},
+                "priority_industries": {"primary": ["Logistics"]},
+            }
+        },
+        "product": {"icp_form": {"icp": {"industries": {"primary": ["Software"]}}}},
+    }
+    rendered = render_prompt(COMPANY_FINDER_PLANNER_PROMPT, company_finder_prompt_values(bundle))
+    assert "{{sales_objective}}" not in rendered
+    assert "Company Planner Agent" in rendered
+    assert "Find logistics SaaS" in rendered
+    assert "Logistics" in rendered
+
+
+def test_build_company_finder_stack_prompt_switching() -> None:
+    from agents.stack_builders import build_company_finder_stack
+    from agents.runtime import LoopAgentToolContext
+
+    class _DummyTool:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+    ctx = LoopAgentToolContext(
+        sales_strategy_id="s1", company_id=None, effort_prefix="LOOP_o_p_s_1"
+    )
+    bundle = {
+        "sales_strategy": {
+            "sales_strategy_form": {
+                "overview": {"target_companies_narrative": "Build SaaS pipeline"}
+            }
+        },
+        "product": {"icp_form": {}},
+    }
+
+    # Standard mode
+    stack_standard = build_company_finder_stack(
+        effort_prefix="LOOP_o_p_s_1",
+        loop_context=ctx,
+        company_tools=[_DummyTool("register_company")],
+        browser_tools=[_DummyTool("navigate")],
+        brain_tools=[_DummyTool("recall_memory")],
+        checkpointer=None,
+        strategy_bundle=bundle,
+        is_planner=False,
+    )
+    assert stack_standard.company_finder.config.name == "Company Finder"
+    assert "Company Planner Agent" not in stack_standard.company_finder.config.responsibility
+    assert "Build SaaS pipeline" in stack_standard.company_finder.config.responsibility
+
+    # Planner mode
+    stack_planner = build_company_finder_stack(
+        effort_prefix="LOOP_o_p_s_1",
+        loop_context=ctx,
+        company_tools=[_DummyTool("register_company")],
+        browser_tools=[_DummyTool("navigate")],
+        brain_tools=[_DummyTool("recall_memory")],
+        checkpointer=None,
+        strategy_bundle=bundle,
+        is_planner=True,
+    )
+    assert stack_planner.company_finder.config.name == "Company Planner"
+    assert "Company Planner Agent" in stack_planner.company_finder.config.responsibility
+    assert "Build SaaS pipeline" in stack_planner.company_finder.config.responsibility
+
+
+
+
 def test_contact_prompt_placeholders_filled() -> None:
     bundle = {
         "sales_strategy": {
