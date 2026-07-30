@@ -39,13 +39,14 @@ export interface SetupChatStoreState {
   fetchThreads: (entityId: string) => Promise<void>
   selectThread: (entityId: string, threadId: string) => Promise<void>
   createNewThread: (entityId: string) => Promise<void>
+  deleteThread: (entityId: string, threadId: string) => Promise<void>
   
   _runStream: (entityId: string, request: ChatStreamRequest) => Promise<void>
 }
 
 export interface SetupChatApi {
   getHistory: (entityId: string, threadId?: string | null) => Promise<ChatHistoryRead>
-  clearChat: (entityId: string) => Promise<any>
+  clearChat: (entityId: string, threadId?: string | null) => Promise<any>
   streamChat: (entityId: string, request: ChatStreamRequest, onEvent: (event: ChatStreamEvent) => void) => Promise<void>
   getThreads?: (entityId: string) => Promise<string[]>
   newThread?: (entityId: string) => Promise<{ thread_id: string }>
@@ -140,6 +141,30 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
         set({ error: e.message || 'Failed to create new thread' })
       } finally {
         set({ loadingThreads: false })
+      }
+    },
+
+    deleteThread: async (entityId, threadId) => {
+      try {
+        set({ error: null })
+        await api.clearChat(entityId, threadId)
+        const updatedList = get().threadsList.filter((t) => t !== threadId)
+        set({ threadsList: updatedList })
+        if (get().activeThreadId === threadId) {
+          if (updatedList.length > 0) {
+            await get().selectThread(entityId, updatedList[0])
+          } else {
+            set({
+              activeThreadId: null,
+              messages: [],
+              incompleteTurn: false,
+              canResume: false,
+              lastUserMessage: null,
+            })
+          }
+        }
+      } catch (e: any) {
+        set({ error: e.message || 'Failed to delete thread' })
       }
     },
 

@@ -17,8 +17,12 @@ export const effortChatApi: SetupChatApi = {
     ).data
   },
 
-  clearChat: async (effortPrefix: string) =>
-    await apiClient.delete(`/api/v1/efforts/${encodeURIComponent(effortPrefix)}/chat`),
+  clearChat: async (effortPrefix: string, threadId?: string | null) => {
+    const params = threadId ? `?thread_id=${encodeURIComponent(threadId)}` : ''
+    return await apiClient.delete(
+      `/api/v1/efforts/${encodeURIComponent(effortPrefix)}/chat${params}`
+    )
+  },
 
   streamChat: async (
     effortPrefix: string,

@@ -244,12 +244,32 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
     }
   }, [selectedThreadId])
 
+  const [deletedThreadIds, setDeletedThreadIds] = useState<string[]>([])
+
   // Gather thread list
   const threads = useMemo(() => {
     if (!effort) return []
     const list = [effort.primary_thread_id, ...(effort.child_thread_ids || [])]
-    return Array.from(new Set(list))
-  }, [effort])
+    const unique = Array.from(new Set(list))
+    return unique.filter((t) => !deletedThreadIds.includes(t))
+  }, [effort, deletedThreadIds])
+
+  const handleDeleteThread = async (e: React.MouseEvent, threadId: string) => {
+    e.stopPropagation()
+    if (window.confirm(`Delete thread: ${threadId}?`)) {
+      try {
+        await apiClient.delete(`/api/v1/threads/${encodeURIComponent(threadId)}`)
+        setDeletedThreadIds((prev) => [...prev, threadId])
+        if (selectedThreadId === threadId) {
+          const remaining = threads.filter((t) => t !== threadId)
+          setSelectedThreadId(remaining.length > 0 ? remaining[0] : null)
+        }
+      } catch (err) {
+        console.error('Failed to delete thread', err)
+        alert('Failed to delete thread')
+      }
+    }
+  }
 
   const org = bundle?.organization
   const product = bundle?.product
@@ -469,6 +489,30 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
                         MAIN
                       </span>
                     )}
+                    <span
+                      role="button"
+                      title="Delete thread"
+                      onClick={(e) => handleDeleteThread(e, threadId)}
+                      style={{
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        opacity: 0.6,
+                        padding: '2px 4px',
+                        borderRadius: '4px',
+                        flexShrink: 0,
+                        transition: 'opacity 0.2s, background 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.opacity = '1'
+                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '0.6'
+                        e.currentTarget.style.background = 'transparent'
+                      }}
+                    >
+                      🗑️
+                    </span>
                   </button>
                 )
               })}

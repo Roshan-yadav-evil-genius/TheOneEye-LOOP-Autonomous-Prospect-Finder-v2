@@ -12,8 +12,10 @@ export const strategyChatApi = {
     return (await apiClient.get<ChatHistoryRead>(`/api/v1/sales-strategies/${strategyId}/chat/history${params}`)).data
   },
 
-  clearChat: async (strategyId: string) =>
-    await apiClient.delete(`/api/v1/sales-strategies/${strategyId}/chat`),
+  clearChat: async (strategyId: string, threadId?: string | null) => {
+    const params = threadId ? `?thread_id=${encodeURIComponent(threadId)}` : ''
+    return await apiClient.delete(`/api/v1/sales-strategies/${strategyId}/chat${params}`)
+  },
 
   streamChat: async (
     strategyId: string,

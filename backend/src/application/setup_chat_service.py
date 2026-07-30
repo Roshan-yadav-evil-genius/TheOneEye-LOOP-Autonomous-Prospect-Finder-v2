@@ -43,21 +43,8 @@ class SetupChatService:
             return ChatHistoryRead(thread_id=self.thread_id, messages=messages, can_resume=can_resume)
 
     async def clear_chat(self) -> None:
-        settings = get_settings()
-        if settings.threads_enabled and settings.threads_database_url:
-            from psycopg_pool import AsyncConnectionPool
-            async with AsyncConnectionPool(settings.threads_database_url, open=False, kwargs={"autocommit": True}) as pool:
-                await pool.open()
-                async with pool.connection() as conn:
-                    await conn.execute("DELETE FROM checkpoints WHERE thread_id = %s", (self.thread_id,))
-                    await conn.execute("DELETE FROM checkpoint_writes WHERE thread_id = %s", (self.thread_id,))
-        else:
-            # MemorySaver
-            async with checkpoint_scope() as checkpointer:
-                if hasattr(checkpointer, "storage"):
-                    keys_to_delete = [k for k in checkpointer.storage.keys() if k[0] == self.thread_id]
-                    for k in keys_to_delete:
-                        del checkpointer.storage[k]
+        from application.chat_history_service import ThreadChatHistoryService
+        await ThreadChatHistoryService.delete_thread(self.thread_id)
 
     async def stream_chat(
         self, 

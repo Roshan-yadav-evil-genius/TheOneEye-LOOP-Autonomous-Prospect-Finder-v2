@@ -43,3 +43,26 @@ class ThreadChatHistoryService:
                 return ChatHistoryRead(thread_id=thread_id, messages=messages, can_resume=can_resume)
         except Exception:
             return ChatHistoryRead(thread_id=thread_id, messages=[], can_resume=False)
+
+    @staticmethod
+    async def delete_thread(thread_id: str) -> bool:
+        conn_string = get_settings().resolved_threads_database_url
+        if conn_string:
+            try:
+                async with AsyncPostgresSaver.from_conn_string(conn_string) as checkpointer:
+                    await checkpointer.adelete_thread(thread_id)
+                return True
+            except Exception:
+                return False
+        else:
+            from agents.checkpoint_runtime import checkpoint_scope
+            try:
+                async with checkpoint_scope() as checkpointer:
+                    if hasattr(checkpointer, "storage"):
+                        keys_to_delete = [k for k in checkpointer.storage.keys() if k[0] == thread_id]
+                        for k in keys_to_delete:
+                            del checkpointer.storage[k]
+                return True
+            except Exception:
+                return False
+

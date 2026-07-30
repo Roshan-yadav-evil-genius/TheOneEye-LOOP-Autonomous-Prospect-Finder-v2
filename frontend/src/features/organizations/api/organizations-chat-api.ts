@@ -12,8 +12,10 @@ export const organizationsChatApi = {
     return (await apiClient.get<ChatHistoryRead>(`/api/v1/organizations/${organizationId}/chat/history${params}`)).data
   },
 
-  clearChat: async (organizationId: string) =>
-    await apiClient.delete(`/api/v1/organizations/${organizationId}/chat`),
+  clearChat: async (organizationId: string, threadId?: string | null) => {
+    const params = threadId ? `?thread_id=${encodeURIComponent(threadId)}` : ''
+    return await apiClient.delete(`/api/v1/organizations/${organizationId}/chat${params}`)
+  },
 
   streamChat: async (
     organizationId: string,

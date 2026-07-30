@@ -36,6 +36,13 @@ export function ThreadHistoryList({ entityId, store }: ThreadHistoryListProps) {
     void navigator.clipboard.writeText(threadId)
   }
 
+  const handleDelete = (e: React.MouseEvent, threadId: string) => {
+    e.stopPropagation()
+    if (window.confirm(`Delete thread: ${threadId}?`)) {
+      void store.deleteThread(entityId, threadId)
+    }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
@@ -141,6 +148,30 @@ export function ThreadHistoryList({ entityId, store }: ThreadHistoryListProps) {
                   }}
                 >
                   📋
+                </span>
+                <span
+                  role="button"
+                  title="Delete thread"
+                  onClick={(e) => handleDelete(e, threadId)}
+                  style={{
+                    flexShrink: 0,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    opacity: 0.6,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    transition: 'opacity 0.2s, background 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = '1'
+                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = '0.6'
+                    e.currentTarget.style.background = 'transparent'
+                  }}
+                >
+                  🗑️
                 </span>
               </button>
             )

@@ -12,8 +12,10 @@ export const productChatApi = {
     return (await apiClient.get<ChatHistoryRead>(`/api/v1/products/${productId}/chat/history${params}`)).data
   },
 
-  clearChat: async (productId: string) =>
-    await apiClient.delete(`/api/v1/products/${productId}/chat`),
+  clearChat: async (productId: string, threadId?: string | null) => {
+    const params = threadId ? `?thread_id=${encodeURIComponent(threadId)}` : ''
+    return await apiClient.delete(`/api/v1/products/${productId}/chat${params}`)
+  },
 
   streamChat: async (
     productId: string,

@@ -213,27 +213,4 @@ async def clear_chat(
     thread_id: str | None = None,
 ) -> None:
     target_thread_id = thread_id or f"{effort_prefix}_planner"
-    settings = get_settings()
-    conn_string = settings.resolved_threads_database_url
-    if conn_string:
-        from psycopg_pool import AsyncConnectionPool
-
-        async with AsyncConnectionPool(
-            conn_string, open=False, kwargs={"autocommit": True}
-        ) as pool:
-            await pool.open()
-            async with pool.connection() as conn:
-                await conn.execute(
-                    "DELETE FROM checkpoints WHERE thread_id = %s", (target_thread_id,)
-                )
-                await conn.execute(
-                    "DELETE FROM checkpoint_writes WHERE thread_id = %s", (target_thread_id,)
-                )
-    else:
-        async with checkpoint_scope() as checkpointer:
-            if hasattr(checkpointer, "storage"):
-                keys_to_delete = [
-                    k for k in checkpointer.storage.keys() if k[0] == target_thread_id
-                ]
-                for k in keys_to_delete:
-                    del checkpointer.storage[k]
+    await ThreadChatHistoryService.delete_thread(target_thread_id)

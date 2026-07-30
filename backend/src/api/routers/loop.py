@@ -518,6 +518,11 @@ async def chat_history(thread_id: str) -> object:
     return await ThreadChatHistoryService.get_history(thread_id)
 
 
+@router.delete("/threads/{thread_id:path}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_thread(thread_id: str) -> None:
+    await ThreadChatHistoryService.delete_thread(thread_id)
+
+
 @router.get("/loop/strategies/{sales_strategy_id}/efforts", response_model=list[AgentRunSummary])
 @router.get("/sales-strategies/{sales_strategy_id}/efforts", response_model=list[AgentRunSummary])
 async def list_company_finder_efforts(

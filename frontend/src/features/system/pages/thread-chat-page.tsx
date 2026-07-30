@@ -91,15 +91,33 @@ export function ThreadChatPage() {
     }
   }, [threadId])
 
+  const handleDelete = async () => {
+    if (!threadId) return
+    if (window.confirm(`Delete thread: ${threadId}?`)) {
+      try {
+        await apiClient.delete(`/api/v1/threads/${encodeURIComponent(threadId)}`)
+        navigate(-1)
+      } catch (err) {
+        console.error('Failed to delete thread', err)
+        alert('Failed to delete thread')
+      }
+    }
+  }
+
   return (
     <div className="workspace-shell" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
         title="Thread Chat"
         subtitle={threadId ? `Thread ID: ${threadId}` : ''}
         actions={
-          <Button variant="outline" onClick={() => navigate(-1)}>
-            Back
-          </Button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button variant="outline" style={{ borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }} onClick={handleDelete}>
+              🗑️ Delete Thread
+            </Button>
+            <Button variant="outline" onClick={() => navigate(-1)}>
+              Back
+            </Button>
+          </div>
         }
       />
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: '0 2rem 2rem 2rem' }}>
