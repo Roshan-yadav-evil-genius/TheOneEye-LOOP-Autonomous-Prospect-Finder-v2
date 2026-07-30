@@ -4,7 +4,7 @@ import { Button } from '../../../shared/components/button'
 
 export interface ActionData {
   id: string
-  type: string
+  type?: string
   description: string
   tool?: string | null
   inputs?: Record<string, any>
@@ -144,14 +144,106 @@ const parseEntityText = (text: string) => {
   return { name, details, bulletItems, fullText: text }
 }
 
+const renderTodoCheckbox = (status: string, size: 'sm' | 'md' | 'lg' = 'md') => {
+  const s = (status || '').toLowerCase()
+  const dim = size === 'sm' ? '18px' : size === 'lg' ? '24px' : '20px'
+  const fontSize = size === 'sm' ? '11px' : size === 'lg' ? '14px' : '12px'
+
+  if (s === 'completed') {
+    return (
+      <span
+        title="Completed"
+        style={{
+          width: dim,
+          height: dim,
+          borderRadius: '5px',
+          background: 'var(--color-status-success, #22c55e)',
+          color: '#ffffff',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: fontSize,
+          fontWeight: 800,
+          flexShrink: 0,
+          boxShadow: '0 0 6px rgba(34, 197, 94, 0.35)',
+        }}
+      >
+        ✓
+      </span>
+    )
+  }
+  if (s === 'running' || s === 'planning') {
+    return (
+      <span
+        title="In Progress"
+        style={{
+          width: dim,
+          height: dim,
+          borderRadius: '5px',
+          background: 'var(--color-accent-primary, #3b82f6)',
+          color: '#ffffff',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: fontSize,
+          fontWeight: 800,
+          flexShrink: 0,
+          boxShadow: '0 0 8px rgba(59, 130, 246, 0.5)',
+        }}
+      >
+        ⚡
+      </span>
+    )
+  }
+  if (s === 'failed') {
+    return (
+      <span
+        title="Failed"
+        style={{
+          width: dim,
+          height: dim,
+          borderRadius: '5px',
+          background: 'var(--color-status-error, #ef4444)',
+          color: '#ffffff',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: fontSize,
+          fontWeight: 800,
+          flexShrink: 0,
+          boxShadow: '0 0 6px rgba(239, 68, 68, 0.4)',
+        }}
+      >
+        ✕
+      </span>
+    )
+  }
+  return (
+    <span
+      title="Pending"
+      style={{
+        width: dim,
+        height: dim,
+        borderRadius: '5px',
+        border: '2px solid var(--color-border-default)',
+        background: 'var(--color-bg-primary)',
+        display: 'inline-block',
+        flexShrink: 0,
+      }}
+    />
+  )
+}
+
 export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
   const [plan, setPlan] = useState<PlanData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeSubTab, setActiveSubTab] = useState<DashboardSubTab>('PLAN')
   const [taskFilter, setTaskFilter] = useState<TaskFilterOption>('ALL')
+  const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>({})
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({})
   const [expandedActions, setExpandedActions] = useState<Record<string, boolean>>({})
+  const [expandAllTasks, setExpandAllTasks] = useState(false)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [selectedArtifact, setSelectedArtifact] = useState<ArtifactData | null>(null)
   const [knowledgeSubTab, setKnowledgeSubTab] = useState<'FINDINGS' | 'DECISIONS' | 'ENTITIES'>('FINDINGS')
@@ -173,8 +265,28 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
     void fetchPlan()
   }, [fetchPlan])
 
+  const togglePhaseExpand = (phaseId: string) => {
+    setExpandedPhases((prev) => ({ ...prev, [phaseId]: !prev[phaseId] }))
+  }
+
   const toggleTaskExpand = (taskId: string) => {
     setExpandedTasks((prev) => ({ ...prev, [taskId]: !prev[taskId] }))
+  }
+
+  const toggleExpandAllTasks = () => {
+    const nextState = !expandAllTasks
+    setExpandAllTasks(nextState)
+    if (!plan) return
+    const newPhases: Record<string, boolean> = {}
+    const newTasks: Record<string, boolean> = {}
+    plan.phases.forEach((p) => {
+      newPhases[p.id] = nextState
+      p.tasks.forEach((t) => {
+        newTasks[t.id] = nextState
+      })
+    })
+    setExpandedPhases(newPhases)
+    setExpandedTasks(newTasks)
   }
 
   const toggleActionExpand = (actionId: string) => {
@@ -660,29 +772,6 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
             )}
           </div>
 
-          {/* Executive Final Report Card (If Present) */}
-          {plan.final_report && (
-            <div
-              style={{
-                background: 'var(--color-bg-surface)',
-                border: '1px solid color-mix(in srgb, var(--color-status-success) 40%, var(--color-border-default))',
-                padding: '1.25rem',
-                borderRadius: 'var(--radius-lg)',
-                boxShadow: 'var(--shadow-panel)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <span style={{ fontSize: '1.2rem' }}>📊</span>
-                <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-status-success)' }}>
-                  Final Executive Report
-                </h3>
-              </div>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-primary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                {plan.final_report}
-              </p>
-            </div>
-          )}
-
           {/* Execution Roadmap & Tasks with Operator Controls */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div
@@ -698,31 +787,41 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
                 Execution Roadmap & Tasks
               </h3>
 
-              {/* Status Filter Bar */}
-              <div style={{ display: 'flex', gap: '4px', background: 'var(--color-bg-elevated)', padding: '3px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-default)' }}>
-                {(['ALL', 'RUNNING', 'COMPLETED', 'FAILED', 'PENDING'] as TaskFilterOption[]).map((f) => {
-                  const isActive = taskFilter === f
-                  return (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setTaskFilter(f)}
-                      style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        padding: '3px 10px',
-                        borderRadius: 'var(--radius-sm)',
-                        border: 'none',
-                        background: isActive ? 'var(--color-accent-primary)' : 'transparent',
-                        color: isActive ? '#fff' : 'var(--color-text-secondary)',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {f === 'ALL' ? `All (${totalTasks})` : f === 'RUNNING' ? `Running (${runningTasks})` : f === 'COMPLETED' ? `Done (${completedTasks})` : f === 'FAILED' ? `Failed (${failedTasks})` : `Pending (${pendingTasks})`}
-                    </button>
-                  )
-                })}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <Button
+                  variant="outline"
+                  onClick={toggleExpandAllTasks}
+                  style={{ fontSize: '0.72rem', padding: '4px 10px', height: 'auto' }}
+                >
+                  {expandAllTasks ? '▲ Collapse All' : '▼ Expand All'}
+                </Button>
+
+                {/* Status Filter Bar */}
+                <div style={{ display: 'flex', gap: '4px', background: 'var(--color-bg-elevated)', padding: '3px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-default)' }}>
+                  {(['ALL', 'RUNNING', 'COMPLETED', 'FAILED', 'PENDING'] as TaskFilterOption[]).map((f) => {
+                    const isActive = taskFilter === f
+                    return (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setTaskFilter(f)}
+                        style={{
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          padding: '3px 10px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: 'none',
+                          background: isActive ? 'var(--color-accent-primary)' : 'transparent',
+                          color: isActive ? '#fff' : 'var(--color-text-secondary)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {f === 'ALL' ? `All (${totalTasks})` : f === 'RUNNING' ? `Running (${runningTasks})` : f === 'COMPLETED' ? `Done (${completedTasks})` : f === 'FAILED' ? `Failed (${failedTasks})` : `Pending (${pendingTasks})`}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 
@@ -731,6 +830,7 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
             ) : (
               plan.phases.map((phase, pIdx) => {
                 const phaseBadge = getStatusBadgeStyle(phase.status)
+                const isPhaseExpanded = !!expandedPhases[phase.id]
 
                 const filteredTasks = phase.tasks.filter((t) => {
                   if (taskFilter === 'ALL') return true
@@ -740,6 +840,8 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
                 })
 
                 if (taskFilter !== 'ALL' && filteredTasks.length === 0) return null
+
+                const completedPhaseTasks = phase.tasks.filter((t) => (t.status || '').toLowerCase() === 'completed').length
 
                 return (
                   <div
@@ -752,68 +854,94 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
                       overflow: 'hidden',
                     }}
                   >
-                    {/* Phase Header */}
+                    {/* Phase Level Header (Todo Group Header - Collapsible) */}
                     <div
+                      onClick={() => togglePhaseExpand(phase.id)}
                       style={{
-                        padding: '12px 16px',
+                        padding: '14px 18px',
                         background: 'var(--color-bg-elevated)',
-                        borderBottom: '1px solid var(--color-border-default)',
+                        borderBottom: isPhaseExpanded ? '1px solid var(--color-border-default)' : 'none',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
+                        gap: '12px',
+                        cursor: 'pointer',
+                        userSelect: 'none',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span
-                          style={{
-                            width: '26px',
-                            height: '26px',
-                            borderRadius: '50%',
-                            background: 'color-mix(in srgb, var(--color-accent-primary) 20%, transparent)',
-                            color: 'var(--color-accent-primary)',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          {pIdx + 1}
-                        </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        {renderTodoCheckbox(phase.status, 'lg')}
+
                         <div>
-                          <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                            {phase.title}
-                          </h4>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 800,
+                                padding: '2px 8px',
+                                borderRadius: '999px',
+                                background: 'color-mix(in srgb, var(--color-accent-primary) 15%, transparent)',
+                                color: 'var(--color-accent-primary)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                              }}
+                            >
+                              PHASE {pIdx + 1}
+                            </span>
+                            <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                              Phase {pIdx + 1}: {phase.title}
+                            </h4>
+                          </div>
                           {phase.objective && (
-                            <span style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>{phase.objective}</span>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                              {phase.objective}
+                            </div>
                           )}
                         </div>
                       </div>
 
-                      <span
-                        style={{
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: '999px',
-                          background: phaseBadge.bg,
-                          color: phaseBadge.color,
-                          border: phaseBadge.border,
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        {phase.status}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                          {completedPhaseTasks}/{phase.tasks.length} Tasks
+                        </span>
+
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            padding: '3px 9px',
+                            borderRadius: '999px',
+                            background: phaseBadge.bg,
+                            color: phaseBadge.color,
+                            border: phaseBadge.border,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {phase.status}
+                        </span>
+
+                        <Button
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            togglePhaseExpand(phase.id)
+                          }}
+                          style={{ fontSize: '0.72rem', padding: '3px 9px', height: 'auto' }}
+                        >
+                          {isPhaseExpanded ? '▲ Hide Tasks' : '▼ Show Tasks'}
+                        </Button>
+                      </div>
                     </div>
 
-                    {/* Tasks List */}
-                    <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {/* Tasks Tree List (Indented Level 2) */}
+                    {isPhaseExpanded && (
+                      <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                       {filteredTasks.length === 0 ? (
                         <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
                           No tasks assigned under this phase matching filter.
                         </p>
                       ) : (
-                        filteredTasks.map((task) => {
+                        filteredTasks.map((task, tIdx) => {
                           const tBadge = getStatusBadgeStyle(task.status)
                           const isExpanded = !!expandedTasks[task.id]
                           const isActiveTask = task.id === plan.runtime.current_task
@@ -823,417 +951,495 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
                               key={task.id}
                               style={{
                                 background: isActiveTask
-                                  ? 'color-mix(in srgb, var(--color-accent-primary) 5%, var(--color-bg-primary))'
+                                  ? 'color-mix(in srgb, var(--color-accent-primary) 6%, var(--color-bg-primary))'
                                   : 'var(--color-bg-primary)',
                                 border: isActiveTask
                                   ? '2px solid var(--color-accent-primary)'
                                   : '1px solid var(--color-border-default)',
                                 borderRadius: 'var(--radius-md)',
-                                padding: '14px',
-                                boxShadow: isActiveTask ? '0 0 12px color-mix(in srgb, var(--color-accent-primary) 30%, transparent)' : 'none',
+                                padding: '14px 16px',
+                                boxShadow: isActiveTask ? '0 0 12px color-mix(in srgb, var(--color-accent-primary) 25%, transparent)' : 'none',
                                 transition: 'all 0.2s ease',
+                                marginLeft: '8px',
+                                paddingLeft: '16px',
+                                borderLeft: isActiveTask ? '3px solid var(--color-accent-primary)' : '3px solid color-mix(in srgb, var(--color-border-default) 80%, transparent)',
                               }}
                             >
-                              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                    {isActiveTask && (
+                              {/* Task Todo Header Line */}
+                              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 }}>
+                                  <div style={{ marginTop: '2px' }}>
+                                    {renderTodoCheckbox(task.status, 'md')}
+                                  </div>
+
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                      {isActiveTask && (
+                                        <span
+                                          style={{
+                                            fontSize: '0.64rem',
+                                            fontWeight: 800,
+                                            padding: '2px 6px',
+                                            borderRadius: '4px',
+                                            background: 'var(--color-accent-primary)',
+                                            color: '#fff',
+                                            letterSpacing: '0.04em',
+                                          }}
+                                        >
+                                          ⚡ ACTIVE TASK
+                                        </span>
+                                      )}
+
+                                      <span
+                                        style={{
+                                          fontSize: '0.92rem',
+                                          fontWeight: 700,
+                                          color: 'var(--color-text-primary)',
+                                        }}
+                                      >
+                                        Task {tIdx + 1}: {task.title}
+                                      </span>
+
                                       <span
                                         style={{
                                           fontSize: '0.65rem',
-                                          fontWeight: 800,
-                                          padding: '2px 6px',
-                                          borderRadius: '4px',
-                                          background: 'var(--color-accent-primary)',
-                                          color: '#fff',
-                                          letterSpacing: '0.04em',
+                                          fontWeight: 700,
+                                          padding: '2px 7px',
+                                          borderRadius: '999px',
+                                          background: tBadge.bg,
+                                          color: tBadge.color,
+                                          border: tBadge.border,
+                                          textTransform: 'uppercase',
                                         }}
                                       >
-                                        ⚡ ACTIVE NOW
+                                        {task.status}
                                       </span>
+
+                                      <code style={{ fontSize: '0.68rem', color: 'var(--color-text-secondary)' }}>{task.id}</code>
+                                    </div>
+
+                                    {task.description && (
+                                      <p style={{ margin: '6px 0 0 0', fontSize: '0.82rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
+                                        {task.description}
+                                      </p>
                                     )}
 
-                                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                                      {task.title}
-                                    </span>
-
-                                    <span
-                                      style={{
-                                        fontSize: '0.68rem',
-                                        fontWeight: 700,
-                                        padding: '2px 6px',
-                                        borderRadius: '999px',
-                                        background: tBadge.bg,
-                                        color: tBadge.color,
-                                        border: tBadge.border,
-                                        textTransform: 'uppercase',
-                                      }}
-                                    >
-                                      {task.status}
-                                    </span>
-                                    <code style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>{task.id}</code>
-                                  </div>
-
-                                  {task.description && (
-                                    <p style={{ margin: '6px 0 0 0', fontSize: '0.82rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
-                                      {task.description}
-                                    </p>
-                                  )}
-
-                                  {/* Task Expected Output callout */}
-                                  {task.expected_output && (
-                                    <div
-                                      style={{
-                                        marginTop: '8px',
-                                        padding: '6px 10px',
-                                        background: 'var(--color-bg-elevated)',
-                                        borderRadius: 'var(--radius-sm)',
-                                        borderLeft: '3px solid var(--color-accent-primary)',
-                                        fontSize: '0.78rem',
-                                        color: 'var(--color-text-primary)',
-                                      }}
-                                    >
-                                      🎯 <strong>Expected Deliverable:</strong> {task.expected_output}
-                                    </div>
-                                  )}
-
-                                  {/* Tools Badges & Completion Criteria */}
-                                  <div style={{ display: 'flex', gap: '10px', marginTop: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                                    {task.tools && task.tools.length > 0 && (
-                                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>Tools:</span>
-                                        {task.tools.map((tl) => (
-                                          <span
-                                            key={tl}
-                                            style={{
-                                              fontSize: '0.68rem',
-                                              background: 'color-mix(in srgb, var(--color-accent-primary) 12%, transparent)',
-                                              border: '1px solid color-mix(in srgb, var(--color-accent-primary) 25%, transparent)',
-                                              padding: '1px 6px',
-                                              borderRadius: 'var(--radius-sm)',
-                                              color: 'var(--color-accent-primary)',
-                                              fontWeight: 600,
-                                            }}
-                                          >
-                                            🔧 {tl}
-                                          </span>
-                                        ))}
+                                    {/* Task Expected Output callout */}
+                                    {task.expected_output && (
+                                      <div
+                                        style={{
+                                          marginTop: '8px',
+                                          padding: '6px 10px',
+                                          background: 'var(--color-bg-elevated)',
+                                          borderRadius: 'var(--radius-sm)',
+                                          borderLeft: '3px solid var(--color-accent-primary)',
+                                          fontSize: '0.78rem',
+                                          color: 'var(--color-text-primary)',
+                                        }}
+                                      >
+                                        🎯 <strong>Expected Deliverable:</strong> {task.expected_output}
                                       </div>
                                     )}
 
-                                    {task.dependencies && task.dependencies.length > 0 && (
-                                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>Prereqs:</span>
-                                        {task.dependencies.map((dep) => (
-                                          <span
-                                            key={dep}
-                                            style={{
-                                              fontSize: '0.68rem',
-                                              background: 'var(--color-bg-elevated)',
-                                              border: '1px solid var(--color-border-default)',
-                                              padding: '1px 5px',
-                                              borderRadius: 'var(--radius-sm)',
-                                              color: 'var(--color-text-primary)',
-                                            }}
-                                          >
-                                            {dep}
-                                          </span>
-                                        ))}
+                                    {/* Tools Badges & Completion Criteria */}
+                                    <div style={{ display: 'flex', gap: '10px', marginTop: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                      {task.tools && task.tools.length > 0 && (
+                                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                          <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>Tools:</span>
+                                          {task.tools.map((tl) => (
+                                            <span
+                                              key={tl}
+                                              style={{
+                                                fontSize: '0.68rem',
+                                                background: 'color-mix(in srgb, var(--color-accent-primary) 12%, transparent)',
+                                                border: '1px solid color-mix(in srgb, var(--color-accent-primary) 25%, transparent)',
+                                                padding: '1px 6px',
+                                                borderRadius: 'var(--radius-sm)',
+                                                color: 'var(--color-accent-primary)',
+                                                fontWeight: 600,
+                                              }}
+                                            >
+                                              🔧 {tl}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+
+                                      {task.dependencies && task.dependencies.length > 0 && (
+                                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                          <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>Prereqs:</span>
+                                          {task.dependencies.map((dep) => (
+                                            <span
+                                              key={dep}
+                                              style={{
+                                                fontSize: '0.68rem',
+                                                background: 'var(--color-bg-elevated)',
+                                                border: '1px solid var(--color-border-default)',
+                                                padding: '1px 5px',
+                                                borderRadius: 'var(--radius-sm)',
+                                                color: 'var(--color-text-primary)',
+                                              }}
+                                            >
+                                              {dep}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Task Final Result */}
+                                    {task.result && (
+                                      <div
+                                        style={{
+                                          marginTop: '8px',
+                                          padding: '8px 10px',
+                                          background: 'color-mix(in srgb, var(--color-status-success) 10%, transparent)',
+                                          borderLeft: '3px solid var(--color-status-success)',
+                                          borderRadius: 'var(--radius-md)',
+                                          fontSize: '0.8rem',
+                                          color: 'var(--color-text-primary)',
+                                        }}
+                                      >
+                                        <strong>Task Outcome Result:</strong> {task.result}
                                       </div>
                                     )}
                                   </div>
-
-                                  {/* Task Final Result */}
-                                  {task.result && (
-                                    <div
-                                      style={{
-                                        marginTop: '8px',
-                                        padding: '8px 10px',
-                                        background: 'color-mix(in srgb, var(--color-status-success) 10%, transparent)',
-                                        borderLeft: '3px solid var(--color-status-success)',
-                                        borderRadius: 'var(--radius-md)',
-                                        fontSize: '0.8rem',
-                                        color: 'var(--color-text-primary)',
-                                      }}
-                                    >
-                                      <strong>Task Outcome Result:</strong> {task.result}
-                                    </div>
-                                  )}
                                 </div>
 
                                 {task.steps && task.steps.length > 0 && (
                                   <Button
                                     variant="ghost"
                                     onClick={() => toggleTaskExpand(task.id)}
-                                    style={{ fontSize: '0.75rem', padding: '4px 8px', height: 'auto' }}
+                                    style={{ fontSize: '0.75rem', padding: '4px 8px', height: 'auto', flexShrink: 0 }}
                                   >
                                     {isExpanded ? '▲ Hide Steps' : `▼ Steps (${task.steps.length})`}
                                   </Button>
                                 )}
                               </div>
 
-                              {/* Granular Step & Action Inspector */}
+                              {/* Indented Level 3 (Steps & Actions Timeline Tree) */}
                               {isExpanded && task.steps && task.steps.length > 0 && (
                                 <div
                                   style={{
                                     marginTop: '12px',
-                                    paddingTop: '12px',
-                                    borderTop: '1px dashed var(--color-border-default)',
                                     display: 'flex',
                                     flexDirection: 'column',
                                     gap: '10px',
+                                    marginLeft: '12px',
+                                    paddingLeft: '14px',
+                                    borderLeft: '2px solid color-mix(in srgb, var(--color-border-default) 70%, transparent)',
                                   }}
                                 >
-                                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-                                    Atomic Steps & Action Execution History
-                                  </div>
+                                  {task.steps.map((step, sIdx) => {
+                                    const stepBadge = getStatusBadgeStyle(step.status)
+                                    return (
+                                      <div
+                                        key={step.id}
+                                        style={{
+                                          padding: '10px 14px',
+                                          background: 'var(--color-bg-elevated)',
+                                          borderRadius: 'var(--radius-md)',
+                                          border: '1px solid var(--color-border-default)',
+                                        }}
+                                      >
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            {renderTodoCheckbox(step.status, 'sm')}
+                                            <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                                              Step {sIdx + 1}: {step.title}
+                                            </span>
+                                          </div>
+                                          <span
+                                            style={{
+                                              fontSize: '0.65rem',
+                                              fontWeight: 700,
+                                              padding: '1px 6px',
+                                              borderRadius: '999px',
+                                              background: stepBadge.bg,
+                                              color: stepBadge.color,
+                                              border: stepBadge.border,
+                                              textTransform: 'uppercase',
+                                            }}
+                                          >
+                                            {step.status}
+                                          </span>
+                                        </div>
 
-                                  {task.steps.map((step) => (
-                                    <div
-                                      key={step.id}
-                                      style={{
-                                        padding: '10px 12px',
-                                        background: 'var(--color-bg-elevated)',
-                                        borderRadius: 'var(--radius-md)',
-                                        border: '1px solid var(--color-border-default)',
-                                      }}
-                                    >
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                                          📌 Step: {step.title}
-                                        </span>
-                                        <span style={{ fontSize: '0.68rem', fontWeight: 600, color: getStatusBadgeStyle(step.status).color }}>
-                                          {step.status}
-                                        </span>
-                                      </div>
+                                        {step.description && (
+                                          <p style={{ margin: '4px 0 0 26px', fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>
+                                            {step.description}
+                                          </p>
+                                        )}
 
-                                      {step.description && (
-                                        <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>
-                                          {step.description}
-                                        </p>
-                                      )}
+                                        {step.result && (
+                                          <div
+                                            style={{
+                                              margin: '4px 0 0 26px',
+                                              fontSize: '0.75rem',
+                                              color: 'var(--color-text-primary)',
+                                              background: 'color-mix(in srgb, var(--color-status-success) 10%, transparent)',
+                                              padding: '4px 8px',
+                                              borderRadius: 'var(--radius-sm)',
+                                              borderLeft: '2px solid var(--color-status-success)',
+                                            }}
+                                          >
+                                            ✅ <strong>Outcome:</strong> {step.result}
+                                          </div>
+                                        )}
 
-                                      {/* Step Actions Inspector */}
-                                      {step.actions && step.actions.length > 0 && (
-                                        <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                          {step.actions.map((act) => {
-                                            const isActExpanded = !!expandedActions[act.id]
-                                            const actBadge = getStatusBadgeStyle(act.status)
+                                        {/* Indented Level 4 (Atomic Actions Tree Line) */}
+                                        {step.actions && step.actions.length > 0 && (
+                                          <div
+                                            style={{
+                                              marginTop: '10px',
+                                              display: 'flex',
+                                              flexDirection: 'column',
+                                              gap: '8px',
+                                              marginLeft: '12px',
+                                              paddingLeft: '14px',
+                                              borderLeft: '2px solid color-mix(in srgb, var(--color-border-default) 60%, transparent)',
+                                            }}
+                                          >
+                                            {step.actions.map((act, aIdx) => {
+                                              const isActExpanded = !!expandedActions[act.id]
+                                              const actBadge = getStatusBadgeStyle(act.status)
 
-                                            return (
-                                              <div
-                                                key={act.id}
-                                                style={{
-                                                  fontSize: '0.75rem',
-                                                  padding: '8px 10px',
-                                                  background: 'var(--color-bg-primary)',
-                                                  borderRadius: 'var(--radius-md)',
-                                                  border: '1px solid var(--color-border-default)',
-                                                  display: 'flex',
-                                                  flexDirection: 'column',
-                                                  gap: '6px',
-                                                }}
-                                              >
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
-                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span
-                                                      style={{
-                                                        fontSize: '0.65rem',
-                                                        fontWeight: 700,
-                                                        padding: '1px 6px',
-                                                        borderRadius: '4px',
-                                                        background: 'color-mix(in srgb, var(--color-accent-primary) 15%, transparent)',
-                                                        color: 'var(--color-accent-primary)',
-                                                        textTransform: 'uppercase',
-                                                      }}
-                                                    >
-                                                      {act.type}
-                                                    </span>
-                                                    <strong style={{ color: 'var(--color-text-primary)' }}>
-                                                      {act.tool ? `🔧 ${act.tool}` : act.id}
-                                                    </strong>
-                                                  </div>
+                                              return (
+                                                <div
+                                                  key={act.id}
+                                                  style={{
+                                                    fontSize: '0.76rem',
+                                                    padding: '8px 12px',
+                                                    background: 'var(--color-bg-primary)',
+                                                    borderRadius: 'var(--radius-md)',
+                                                    border: '1px solid var(--color-border-default)',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: '6px',
+                                                  }}
+                                                >
+                                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                      {renderTodoCheckbox(act.status, 'sm')}
+                                                      <span style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)' }}>└─</span>
+                                                      <strong style={{ color: 'var(--color-text-primary)' }}>
+                                                        Action {aIdx + 1}: {act.tool ? `🔧 ${act.tool}` : act.id}
+                                                      </strong>
+                                                      {act.type && (
+                                                        <span
+                                                          style={{
+                                                            fontSize: '0.62rem',
+                                                            fontWeight: 700,
+                                                            padding: '1px 5px',
+                                                            borderRadius: '4px',
+                                                            background: 'color-mix(in srgb, var(--color-accent-primary) 15%, transparent)',
+                                                            color: 'var(--color-accent-primary)',
+                                                            textTransform: 'uppercase',
+                                                          }}
+                                                        >
+                                                          {act.type}
+                                                        </span>
+                                                      )}
+                                                    </div>
 
-                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    {act.execution_time_ms != null && (
-                                                      <span style={{ fontSize: '0.68rem', color: 'var(--color-text-secondary)' }}>
-                                                        ⏱️ {act.execution_time_ms.toFixed(0)}ms
-                                                      </span>
-                                                    )}
-                                                    <span
-                                                      style={{
-                                                        fontSize: '0.65rem',
-                                                        fontWeight: 700,
-                                                        padding: '1px 6px',
-                                                        borderRadius: '999px',
-                                                        background: actBadge.bg,
-                                                        color: actBadge.color,
-                                                      }}
-                                                    >
-                                                      {act.status}
-                                                    </span>
-                                                  </div>
-                                                </div>
-
-                                                <div style={{ color: 'var(--color-text-primary)', fontSize: '0.78rem' }}>
-                                                  {act.description}
-                                                </div>
-
-                                                {/* Action Inputs & Output Toggle */}
-                                                {(act.inputs || act.result || act.error) && (
-                                                  <div>
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => toggleActionExpand(act.id)}
-                                                      style={{
-                                                        background: 'none',
-                                                        border: 'none',
-                                                        color: 'var(--color-accent-primary)',
-                                                        fontSize: '0.7rem',
-                                                        fontWeight: 600,
-                                                        cursor: 'pointer',
-                                                        padding: 0,
-                                                      }}
-                                                    >
-                                                      {isActExpanded ? '▲ Hide Action Inspector' : '▼ Inspect Inputs / Result Payload'}
-                                                    </button>
-
-                                                    {isActExpanded && (
-                                                      <div
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                      {act.execution_time_ms != null && (
+                                                        <span style={{ fontSize: '0.68rem', color: 'var(--color-text-secondary)' }}>
+                                                          ⏱️ {act.execution_time_ms.toFixed(0)}ms
+                                                        </span>
+                                                      )}
+                                                      <span
                                                         style={{
-                                                          marginTop: '6px',
-                                                          display: 'flex',
-                                                          flexDirection: 'column',
-                                                          gap: '6px',
-                                                          background: 'var(--color-bg-elevated)',
-                                                          padding: '8px',
-                                                          borderRadius: 'var(--radius-sm)',
-                                                          border: '1px solid var(--color-border-default)',
+                                                          fontSize: '0.65rem',
+                                                          fontWeight: 700,
+                                                          padding: '1px 6px',
+                                                          borderRadius: '999px',
+                                                          background: actBadge.bg,
+                                                          color: actBadge.color,
                                                         }}
                                                       >
-                                                        {act.inputs && Object.keys(act.inputs).length > 0 && (
-                                                          <div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
-                                                                ACTION INPUTS
-                                                              </span>
-                                                              <button
-                                                                type="button"
-                                                                onClick={() => copyToClipboard(JSON.stringify(act.inputs, null, 2), `inp-${act.id}`)}
-                                                                style={{
-                                                                  background: 'none',
-                                                                  border: 'none',
-                                                                  color: 'var(--color-accent-primary)',
-                                                                  fontSize: '0.65rem',
-                                                                  cursor: 'pointer',
-                                                                }}
-                                                              >
-                                                                {copiedKey === `inp-${act.id}` ? 'Copied!' : 'Copy JSON'}
-                                                              </button>
-                                                            </div>
-                                                            <pre
-                                                              style={{
-                                                                margin: '4px 0 0 0',
-                                                                fontSize: '0.7rem',
-                                                                background: 'var(--color-bg-primary)',
-                                                                padding: '6px',
-                                                                borderRadius: '4px',
-                                                                overflowX: 'auto',
-                                                                maxHeight: '160px',
-                                                                color: 'var(--color-text-primary)',
-                                                              }}
-                                                            >
-                                                              {JSON.stringify(act.inputs, null, 2)}
-                                                            </pre>
-                                                          </div>
-                                                        )}
-
-                                                        {act.result && (
-                                                          <div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--color-status-success)' }}>
-                                                                ACTION RESULT
-                                                              </span>
-                                                              <button
-                                                                type="button"
-                                                                onClick={() => copyToClipboard(act.result!, `res-${act.id}`)}
-                                                                style={{
-                                                                  background: 'none',
-                                                                  border: 'none',
-                                                                  color: 'var(--color-accent-primary)',
-                                                                  fontSize: '0.65rem',
-                                                                  cursor: 'pointer',
-                                                                }}
-                                                              >
-                                                                {copiedKey === `res-${act.id}` ? 'Copied!' : 'Copy Result'}
-                                                              </button>
-                                                            </div>
-                                                            <pre
-                                                              style={{
-                                                                margin: '4px 0 0 0',
-                                                                fontSize: '0.7rem',
-                                                                background: 'var(--color-bg-primary)',
-                                                                padding: '6px',
-                                                                borderRadius: '4px',
-                                                                overflowX: 'auto',
-                                                                maxHeight: '160px',
-                                                                color: 'var(--color-text-primary)',
-                                                                whiteSpace: 'pre-wrap',
-                                                              }}
-                                                            >
-                                                              {act.result}
-                                                            </pre>
-                                                          </div>
-                                                        )}
-
-                                                        {act.error && (
-                                                          <div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--color-status-danger)' }}>
-                                                                ERROR STACK TRACE
-                                                              </span>
-                                                              <button
-                                                                type="button"
-                                                                onClick={() => copyToClipboard(act.error!, `err-${act.id}`)}
-                                                                style={{
-                                                                  background: 'none',
-                                                                  border: 'none',
-                                                                  color: 'var(--color-status-danger)',
-                                                                  fontSize: '0.65rem',
-                                                                  cursor: 'pointer',
-                                                                }}
-                                                              >
-                                                                {copiedKey === `err-${act.id}` ? 'Copied!' : 'Copy Error'}
-                                                              </button>
-                                                            </div>
-                                                            <pre
-                                                              style={{
-                                                                margin: '4px 0 0 0',
-                                                                fontSize: '0.7rem',
-                                                                background: 'color-mix(in srgb, var(--color-status-danger) 10%, var(--color-bg-primary))',
-                                                                padding: '6px',
-                                                                borderRadius: '4px',
-                                                                overflowX: 'auto',
-                                                                maxHeight: '160px',
-                                                                color: 'var(--color-status-danger)',
-                                                                whiteSpace: 'pre-wrap',
-                                                              }}
-                                                            >
-                                                              {act.error}
-                                                            </pre>
-                                                          </div>
-                                                        )}
-                                                      </div>
-                                                    )}
+                                                        {act.status}
+                                                      </span>
+                                                    </div>
                                                   </div>
-                                                )}
-                                              </div>
-                                            )
-                                          })}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
+
+                                                  <div style={{ color: 'var(--color-text-primary)', fontSize: '0.78rem', marginLeft: '26px' }}>
+                                                    {act.description}
+                                                  </div>
+
+                                                  {act.expected_output && (
+                                                    <div
+                                                      style={{
+                                                        marginLeft: '26px',
+                                                        fontSize: '0.74rem',
+                                                        color: 'var(--color-text-secondary)',
+                                                        background: 'color-mix(in srgb, var(--color-accent-primary) 8%, transparent)',
+                                                        padding: '3px 8px',
+                                                        borderRadius: 'var(--radius-sm)',
+                                                        borderLeft: '2px solid var(--color-accent-primary)',
+                                                      }}
+                                                    >
+                                                      🎯 <strong>Expected Deliverable:</strong> {act.expected_output}
+                                                    </div>
+                                                  )}
+
+
+                                                  {/* Action Inputs & Output Toggle */}
+                                                  {(act.inputs || act.result || act.error) && (
+                                                    <div style={{ marginLeft: '26px' }}>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => toggleActionExpand(act.id)}
+                                                        style={{
+                                                          background: 'none',
+                                                          border: 'none',
+                                                          color: 'var(--color-accent-primary)',
+                                                          fontSize: '0.7rem',
+                                                          fontWeight: 600,
+                                                          cursor: 'pointer',
+                                                          padding: 0,
+                                                        }}
+                                                      >
+                                                        {isActExpanded ? '▲ Hide Action Inspector' : '▼ Inspect Inputs / Result Payload'}
+                                                      </button>
+
+                                                      {isActExpanded && (
+                                                        <div
+                                                          style={{
+                                                            marginTop: '6px',
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            gap: '6px',
+                                                            background: 'var(--color-bg-elevated)',
+                                                            padding: '8px 10px',
+                                                            borderRadius: 'var(--radius-sm)',
+                                                            border: '1px solid var(--color-border-default)',
+                                                          }}
+                                                        >
+                                                          {act.inputs && Object.keys(act.inputs).length > 0 && (
+                                                            <div>
+                                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
+                                                                  ACTION INPUTS
+                                                                </span>
+                                                                <button
+                                                                  type="button"
+                                                                  onClick={() => copyToClipboard(JSON.stringify(act.inputs, null, 2), `inp-${act.id}`)}
+                                                                  style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    color: 'var(--color-accent-primary)',
+                                                                    fontSize: '0.65rem',
+                                                                    cursor: 'pointer',
+                                                                  }}
+                                                                >
+                                                                  {copiedKey === `inp-${act.id}` ? 'Copied!' : 'Copy JSON'}
+                                                                </button>
+                                                              </div>
+                                                              <pre
+                                                                style={{
+                                                                  margin: '4px 0 0 0',
+                                                                  fontSize: '0.7rem',
+                                                                  background: 'var(--color-bg-primary)',
+                                                                  padding: '6px',
+                                                                  borderRadius: '4px',
+                                                                  overflowX: 'auto',
+                                                                  maxHeight: '160px',
+                                                                  color: 'var(--color-text-primary)',
+                                                                }}
+                                                              >
+                                                                {JSON.stringify(act.inputs, null, 2)}
+                                                              </pre>
+                                                            </div>
+                                                          )}
+
+                                                          {act.result && (
+                                                            <div>
+                                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--color-status-success)' }}>
+                                                                  ACTION RESULT
+                                                                </span>
+                                                                <button
+                                                                  type="button"
+                                                                  onClick={() => copyToClipboard(act.result!, `res-${act.id}`)}
+                                                                  style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    color: 'var(--color-accent-primary)',
+                                                                    fontSize: '0.65rem',
+                                                                    cursor: 'pointer',
+                                                                  }}
+                                                                >
+                                                                  {copiedKey === `res-${act.id}` ? 'Copied!' : 'Copy Result'}
+                                                                </button>
+                                                              </div>
+                                                              <pre
+                                                                style={{
+                                                                  margin: '4px 0 0 0',
+                                                                  fontSize: '0.7rem',
+                                                                  background: 'var(--color-bg-primary)',
+                                                                  padding: '6px',
+                                                                  borderRadius: '4px',
+                                                                  overflowX: 'auto',
+                                                                  maxHeight: '160px',
+                                                                  color: 'var(--color-text-primary)',
+                                                                  whiteSpace: 'pre-wrap',
+                                                                }}
+                                                              >
+                                                                {act.result}
+                                                              </pre>
+                                                            </div>
+                                                          )}
+
+                                                          {act.error && (
+                                                            <div>
+                                                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--color-status-danger)' }}>
+                                                                  ERROR STACK TRACE
+                                                                </span>
+                                                                <button
+                                                                  type="button"
+                                                                  onClick={() => copyToClipboard(act.error!, `err-${act.id}`)}
+                                                                  style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    color: 'var(--color-status-danger)',
+                                                                    fontSize: '0.65rem',
+                                                                    cursor: 'pointer',
+                                                                  }}
+                                                                >
+                                                                  {copiedKey === `err-${act.id}` ? 'Copied!' : 'Copy Error'}
+                                                                </button>
+                                                              </div>
+                                                              <pre
+                                                                style={{
+                                                                  margin: '4px 0 0 0',
+                                                                  fontSize: '0.7rem',
+                                                                  background: 'color-mix(in srgb, var(--color-status-danger) 10%, var(--color-bg-primary))',
+                                                                  padding: '6px',
+                                                                  borderRadius: '4px',
+                                                                  overflowX: 'auto',
+                                                                  maxHeight: '160px',
+                                                                  color: 'var(--color-status-danger)',
+                                                                  whiteSpace: 'pre-wrap',
+                                                                }}
+                                                              >
+                                                                {act.error}
+                                                              </pre>
+                                                            </div>
+                                                          )}
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              )
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -1241,11 +1447,36 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
                         })
                       )}
                     </div>
+                    )}
                   </div>
                 )
               })
             )}
           </div>
+
+          {/* Executive Final Report Card (Placed at the end below Roadmap) */}
+          {plan.final_report && (
+            <div
+              style={{
+                background: 'var(--color-bg-surface)',
+                border: '1px solid color-mix(in srgb, var(--color-status-success) 40%, var(--color-border-default))',
+                padding: '1.25rem',
+                borderRadius: 'var(--radius-lg)',
+                boxShadow: 'var(--shadow-panel)',
+                marginTop: '1rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '1.2rem' }}>📊</span>
+                <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-status-success)' }}>
+                  Final Executive Report
+                </h3>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-primary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                {plan.final_report}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
