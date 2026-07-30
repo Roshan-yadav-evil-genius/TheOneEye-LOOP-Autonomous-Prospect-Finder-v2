@@ -23,6 +23,17 @@ export function formatThreadRoleLabel(trimmedLabel: string, primaryRole: string 
   const norm = trimmedLabel.toLowerCase()
   const dbRole = primaryRole.toLowerCase().replace('-', '_')
 
+  if (norm.startsWith('planner') || norm.includes('planner')) {
+    const numMatch = norm.match(/\d+/)
+    const num = numMatch ? numMatch[0] : '1'
+    return {
+      title: trimmedLabel,
+      subtitle: `Planner Chat #${num}`,
+      icon: '🗺️',
+      badgeClass: 'badge-info'
+    }
+  }
+
   if (norm === 'company_finder' || norm === 'contact_finder' || norm === dbRole) {
     return {
       title: trimmedLabel,

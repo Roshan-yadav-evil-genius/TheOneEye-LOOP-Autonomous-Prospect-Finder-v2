@@ -1,23 +1,20 @@
 import json
-import re
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request, status
-from langchain_core.messages import message_to_dict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
 from agents.checkpoints import ThreadCheckpointStore
-from agents.checkpoint_runtime import checkpoint_scope
 from agents.factory import (
     company_finder_agent_scope,
     contact_finder_agent_scope,
 )
+from agents.runtime import allocate_next_setup_thread_id
 from application.chat_history_service import ThreadChatHistoryService
 from application.planner_service import PlannerService
 from contracts.domain import ChatHistoryRead, ChatStreamRequest, NewThreadResponse
-from core.config import get_settings
 from persistence import models
 from persistence.database import SessionFactory, get_session
 
@@ -51,20 +48,31 @@ async def get_effort_info(session: AsyncSession, effort_prefix: str) -> tuple[st
 async def get_threads(
     effort_prefix: str,
 ) -> list[str]:
-    planner_thread_id = f"{effort_prefix}_planner"
+    base_thread_id = f"{effort_prefix}_planner_1"
+    stem = f"{effort_prefix}_planner"
     store = ThreadCheckpointStore()
-    found = await store.search_threads(prefix=planner_thread_id)
+    found = await store.search_threads(prefix=stem)
     if not found:
-        return [planner_thread_id]
-    return found
+        return [base_thread_id]
+    cleaned = []
+    for tid in found:
+        if tid == stem:
+            cleaned.append(base_thread_id)
+        else:
+            cleaned.append(tid)
+    return list(dict.fromkeys(cleaned))
 
 
 @router.post("/{effort_prefix}/chat/new-thread", response_model=NewThreadResponse)
 async def new_thread(
     effort_prefix: str,
 ) -> NewThreadResponse:
-    planner_thread_id = f"{effort_prefix}_planner"
-    return NewThreadResponse(thread_id=planner_thread_id)
+    base_thread_id = f"{effort_prefix}_planner_1"
+    stem = f"{effort_prefix}_planner"
+    store = ThreadCheckpointStore()
+    existing = await store.search_threads(prefix=stem)
+    next_id = allocate_next_setup_thread_id(base_thread_id, existing)
+    return NewThreadResponse(thread_id=next_id)
 
 
 @router.post("/{effort_prefix}/chat/stream")
@@ -76,8 +84,8 @@ async def stream_chat(
     async def _stream_with_session():
         async with SessionFactory() as session:
             strategy_id, role, company_id = await get_effort_info(session, effort_prefix)
-            thread_id = data.thread_id or f"{effort_prefix}_planner"
-            is_planner = data.is_planner or thread_id.endswith("_planner")
+            thread_id = data.thread_id or f"{effort_prefix}_planner_1"
+            is_planner = data.is_planner or "_planner" in thread_id
 
             if role in ("company_finder", "company-finder", "company_planner", "planner"):
                 scope_cm = company_finder_agent_scope(
@@ -204,7 +212,7 @@ async def get_history(
     effort_prefix: str,
     thread_id: str | None = None,
 ) -> ChatHistoryRead:
-    target_thread_id = thread_id or f"{effort_prefix}_planner"
+    target_thread_id = thread_id or f"{effort_prefix}_planner_1"
     return await ThreadChatHistoryService.get_history(target_thread_id)
 
 
@@ -213,7 +221,7 @@ async def clear_chat(
     effort_prefix: str,
     thread_id: str | None = None,
 ) -> None:
-    target_thread_id = thread_id or f"{effort_prefix}_planner"
+    target_thread_id = thread_id or f"{effort_prefix}_planner_1"
     await ThreadChatHistoryService.delete_thread(target_thread_id)
 
 

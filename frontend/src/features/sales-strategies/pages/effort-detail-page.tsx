@@ -39,7 +39,7 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
   const [copied, setCopied] = useState(false)
 
   const plannerThreadId = effort?.effort_prefix
-    ? `${effort.effort_prefix}_planner`
+    ? `${effort.effort_prefix}_planner_1`
     : ''
 
   // 0. Load Strategy Context & Effort Chat History for Planner Thread
@@ -50,12 +50,22 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
   }, [loadContext, strategyId])
 
   useEffect(() => {
-    if (effort?.effort_prefix && plannerThreadId) {
-      useEffortChatStore.setState({ activeThreadId: plannerThreadId })
-      void chatStore.loadHistory(effort.effort_prefix, plannerThreadId)
+    if (effort?.effort_prefix) {
+      void chatStore.fetchThreads(effort.effort_prefix).then(() => {
+        const state = useEffortChatStore.getState()
+        const currentActive = state.activeThreadId
+        const threads = state.threadsList
+        if (!currentActive || !currentActive.startsWith(`${effort.effort_prefix}_planner`)) {
+          const targetId = threads.length > 0 ? threads[threads.length - 1] : `${effort.effort_prefix}_planner_1`
+          useEffortChatStore.setState({ activeThreadId: targetId })
+          void chatStore.loadHistory(effort.effort_prefix, targetId)
+        } else {
+          void chatStore.loadHistory(effort.effort_prefix, currentActive)
+        }
+      })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effort?.effort_prefix, plannerThreadId])
+  }, [effort?.effort_prefix])
 
   // 1. Fetch Effort Detail
   useEffect(() => {
@@ -100,9 +110,6 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
         if (!mounted) return
         if (effortDetail) {
           setEffort(effortDetail)
-          const pThreadId = `${effortDetail.effort_prefix}_planner`
-          useEffortChatStore.setState({ activeThreadId: pThreadId })
-          void chatStore.loadHistory(effortDetail.effort_prefix, pThreadId)
 
           // Default to primary thread if not selected
           const threads = Array.from(
