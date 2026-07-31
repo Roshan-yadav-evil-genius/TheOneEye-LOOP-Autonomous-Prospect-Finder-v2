@@ -108,7 +108,6 @@ def company_planner_tools(
         return {
             "status": "success",
             "task_id": new_task.id,
-            "progress": updated_plan.runtime.progress,
         }
 
     @tool
@@ -169,7 +168,6 @@ def company_planner_tools(
         if result is not None:
             target_task.result = result
 
-        plan.runtime.current_task = task_id
         if enum_status == TaskStatus.RUNNING:
             plan.runtime.status = PlannerStatus.RUNNING
 
@@ -180,7 +178,6 @@ def company_planner_tools(
             "status": "success",
             "task_id": task_id,
             "task_status": enum_status.value,
-            "overall_progress": updated_plan.runtime.progress,
         }
 
     @tool
@@ -259,7 +256,6 @@ def company_planner_tools(
     @tool
     async def register_artifact(
         name: str,
-        type: str,
         path_or_uri: Optional[str] = None,
         content_summary: str = "",
     ) -> Dict[str, Any]:
@@ -269,7 +265,6 @@ def company_planner_tools(
         art = Artifact(
             id=artifact_id,
             name=name,
-            type=type,
             path_or_uri=path_or_uri,
             content_summary=content_summary,
         )
@@ -300,7 +295,6 @@ def company_planner_tools(
         return {
             "status": "success",
             "runtime_status": updated_plan.runtime.status.value,
-            "final_progress": updated_plan.runtime.progress,
         }
 
     return [

@@ -88,7 +88,6 @@ async def test_planner_tool_suite_execution(session):
     # 7. Tool 7: register_artifact
     art_res = await tool_map["register_artifact"].ainvoke({
         "name": "ICP Market Report.pdf",
-        "type": "application/pdf",
         "content_summary": "Comprehensive analysis of top targets",
     })
     assert art_res["status"] == "success"
@@ -99,7 +98,7 @@ async def test_planner_tool_suite_execution(session):
         "status": "completed",
         "result": "Found 10 qualified targets",
     })
-    assert status_res2["overall_progress"] == 100.0
+    assert status_res2["status"] == "success"
 
     # 9. Tool 8: finalize_plan
     final_res = await tool_map["finalize_plan"].ainvoke({
@@ -107,7 +106,6 @@ async def test_planner_tool_suite_execution(session):
     })
     assert final_res["status"] == "success"
     assert final_res["runtime_status"] == PlannerStatus.COMPLETED.value
-    assert final_res["final_progress"] == 100.0
 
     # Verify directly via PlannerService
     service = PlannerService(session)

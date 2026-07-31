@@ -172,26 +172,6 @@ class Runtime(BaseModel):
         default=PlannerStatus.PLANNING,
         description="Overall execution status of the planner lifecycle (PLANNING, RUNNING, COMPLETED, etc.)"
     )
-    current_phase: Optional[str] = Field(
-        default=None,
-        description="ID of the phase currently active during execution"
-    )
-    current_task: Optional[str] = Field(
-        default=None,
-        description="ID of the task currently being executed by the agent"
-    )
-    current_step: Optional[str] = Field(
-        default=None,
-        description="ID of the active step being processed"
-    )
-    next_action: Optional[Action] = Field(
-        default=None,
-        description="Next structured Action object queued for execution by the agent runner"
-    )
-    progress: float = Field(
-        default=0.0,
-        description="Overall completion progress expressed as a percentage from 0.0 to 100.0"
-    )
     iteration: int = Field(
         default=0,
         description="Current execution loop or agent iteration count"
@@ -199,25 +179,6 @@ class Runtime(BaseModel):
     checkpoint: int = Field(
         default=0,
         description="Monotonically increasing sequence number of saved state checkpoints"
-    )
-
-
-class Resume(BaseModel):
-    resume_phase: Optional[str] = Field(
-        default=None,
-        description="Phase ID where execution should resume after recovery or restart"
-    )
-    resume_task: Optional[str] = Field(
-        default=None,
-        description="Task ID to target when resuming context"
-    )
-    resume_step: Optional[str] = Field(
-        default=None,
-        description="Step ID to start execution from upon resumption"
-    )
-    first_action: Optional[str] = Field(
-        default=None,
-        description="ID of the first action to execute when resuming work"
     )
 
 
@@ -244,10 +205,6 @@ class Artifact(BaseModel):
     name: str = Field(
         ...,
         description="Human-readable filename or title of the artifact"
-    )
-    type: str = Field(
-        ...,
-        description="MIME type or custom category (e.g. 'python_source', 'markdown_report', 'json_data')"
     )
     path_or_uri: Optional[str] = Field(
         default=None,
@@ -308,9 +265,9 @@ class Planner(BaseModel):
         default_factory=Knowledge,
         description="Agent knowledge base containing findings, decisions, and entities"
     )
-    resume: Resume = Field(
-        default_factory=Resume,
-        description="State recovery pointers for resuming execution after interrupts or context resets"
+    resume_note: Optional[str] = Field(
+        default=None,
+        description="Note or instructions left by the agent for resuming plan execution"
     )
     artifacts: List[Artifact] = Field(
         default_factory=list,

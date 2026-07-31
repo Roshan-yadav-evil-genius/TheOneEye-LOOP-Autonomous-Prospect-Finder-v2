@@ -24,6 +24,8 @@ export interface StepData {
   actions: ActionData[]
 }
 
+export type TaskFilterOption = 'ALL' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'PENDING'
+
 export interface TaskData {
   id: string
   title: string
@@ -54,26 +56,13 @@ export interface KnowledgeData {
 export interface ArtifactData {
   id: string
   name: string
-  type: string
   path_or_uri?: string | null
   content_summary?: string | null
   created_at: string
 }
 
-export interface ResumeData {
-  resume_phase?: string | null
-  resume_task?: string | null
-  resume_step?: string | null
-  first_action?: string | null
-}
-
 export interface RuntimeData {
   status: string
-  current_phase?: string | null
-  current_task?: string | null
-  current_step?: string | null
-  next_action?: ActionData | null
-  progress: number
   iteration: number
   checkpoint: number
 }
@@ -88,7 +77,7 @@ export interface PlanData {
   phases: PhaseData[]
   runtime: RuntimeData
   knowledge: KnowledgeData
-  resume?: ResumeData | null
+  resume_note?: string | null
   artifacts: ArtifactData[]
   final_report?: string | null
   created_at: string
@@ -410,34 +399,43 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
   const runtimeBadge = getStatusBadgeStyle(plan.runtime.status)
   const isExecuting = plan.runtime.status === 'running' || plan.runtime.status === 'planning'
 
-  // Lookup active phase/task/step objects
-  let activePhaseObj: PhaseData | undefined
-  let activeTaskObj: TaskData | undefined
-  let activeStepObj: StepData | undefined
-
-  if (plan.runtime.current_phase) {
-    activePhaseObj = plan.phases.find((p) => p.id === plan.runtime.current_phase)
+  // Dynamically derive active phase/task/step objects from execution state
+  let activePhaseObj: PhaseData | undefined = plan.phases.find((p) => (p.status || '').toLowerCase() === 'running')
+  if (!activePhaseObj) {
+    activePhaseObj = plan.phases.find((p) => (p.status || '').toLowerCase() === 'pending' || (p.status || '').toLowerCase() === 'ready')
   }
-  if (plan.runtime.current_task) {
+
+  let activeTaskObj: TaskData | undefined
+  if (activePhaseObj) {
+    activeTaskObj = activePhaseObj.tasks.find((t) => (t.status || '').toLowerCase() === 'running')
+    if (!activeTaskObj) {
+      activeTaskObj = activePhaseObj.tasks.find((t) => (t.status || '').toLowerCase() === 'pending' || (t.status || '').toLowerCase() === 'ready')
+    }
+  } else {
     for (const p of plan.phases) {
-      const found = p.tasks.find((t) => t.id === plan.runtime.current_task)
+      const found = p.tasks.find((t) => (t.status || '').toLowerCase() === 'running')
       if (found) {
         activeTaskObj = found
-        if (!activePhaseObj) activePhaseObj = p
+        activePhaseObj = p
         break
       }
     }
   }
-  if (plan.runtime.current_step && activeTaskObj) {
-    activeStepObj = activeTaskObj.steps.find((s) => s.id === plan.runtime.current_step)
+
+  let activeStepObj: StepData | undefined
+  if (activeTaskObj) {
+    activeStepObj = activeTaskObj.steps?.find((s) => (s.status || '').toLowerCase() === 'running')
+    if (!activeStepObj) {
+      activeStepObj = activeTaskObj.steps?.find((s) => (s.status || '').toLowerCase() === 'pending' || (s.status || '').toLowerCase() === 'ready')
+    }
   }
 
-  // Resume state check
-  const resumeState = plan.resume
-  const hasResumeData = Boolean(
-    resumeState &&
-      (resumeState.resume_phase || resumeState.resume_task || resumeState.resume_step || resumeState.first_action)
-  )
+  // Calculate dynamic overall progress percentage
+  const calculatedProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
+
+  // Resume note check
+  const resumeNote = plan.resume_note
+  const hasResumeData = Boolean(resumeNote && resumeNote.trim().length > 0)
 
   const totalKnowledgeItems =
     (plan.knowledge.findings?.length || 0) +
@@ -944,7 +942,7 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
                         filteredTasks.map((task, tIdx) => {
                           const tBadge = getStatusBadgeStyle(task.status)
                           const isExpanded = !!expandedTasks[task.id]
-                          const isActiveTask = task.id === plan.runtime.current_task
+                          const isActiveTask = activeTaskObj?.id === task.id
 
                           return (
                             <div
@@ -1545,11 +1543,11 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
               >
                 <div style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>ACTIVE PHASE</div>
                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '2px' }}>
-                  {activePhaseObj ? activePhaseObj.title : plan.runtime.current_phase || 'None'}
+                  {activePhaseObj ? activePhaseObj.title : 'None'}
                 </div>
-                {plan.runtime.current_phase && (
+                {activePhaseObj && (
                   <code style={{ fontSize: '0.68rem', color: 'var(--color-text-secondary)' }}>
-                    ID: {plan.runtime.current_phase}
+                    ID: {activePhaseObj.id}
                   </code>
                 )}
               </div>
@@ -1564,11 +1562,11 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
               >
                 <div style={{ fontSize: '0.7rem', color: 'var(--color-accent-primary)', fontWeight: 600 }}>ACTIVE TASK</div>
                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '2px' }}>
-                  {activeTaskObj ? activeTaskObj.title : plan.runtime.current_task || 'None'}
+                  {activeTaskObj ? activeTaskObj.title : 'None'}
                 </div>
-                {plan.runtime.current_task && (
+                {activeTaskObj && (
                   <code style={{ fontSize: '0.68rem', color: 'var(--color-text-secondary)' }}>
-                    ID: {plan.runtime.current_task}
+                    ID: {activeTaskObj.id}
                   </code>
                 )}
               </div>
@@ -1583,59 +1581,15 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
               >
                 <div style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>ACTIVE STEP</div>
                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '2px' }}>
-                  {activeStepObj ? activeStepObj.title : plan.runtime.current_step || 'None'}
+                  {activeStepObj ? activeStepObj.title : 'None'}
                 </div>
-                {plan.runtime.current_step && (
+                {activeStepObj && (
                   <code style={{ fontSize: '0.68rem', color: 'var(--color-text-secondary)' }}>
-                    ID: {plan.runtime.current_step}
+                    ID: {activeStepObj.id}
                   </code>
                 )}
               </div>
             </div>
-
-            {/* Queued Next Action Preview Card */}
-            {plan.runtime.next_action && (
-              <div
-                style={{
-                  background: 'var(--color-bg-surface)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '10px 14px',
-                  border: '1px dashed var(--color-accent-primary)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-accent-primary)' }}>
-                    ⏳ QUEUED NEXT ACTION
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '0.68rem',
-                      padding: '1px 6px',
-                      borderRadius: '999px',
-                      background: 'var(--color-bg-elevated)',
-                      border: '1px solid var(--color-border-default)',
-                      color: 'var(--color-text-secondary)',
-                    }}
-                  >
-                    {plan.runtime.next_action.type}
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                  🔧 <strong>{plan.runtime.next_action.tool || plan.runtime.next_action.type}</strong>: {plan.runtime.next_action.description}
-                </div>
-                {plan.runtime.next_action.inputs && Object.keys(plan.runtime.next_action.inputs).length > 0 && (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                    <strong>Inputs:</strong>{' '}
-                    <code style={{ background: 'var(--color-bg-elevated)', padding: '2px 6px', borderRadius: '4px' }}>
-                      {JSON.stringify(plan.runtime.next_action.inputs)}
-                    </code>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Hero Progress & Task Breakdown Card */}
@@ -1657,7 +1611,7 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
                   OVERALL EXECUTION PROGRESS
                 </span>
                 <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-accent-primary)' }}>
-                  {plan.runtime.progress.toFixed(0)}%
+                  {calculatedProgress.toFixed(0)}%
                 </span>
               </div>
 
@@ -1676,7 +1630,7 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
                 <div
                   style={{
                     height: '100%',
-                    width: `${Math.min(100, Math.max(0, plan.runtime.progress))}%`,
+                    width: `${Math.min(100, Math.max(0, calculatedProgress))}%`,
                     background: 'var(--color-accent-primary)',
                     borderRadius: '999px',
                     transition: 'width 0.4s ease-in-out',
@@ -1774,7 +1728,7 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '1.2rem' }}>🔄</span>
                 <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: hasResumeData ? 'var(--color-status-warning)' : 'var(--color-text-primary)' }}>
-                  Agent State Recovery & Restoration Checklist
+                  Agent Continuation Note & Recovery Guidance
                 </h3>
               </div>
               <span
@@ -1788,40 +1742,32 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
                   border: '1px solid var(--color-border-default)',
                 }}
               >
-                {hasResumeData ? 'RECOVERY DATA PRESENT' : 'NO RECOVERY PENDING'}
+                {hasResumeData ? 'RESUME NOTE PRESENT' : 'NO RESUME NOTE'}
               </span>
             </div>
 
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
-              Saved recovery coordinates enable the Planner agent to seamlessly resume execution after process restarts, interruptions, or context switches.
+              Notes or instructions left by the agent to guide continued execution after interrupts or context resets.
             </p>
 
             {hasResumeData ? (
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '6px' }}>
-                {resumeState?.resume_phase && (
-                  <div style={{ fontSize: '0.8rem', padding: '6px 12px', background: 'var(--color-bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-default)' }}>
-                    Target Phase: <strong style={{ color: 'var(--color-text-primary)' }}>{resumeState.resume_phase}</strong>
-                  </div>
-                )}
-                {resumeState?.resume_task && (
-                  <div style={{ fontSize: '0.8rem', padding: '6px 12px', background: 'var(--color-bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-default)' }}>
-                    Target Task: <strong style={{ color: 'var(--color-text-primary)' }}>{resumeState.resume_task}</strong>
-                  </div>
-                )}
-                {resumeState?.resume_step && (
-                  <div style={{ fontSize: '0.8rem', padding: '6px 12px', background: 'var(--color-bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-default)' }}>
-                    Target Step: <strong style={{ color: 'var(--color-text-primary)' }}>{resumeState.resume_step}</strong>
-                  </div>
-                )}
-                {resumeState?.first_action && (
-                  <div style={{ fontSize: '0.8rem', padding: '6px 12px', background: 'var(--color-bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-default)' }}>
-                    First Action to Resume: <strong style={{ color: 'var(--color-accent-primary)' }}>{resumeState.first_action}</strong>
-                  </div>
-                )}
+              <div
+                style={{
+                  padding: '14px 16px',
+                  background: 'var(--color-bg-elevated)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--color-border-default)',
+                  fontSize: '0.85rem',
+                  color: 'var(--color-text-primary)',
+                  lineHeight: 1.5,
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {resumeNote}
               </div>
             ) : (
               <div style={{ padding: '12px', background: 'var(--color-bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-default)', fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
-                ✓ Clean execution state. No interrupt coordinates recorded for this effort.
+                ✓ Clean execution state. No resume note recorded for this effort.
               </div>
             )}
           </div>
@@ -1844,8 +1790,8 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
             </h4>
             <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.82rem', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px', lineHeight: 1.4 }}>
               <li>Planner checkpoints are persisted automatically after each action execution cycle.</li>
-              <li>When resuming, the agent loads the latest checkpoint (<strong>#{plan.runtime.checkpoint}</strong>) and evaluates the <code>resume</code> coordinates.</li>
-              <li>If <code>first_action</code> is defined, execution resumes directly from the pending atomic action without repeating completed steps.</li>
+              <li>When resuming, the agent loads the latest checkpoint (<strong>#{plan.runtime.checkpoint}</strong>) and evaluates the <code>resume_note</code> if present.</li>
+              <li>Active work is dynamically derived from node status flags (<code>RUNNING</code> / <code>PENDING</code>).</li>
             </ul>
           </div>
         </div>
@@ -2446,20 +2392,6 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
                     <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
                       📄 {art.name}
                     </span>
-                    <span
-                      style={{
-                        fontSize: '0.65rem',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: '999px',
-                        background: 'var(--color-bg-elevated)',
-                        border: '1px solid var(--color-border-default)',
-                        color: 'var(--color-text-secondary)',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      {art.type}
-                    </span>
                   </div>
 
                   {art.content_summary && (
@@ -2568,19 +2500,7 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
             </div>
 
             <div>
-              <span
-                style={{
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  padding: '2px 8px',
-                  borderRadius: '999px',
-                  background: 'var(--color-bg-elevated)',
-                  border: '1px solid var(--color-border-default)',
-                }}
-              >
-                Category: {selectedArtifact.type}
-              </span>
-              <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginTop: '6px' }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', margin: 0 }}>
                 Created: {formatTimestamp(selectedArtifact.created_at)}
               </p>
             </div>

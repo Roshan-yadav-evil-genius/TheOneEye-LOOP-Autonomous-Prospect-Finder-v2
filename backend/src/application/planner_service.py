@@ -40,7 +40,6 @@ class PlannerService:
     ) -> Planner:
         """Persist or update Planner state in the database."""
         plan.updated_at = utc_now()
-        self.recalculate_progress(plan)
 
         stmt = select(models.PlannerState).where(
             models.PlannerState.effort_prefix == effort_prefix
@@ -97,20 +96,3 @@ class PlannerService:
             ],
         )
         return await self.save_plan(effort_prefix, initial_plan, strategy_id=strategy_id)
-
-    @staticmethod
-    def recalculate_progress(plan: Planner) -> Planner:
-        """Recalculate overall completion progress percentage."""
-        total_tasks = 0
-        completed_tasks = 0
-        for phase in plan.phases:
-            for task in phase.tasks:
-                total_tasks += 1
-                if task.status == TaskStatus.COMPLETED:
-                    completed_tasks += 1
-
-        if total_tasks > 0:
-            plan.runtime.progress = round((completed_tasks / total_tasks) * 100.0, 2)
-        else:
-            plan.runtime.progress = 0.0
-        return plan

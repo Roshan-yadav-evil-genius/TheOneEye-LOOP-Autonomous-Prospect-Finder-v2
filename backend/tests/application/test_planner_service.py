@@ -21,7 +21,6 @@ async def test_get_or_create_and_save_plan(session):
     assert plan is not None
     assert plan.goal == "Test Goal"
     assert len(plan.phases) == 1
-    assert plan.runtime.progress == 0.0
 
     # Add task to phase 1
     task1 = Task(
@@ -39,11 +38,10 @@ async def test_get_or_create_and_save_plan(session):
     plan.phases[0].tasks.extend([task1, task2])
 
     saved_plan = await service.save_plan(effort_prefix, plan)
-    assert saved_plan.runtime.progress == 50.0  # 1 of 2 tasks completed
+    assert len(saved_plan.phases[0].tasks) == 2
 
     # Fetch fresh from database
     fetched = await service.get_plan(effort_prefix)
     assert fetched is not None
     assert len(fetched.phases[0].tasks) == 2
     assert fetched.phases[0].tasks[0].title == "Find Target Companies"
-    assert fetched.runtime.progress == 50.0

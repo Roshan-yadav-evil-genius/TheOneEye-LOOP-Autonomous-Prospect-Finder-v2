@@ -66,7 +66,7 @@ graph TD
     Planner --> Constraints[constraints]
     Planner --> Phases[phases]
     Planner --> Runtime[runtime]
-    Planner --> Resume[resume]
+    Planner --> ResumeNote[resume_note]
     Planner --> Knowledge[knowledge]
     Planner --> Artifacts[artifacts]
     Planner --> FinalReport[final_report]
@@ -89,10 +89,11 @@ graph TD
     Actions --> Action[Action]
     Action --> ActionFields[id type description tool inputs expected_output status result error]
 
-    Runtime --> RuntimeFields[status current_phase current_task current_step next_action progress iteration checkpoint]
-    Resume --> ResumeFields[resume_phase resume_task resume_step first_action]
+    Runtime --> RuntimeFields[status iteration checkpoint]
+    ResumeNote --> ResumeNoteField[resume_note]
     Knowledge --> KnowledgeFields[findings decisions discovered_entities]
-    Artifacts --> Artifact[Artifact id name type path_or_uri content_summary]
+    Artifacts --> Artifact[Artifact id name path_or_uri content_summary]
+    FinalReport --> FinalReportFields[final_report]
 ```
 
 ### Hierarchy rules
@@ -107,8 +108,8 @@ graph TD
 | **Task** | Atomic unit an executor can finish in one focused pass | Concrete tool + output + completion criteria |
 | **Step** | Ordered sub-work inside a task | Small enough to checkpoint |
 | **Action** | Single tool call / reasoning / search unit | Named tool when applicable |
-| **runtime** | Live pointers during execution | Keep current_task / status honest |
-| **resume** | Where to continue after context loss | Always point at next unfinished work |
+| **runtime** | Execution status and loop iteration tracking | status / iteration / checkpoint |
+| **resume_note** | Agent instructions/notes for resuming execution | Free-text guidance string |
 | **knowledge** | Durable learnings | findings / decisions / discovered_entities only |
 | **artifacts** | Produced files / dumps / reports | Registered when created |
 | **final_report** | Effort summary | Set only via finalize |
@@ -150,7 +151,7 @@ Use these tools to mutate the persistent plan. Prefer tools over prose.
 5. **`update_task_status(task_id, status, result)`** — Statuses: `pending`, `ready`, `running`, `blocked`, `completed`, `failed`, `skipped`.
 6. **`record_action_result(task_id, step_id, description, tool, inputs, result, error)`** — Log one atomic action outcome inside a step.
 7. **`add_knowledge_entry(category, detail)`** — Categories: `findings`, `decisions`, `discovered_entities`.
-8. **`register_artifact(name, type, path_or_uri, content_summary)`** — Register a produced deliverable.
+8. **`register_artifact(name, path_or_uri, content_summary)`** — Register a produced deliverable.
 9. **`finalize_plan(final_report)`** — Close the effort when success criteria are met.
 
 Also available for strategy context only:
