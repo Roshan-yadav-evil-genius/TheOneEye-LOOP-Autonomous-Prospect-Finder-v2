@@ -147,7 +147,24 @@ async def test_wrap_tool_for_planner_permission_denied():
     res_planning = await wrapped_planning.ainvoke({"name": "Acme Corp"})
     assert "Permission Denied: Tool 'register_company' is an execution tool" in res_planning
     assert "cannot be called during Planning mode" in res_planning
-    assert "[PLANNING MODE - EXECUTION FORBIDDEN]" in wrapped_planning.description
+    assert "[PLANNING MODE - FORBIDDEN TOOL]" in wrapped_planning.description
+
+    # Test progress tools (update_task_status) forbidden in planning mode
+    @tool
+    def status_tool(task_id: str, status: str) -> str:
+        """Update task status tool."""
+        return f"status {status}"
+    status_tool.name = "update_task_status"
+
+    wrapped_status_planning = wrap_tool_for_planner(status_tool, mode="planning")
+    assert wrapped_status_planning is not status_tool
+    res_status_planning = await wrapped_status_planning.ainvoke({"task_id": "t1", "status": "running"})
+    assert "Permission Denied: Tool 'update_task_status' tracks execution progress/results" in res_status_planning
+    assert "cannot be called during Planning mode" in res_status_planning
+
+    # Test progress tools allowed in analyzing mode
+    wrapped_status_analyzing = wrap_tool_for_planner(status_tool, mode="analyzing")
+    assert wrapped_status_analyzing is status_tool
 
     # Test analyzing mode execution tool returns Analyzing mode error message
     wrapped_analyzing = wrap_tool_for_planner(execution_tool, mode="analyzing")
@@ -156,6 +173,7 @@ async def test_wrap_tool_for_planner_permission_denied():
     assert "Permission Denied: Tool 'register_company' is an execution tool" in res_analyzing
     assert "cannot be called during Analyzing mode" in res_analyzing
     assert "You are only allowed to inspect results, record insights" in res_analyzing
-    assert "[ANALYZING MODE - EXECUTION FORBIDDEN]" in wrapped_analyzing.description
+    assert "[ANALYZING MODE - FORBIDDEN TOOL]" in wrapped_analyzing.description
+
 
 

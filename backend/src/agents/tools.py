@@ -13,7 +13,20 @@ from contracts.domain import (
     RegisterContactRequest,
 )
 
-ALLOWED_PLANNER_TOOLS = {
+ALLOWED_PLANNING_TOOLS = {
+    "get_plan_summary",
+    "update_plan_context",
+    "add_task",
+    "add_step",
+    "add_knowledge_entry",
+    "register_artifact",
+    "finalize_plan",
+    "get_sales_strategy",
+    "get_sales_strategy_bundle",
+    "sales_manager",
+}
+
+ALLOWED_ANALYZING_TOOLS = {
     "get_plan_summary",
     "update_plan_context",
     "add_task",
@@ -28,43 +41,63 @@ ALLOWED_PLANNER_TOOLS = {
     "sales_manager",
 }
 
+PROGRESS_TOOLS = {"update_task_status", "record_action_result"}
+
 
 def wrap_tool_for_planner(
     tool_item: BaseTool,
     mode: Literal["planning", "analyzing"] = "planning",
 ) -> BaseTool:
-    """Wraps an execution tool to block invocation when called by the Planner agent in planning or analyzing mode."""
+    """Wraps tools to block execution and progress tracking depending on mode (planning vs analyzing)."""
     tool_name = getattr(tool_item, "name", str(tool_item))
 
-    if tool_name in ALLOWED_PLANNER_TOOLS:
+    allowed_set = ALLOWED_ANALYZING_TOOLS if mode == "analyzing" else ALLOWED_PLANNING_TOOLS
+
+    if tool_name in allowed_set:
         return tool_item
 
-    if mode == "analyzing":
+    if mode == "planning" and tool_name in PROGRESS_TOOLS:
+        denied_msg = (
+            f"Permission Denied: Tool '{tool_name}' tracks execution progress/results and cannot be "
+            f"called during Planning mode. Tasks and phases start in 'pending' status during planning; "
+            f"updating task status and recording action results are only permitted during Analyzing mode."
+        )
+    elif mode == "analyzing":
         denied_msg = (
             f"Permission Denied: Tool '{tool_name}' is an execution tool and cannot be "
             f"called during Analyzing mode. You are only allowed to inspect results, record insights, "
-            f"and evaluate execution performance."
+            f"update task status, and evaluate execution performance."
         )
     else:
         denied_msg = (
             f"Permission Denied: Tool '{tool_name}' is an execution tool and cannot be "
-            f"called during Planning mode. You must only use planner tools (e.g., add_task, add_step) "
+            f"called during Planning mode. You must only use planning tools (e.g., add_task, add_step) "
             f"to schedule this work for an execution agent."
         )
 
     def _denied_run(*args: Any, **kwargs: Any) -> str:
+        """Permission denied execution handler."""
         return denied_msg
 
     async def _denied_arun(*args: Any, **kwargs: Any) -> str:
+        """Permission denied async execution handler."""
         return denied_msg
 
-    return StructuredTool.from_function(
-        name=tool_name,
-        description=f"[{mode.upper()} MODE - EXECUTION FORBIDDEN] {getattr(tool_item, 'description', '')}",
-        func=_denied_run,
-        coroutine=_denied_arun,
-        args_schema=getattr(tool_item, "args_schema", None),
-    )
+    schema = getattr(tool_item, "args_schema", None)
+    raw_desc = getattr(tool_item, "description", None)
+    tool_desc = raw_desc.strip() if isinstance(raw_desc, str) and raw_desc.strip() else f"Tool '{tool_name}'"
+
+    kwargs: dict[str, Any] = {
+        "name": tool_name,
+        "description": f"[{mode.upper()} MODE - FORBIDDEN TOOL] {tool_desc}",
+        "func": _denied_run,
+        "coroutine": _denied_arun,
+    }
+    if schema is not None:
+        kwargs["args_schema"] = schema
+        kwargs["infer_schema"] = False
+
+    return StructuredTool.from_function(**kwargs)
 
 
 
