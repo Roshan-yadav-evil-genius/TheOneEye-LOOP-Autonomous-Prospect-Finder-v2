@@ -1,7 +1,7 @@
 import json
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
@@ -224,6 +224,21 @@ async def clear_chat(
 ) -> None:
     target_thread_id = thread_id or f"{effort_prefix}_planner_1"
     await ThreadChatHistoryService.delete_thread(target_thread_id)
+
+
+@router.delete("/{effort_prefix}/chat/messages/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_chat_message(
+    effort_prefix: str,
+    message_id: str,
+    thread_id: str | None = None,
+) -> None:
+    target_thread_id = thread_id or f"{effort_prefix}_planner_1"
+    success = await ThreadChatHistoryService.delete_message(target_thread_id, message_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete message {message_id}",
+        )
 
 
 @router.get("/{effort_prefix}/plan")

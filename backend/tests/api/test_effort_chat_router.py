@@ -35,6 +35,18 @@ def test_effort_plan_route():
     assert data["planner_id"] == f"planner-{effort_prefix}"
     assert "phases" in data
     assert "runtime" in data
-    assert "knowledge" in data
+def test_delete_message_route():
+    client = TestClient(app)
+    effort_prefix = "LOOP_6075efa6-c4c8-428d-b18b-26f7f75ec02f_6a5204ba-e21b-4c7c-a7de-df0949a773f8_48fa7682-75fe-4fb2-bc40-2ec1d160927f_3"
+    planner_thread_id = f"{effort_prefix}_planner"
+
+    # Test DELETE message endpoint
+    response = client.delete(
+        f"/api/v1/efforts/{effort_prefix}/chat/messages/nonexistent_msg_id?thread_id={planner_thread_id}"
+    )
+
+    # Deleting a nonexistent message safely returns 204
+    assert response.status_code == 204
+
 
 

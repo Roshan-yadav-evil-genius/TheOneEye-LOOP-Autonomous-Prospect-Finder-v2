@@ -17,6 +17,11 @@ export const strategyChatApi = {
     return await apiClient.delete(`/api/v1/sales-strategies/${strategyId}/chat${params}`)
   },
 
+  deleteMessage: async (strategyId: string, messageId: string, threadId?: string | null) => {
+    const params = threadId ? `?thread_id=${encodeURIComponent(threadId)}` : ''
+    return await apiClient.delete(`/api/v1/sales-strategies/${strategyId}/chat/messages/${encodeURIComponent(messageId)}${params}`)
+  },
+
   streamChat: async (
     strategyId: string,
     data: ChatStreamRequest,

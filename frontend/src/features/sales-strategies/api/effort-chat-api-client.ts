@@ -24,6 +24,13 @@ export const effortChatApi: SetupChatApi = {
     )
   },
 
+  deleteMessage: async (effortPrefix: string, messageId: string, threadId?: string | null) => {
+    const params = threadId ? `?thread_id=${encodeURIComponent(threadId)}` : ''
+    return await apiClient.delete(
+      `/api/v1/efforts/${encodeURIComponent(effortPrefix)}/chat/messages/${encodeURIComponent(messageId)}${params}`
+    )
+  },
+
   streamChat: async (
     effortPrefix: string,
     data: ChatStreamRequest,

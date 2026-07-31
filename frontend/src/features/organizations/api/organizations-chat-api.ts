@@ -17,6 +17,11 @@ export const organizationsChatApi = {
     return await apiClient.delete(`/api/v1/organizations/${organizationId}/chat${params}`)
   },
 
+  deleteMessage: async (organizationId: string, messageId: string, threadId?: string | null) => {
+    const params = threadId ? `?thread_id=${encodeURIComponent(threadId)}` : ''
+    return await apiClient.delete(`/api/v1/organizations/${organizationId}/chat/messages/${encodeURIComponent(messageId)}${params}`)
+  },
+
   streamChat: async (
     organizationId: string,
     data: ChatStreamRequest,

@@ -164,7 +164,11 @@ export function SetupChatPanel({ title: _title, threadId: _threadId, entityId, a
         <>
           {/* Message List (Scrollable) */}
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-            <ChatMessageList messages={store.messages} streaming={store.streaming} />
+            <ChatMessageList
+              messages={store.messages}
+              streaming={store.streaming}
+              onDeleteMessage={(messageId) => void store.deleteMessage(entityId, messageId)}
+            />
           </div>
 
           {/* Input Composer (Pinned at Bottom) */}

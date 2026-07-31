@@ -7,11 +7,11 @@ import {
 } from '../api/setup-chat-api-client'
 
 export type ChatUiMessage =
-  | { id: string; kind: 'user'; content: string }
-  | { id: string; aiMessageId?: string; kind: 'assistant'; content: string; metadata?: Record<string, any> }
-  | { id: string; aiMessageId?: string; kind: 'reasoning'; text: string; metadata?: Record<string, any> }
-  | { id: string; aiMessageId?: string; kind: 'tool_call'; name: string; args: unknown; metadata?: Record<string, any> }
-  | { id: string; kind: 'tool_result'; name: string; content: string }
+  | { id: string; messageId?: string; kind: 'user'; content: string }
+  | { id: string; messageId?: string; aiMessageId?: string; kind: 'assistant'; content: string; metadata?: Record<string, any> }
+  | { id: string; messageId?: string; aiMessageId?: string; kind: 'reasoning'; text: string; metadata?: Record<string, any> }
+  | { id: string; messageId?: string; aiMessageId?: string; kind: 'tool_call'; name: string; args: unknown; metadata?: Record<string, any> }
+  | { id: string; messageId?: string; kind: 'tool_result'; name: string; content: string }
 
 export interface SetupChatStoreState {
   mode: 'chat' | 'agent' | 'history'
@@ -32,6 +32,7 @@ export interface SetupChatStoreState {
   setMode: (mode: 'chat' | 'agent' | 'history') => void
   loadHistory: (entityId: string, threadId?: string | null) => Promise<void>
   clearHistory: (entityId: string) => Promise<void>
+  deleteMessage: (entityId: string, messageId: string) => Promise<void>
   send: (entityId: string, message: string) => Promise<void>
   retry: (entityId: string) => Promise<void>
   reset: () => void
@@ -47,6 +48,7 @@ export interface SetupChatStoreState {
 export interface SetupChatApi {
   getHistory: (entityId: string, threadId?: string | null) => Promise<ChatHistoryRead>
   clearChat: (entityId: string, threadId?: string | null) => Promise<any>
+  deleteMessage?: (entityId: string, messageId: string, threadId?: string | null) => Promise<any>
   streamChat: (entityId: string, request: ChatStreamRequest, onEvent: (event: ChatStreamEvent) => void) => Promise<void>
   getThreads?: (entityId: string) => Promise<string[]>
   newThread?: (entityId: string) => Promise<{ thread_id: string }>
@@ -180,6 +182,7 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
         history.messages.forEach((msgDict: any, i: number) => {
           const type = msgDict.type
           const data = msgDict.data || {}
+          const rawMessageId = msgDict.id || data.id
           
           if (type === 'human') {
             const content = typeof data.content === 'string' ? data.content : JSON.stringify(data.content)
@@ -188,9 +191,9 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
             if (lastMsg && lastMsg.kind === 'user' && lastMsg.content === content) {
               return
             }
-            messages.push({ id: `hist-${i}`, kind: 'user', content })
+            messages.push({ id: `hist-${i}`, messageId: rawMessageId, kind: 'user', content })
           } else if (type === 'ai') {
-            const aiMessageId = msgDict.id || data.id || `hist-${i}`
+            const aiMessageId = rawMessageId || `hist-${i}`
             const meta: any = { raw: msgDict }
             if (data.usage_metadata) meta.usage_metadata = data.usage_metadata
             if (data.response_metadata) meta.response_metadata = data.response_metadata
@@ -208,22 +211,22 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
             const metadataObj = Object.keys(meta).length > 0 ? meta : undefined
             
             if (reasoning) {
-              messages.push({ id: `hist-${i}-rsn`, aiMessageId, kind: 'reasoning', text: reasoning, metadata: metadataObj })
+              messages.push({ id: `hist-${i}-rsn`, messageId: aiMessageId, aiMessageId, kind: 'reasoning', text: reasoning, metadata: metadataObj })
             }
             
             if (contentStr && contentStr !== '""' && contentStr !== '[]' && contentStr !== '"[]"') {
-              messages.push({ id: `hist-${i}-ast`, aiMessageId, kind: 'assistant', content: contentStr, metadata: metadataObj })
+              messages.push({ id: `hist-${i}-ast`, messageId: aiMessageId, aiMessageId, kind: 'assistant', content: contentStr, metadata: metadataObj })
             }
             
             toolCalls.forEach((tc: any, tcIdx: number) => {
-              messages.push({ id: `hist-${i}-tc-${tcIdx}`, aiMessageId, kind: 'tool_call', name: tc.name, args: tc.args, metadata: metadataObj })
+              messages.push({ id: `hist-${i}-tc-${tcIdx}`, messageId: aiMessageId, aiMessageId, kind: 'tool_call', name: tc.name, args: tc.args, metadata: metadataObj })
             })
             
             if (!reasoning && (!contentStr || contentStr === '""' || contentStr === '[]' || contentStr === '"[]"') && toolCalls.length === 0) {
-              messages.push({ id: `hist-${i}-ast`, aiMessageId, kind: 'assistant', content: '', metadata: metadataObj })
+              messages.push({ id: `hist-${i}-ast`, messageId: aiMessageId, aiMessageId, kind: 'assistant', content: '', metadata: metadataObj })
             }
           } else if (type === 'tool') {
-            messages.push({ id: `hist-${i}-tr`, kind: 'tool_result', name: data.name, content: typeof data.content === 'string' ? data.content : JSON.stringify(data.content) })
+            messages.push({ id: `hist-${i}-tr`, messageId: rawMessageId, kind: 'tool_result', name: data.name, content: typeof data.content === 'string' ? data.content : JSON.stringify(data.content) })
           }
         })
         
@@ -251,6 +254,24 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
         })
       } catch (e: any) {
         set({ error: e.message || 'Failed to clear chat' })
+      }
+    },
+
+    deleteMessage: async (entityId: string, messageId: string) => {
+      if (!api.deleteMessage) return
+      try {
+        set({ error: null })
+        await api.deleteMessage(entityId, messageId, get().activeThreadId)
+        set({
+          messages: get().messages.filter(
+            (m) =>
+              m.id !== messageId &&
+              (m as any).messageId !== messageId &&
+              ('aiMessageId' in m && m.aiMessageId ? m.aiMessageId !== messageId : true)
+          ),
+        })
+      } catch (e: any) {
+        set({ error: e.message || 'Failed to delete message' })
       }
     },
 

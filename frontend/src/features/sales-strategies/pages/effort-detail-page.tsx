@@ -155,6 +155,7 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
         res.data.messages.forEach((msgDict: any, i: number) => {
           const type = msgDict.type
           const data = msgDict.data || {}
+          const rawMessageId = msgDict.id || data.id
 
           if (type === 'human') {
             const content =
@@ -163,9 +164,9 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
             if (lastMsg && lastMsg.kind === 'user' && lastMsg.content === content) {
               return
             }
-            uiMessages.push({ id: `hist-${i}`, kind: 'user', content })
+            uiMessages.push({ id: `hist-${i}`, messageId: rawMessageId, kind: 'user', content })
           } else if (type === 'ai') {
-            const aiMessageId = msgDict.id || data.id || `hist-${i}`
+            const aiMessageId = rawMessageId || `hist-${i}`
             const meta: any = { raw: msgDict }
             if (data.usage_metadata) meta.usage_metadata = data.usage_metadata
             if (data.response_metadata) meta.response_metadata = data.response_metadata
@@ -187,6 +188,7 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
             if (reasoning) {
               uiMessages.push({
                 id: `hist-${i}-rsn`,
+                messageId: aiMessageId,
                 aiMessageId,
                 kind: 'reasoning',
                 text: reasoning,
@@ -197,6 +199,7 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
             if (contentStr && contentStr !== '""' && contentStr !== '[]' && contentStr !== '"[]"') {
               uiMessages.push({
                 id: `hist-${i}-ast`,
+                messageId: aiMessageId,
                 aiMessageId,
                 kind: 'assistant',
                 content: contentStr,
@@ -207,6 +210,7 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
             toolCalls.forEach((tc: any, tcIdx: number) => {
               uiMessages.push({
                 id: `hist-${i}-tc-${tcIdx}`,
+                messageId: aiMessageId,
                 aiMessageId,
                 kind: 'tool_call',
                 name: tc.name,
@@ -222,6 +226,7 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
             ) {
               uiMessages.push({
                 id: `hist-${i}-ast`,
+                messageId: aiMessageId,
                 aiMessageId,
                 kind: 'assistant',
                 content: '',
@@ -231,6 +236,7 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
           } else if (type === 'tool') {
             uiMessages.push({
               id: `hist-${i}-tr`,
+              messageId: rawMessageId,
               kind: 'tool_result',
               name: data.name,
               content:
@@ -277,6 +283,26 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
         console.error('Failed to delete thread', err)
         alert('Failed to delete thread')
       }
+    }
+  }
+
+  const handleDeleteLogMessage = async (messageId: string) => {
+    if (!selectedThreadId || !effort) return
+    try {
+      await apiClient.delete(
+        `/api/v1/efforts/${encodeURIComponent(effort.effort_prefix)}/chat/messages/${encodeURIComponent(messageId)}?thread_id=${encodeURIComponent(selectedThreadId)}`
+      )
+      setMessages((prev) =>
+        prev.filter(
+          (m) =>
+            m.id !== messageId &&
+            (m as any).messageId !== messageId &&
+            ('aiMessageId' in m && m.aiMessageId ? m.aiMessageId !== messageId : true)
+        )
+      )
+    } catch (err) {
+      console.error('Failed to delete message', err)
+      alert('Failed to delete message')
     }
   }
 
@@ -652,7 +678,11 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
                     ) : chatError ? (
                       <p style={{ color: 'var(--color-danger)', margin: 'auto' }}>{chatError}</p>
                     ) : (
-                      <ChatMessageList messages={messages} emptyMessage="No execution history found for this thread." />
+                      <ChatMessageList
+                        messages={messages}
+                        emptyMessage="No execution history found for this thread."
+                        onDeleteMessage={handleDeleteLogMessage}
+                      />
                     )}
                   </div>
                 </div>

@@ -46,6 +46,10 @@ class SetupChatService:
         from application.chat_history_service import ThreadChatHistoryService
         await ThreadChatHistoryService.delete_thread(self.thread_id)
 
+    async def delete_message(self, message_id: str) -> bool:
+        from application.chat_history_service import ThreadChatHistoryService
+        return await ThreadChatHistoryService.delete_message(self.thread_id, message_id)
+
     async def stream_chat(
         self, 
         request: ChatStreamRequest, 

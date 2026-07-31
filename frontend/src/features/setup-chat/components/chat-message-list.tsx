@@ -11,9 +11,18 @@ import { sharedMarkdownComponents, userMarkdownComponents, sharedRemarkPlugins }
 import { Modal } from '../../../shared/components/modal'
 import { JsonHighlighter } from './json-highlighter'
 
-function UserMessageBubble({ content }: { content: string }) {
+function UserMessageBubble({
+  content,
+  messageId,
+  onDelete,
+}: {
+  content: string
+  messageId?: string
+  onDelete?: (messageId: string) => void
+}) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const isLong = content.length > 300
 
   const displayedContent = isLong && !isExpanded
@@ -26,6 +35,17 @@ function UserMessageBubble({ content }: { content: string }) {
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       }).catch(console.error)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!messageId || !onDelete) return
+    if (!confirm('Are you sure you want to delete this message?')) return
+    setIsDeleting(true)
+    try {
+      await onDelete(messageId)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -82,13 +102,49 @@ function UserMessageBubble({ content }: { content: string }) {
           <span style={{ fontSize: '0.85rem' }}>{copied ? '✓' : '📋'}</span>
           <span>{copied ? 'Copied!' : 'Copy'}</span>
         </button>
+        {messageId && onDelete && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            title="Delete message"
+            style={{
+              background: isDeleting ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.9)',
+              color: isDeleting ? '#ef4444' : '#0f172a',
+              border: '1px solid rgba(0, 0, 0, 0.12)',
+              borderRadius: '6px',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              padding: '4px 10px',
+              cursor: isDeleting ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
+              transition: 'all 0.15s ease',
+              opacity: isDeleting ? 0.6 : 1
+            }}
+          >
+            <span style={{ fontSize: '0.85rem' }}>🗑️</span>
+            <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
+          </button>
+        )}
       </div>
     </div>
   )
 }
 
-function AssistantMessageBubble({ content }: { content: string }) {
+function AssistantMessageBubble({
+  content,
+  messageId,
+  onDelete,
+}: {
+  content: string
+  messageId?: string
+  onDelete?: (messageId: string) => void
+}) {
   const [copied, setCopied] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const handleCopy = () => {
     if (navigator.clipboard && content) {
@@ -99,12 +155,23 @@ function AssistantMessageBubble({ content }: { content: string }) {
     }
   }
 
+  const handleDelete = async () => {
+    if (!messageId || !onDelete) return
+    if (!confirm('Are you sure you want to delete this response?')) return
+    setIsDeleting(true)
+    try {
+      await onDelete(messageId)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <div className="markdown-chat" style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-primary)', padding: '10px 16px', borderRadius: '16px 16px 16px 0', width: '100%', wordBreak: 'break-word', border: '1px solid var(--color-border-default)', position: 'relative' }}>
       <ReactMarkdown remarkPlugins={sharedRemarkPlugins} components={sharedMarkdownComponents as any}>
         {content}
       </ReactMarkdown>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px', paddingTop: '6px', borderTop: '1px solid var(--color-border-default)' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px', paddingTop: '6px', borderTop: '1px solid var(--color-border-default)' }}>
         <button
           type="button"
           onClick={handleCopy}
@@ -128,12 +195,50 @@ function AssistantMessageBubble({ content }: { content: string }) {
           <span style={{ fontSize: '0.85rem' }}>{copied ? '✓' : '📋'}</span>
           <span>{copied ? 'Copied!' : 'Copy'}</span>
         </button>
+
+        {messageId && onDelete && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            title="Delete response"
+            style={{
+              background: isDeleting ? 'rgba(239, 68, 68, 0.18)' : 'var(--color-bg-subtle, rgba(255, 255, 255, 0.05))',
+              color: isDeleting ? '#ef4444' : 'var(--color-text-secondary)',
+              border: `1px solid ${isDeleting ? 'rgba(239, 68, 68, 0.4)' : 'var(--color-border-default)'}`,
+              borderRadius: '6px',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              padding: '4px 10px',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontFamily: 'inherit',
+              transition: 'all 0.15s ease',
+              opacity: isDeleting ? 0.6 : 1
+            }}
+          >
+            <span style={{ fontSize: '0.85rem' }}>🗑️</span>
+            <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
+          </button>
+        )}
       </div>
     </div>
   )
 }
 
-export function ChatMessageList({ messages, streaming, emptyMessage }: { messages: ChatUiMessage[], streaming?: boolean, emptyMessage?: string }) {
+export function ChatMessageList({
+  messages,
+  streaming,
+  emptyMessage,
+  onDeleteMessage,
+}: {
+  messages: ChatUiMessage[]
+  streaming?: boolean
+  emptyMessage?: string
+  onDeleteMessage?: (messageId: string) => void
+}) {
   const endRef = useRef<HTMLDivElement>(null)
   const [rules, setRules] = useState<ToolCustomizationRuleRead[]>([])
   const [inspectJson, setInspectJson] = useState<any>(null)
@@ -239,9 +344,10 @@ export function ChatMessageList({ messages, streaming, emptyMessage }: { message
           if (group.kind === 'user') {
             const msg = group.messages[0]
             if (msg.kind !== 'user') return null
+            const targetId = msg.messageId || (msg.id.startsWith('hist-') ? undefined : msg.id)
             return (
               <div key={group.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', width: '100%' }}>
-                <UserMessageBubble content={msg.content} />
+                <UserMessageBubble content={msg.content} messageId={targetId} onDelete={onDeleteMessage} />
               </div>
             )
           }
@@ -260,6 +366,7 @@ export function ChatMessageList({ messages, streaming, emptyMessage }: { message
 
           // AI Group
           const metadata = group.messages.length > 0 ? (group.messages[group.messages.length - 1] as any).metadata : undefined
+          const targetAiId = group.aiMessageId || (group.messages.length > 0 ? (group.messages[0] as any).messageId : undefined)
           return (
             <div key={group.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%', gap: '6px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '4px' }}>
@@ -283,7 +390,7 @@ export function ChatMessageList({ messages, streaming, emptyMessage }: { message
                 {group.messages.map(msg => (
                   <div key={msg.id}>
                     {msg.kind === 'assistant' && msg.content && (
-                      <AssistantMessageBubble content={msg.content} />
+                      <AssistantMessageBubble content={msg.content} messageId={targetAiId} onDelete={onDeleteMessage} />
                     )}
                     {msg.kind === 'reasoning' && <ReasoningCard text={msg.text} />}
                     {msg.kind === 'tool_call' && <ToolCallCard name={msg.name} args={msg.args} rules={rules} />}

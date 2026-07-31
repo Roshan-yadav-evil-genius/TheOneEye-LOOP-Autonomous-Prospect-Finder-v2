@@ -1,7 +1,7 @@
 import re
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
@@ -138,3 +138,20 @@ async def clear_chat(
 ) -> None:
     service = await chat_service(session, request, strategy_id, thread_id=thread_id)
     await service.clear_chat()
+
+
+@router.delete("/sales-strategies/{strategy_id}/chat/messages/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_message(
+    strategy_id: str,
+    message_id: str,
+    session: Session,
+    request: Request,
+    thread_id: str | None = None,
+) -> None:
+    service = await chat_service(session, request, strategy_id, thread_id=thread_id)
+    success = await service.delete_message(message_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete message {message_id}",
+        )
