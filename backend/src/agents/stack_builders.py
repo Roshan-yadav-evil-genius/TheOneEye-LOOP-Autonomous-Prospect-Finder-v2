@@ -181,14 +181,15 @@ def build_company_finder_stack(
             )
         )
 
-    subagents.append(
-        wrap(
-            "browser_agent",
-            "Perform allowlisted browser research and return evidence.",
-            browser,
-            "browser_agent",
+    if not is_planner:
+        subagents.append(
+            wrap(
+                "browser_agent",
+                "Perform allowlisted browser research and return evidence.",
+                browser,
+                "browser_agent",
+            )
         )
-    )
 
     company_finder = create_deep_agent_with_brain(
         LoopDeepAgentConfig(

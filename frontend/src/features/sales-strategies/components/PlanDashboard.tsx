@@ -365,15 +365,109 @@ export function PlanDashboard({ effortPrefix }: PlanDashboardProps) {
     )
   }
 
-  if (error || !plan) {
+  if (error) {
     return (
       <div style={{ padding: '3rem', textAlign: 'center' }}>
         <p style={{ color: 'var(--color-status-danger)', fontWeight: 600, fontSize: '1rem' }}>
-          {error || 'Plan data not available'}
+          {error}
         </p>
         <Button variant="outline" onClick={() => void fetchPlan()} style={{ marginTop: '1rem' }}>
           Retry Loading Plan
         </Button>
+      </div>
+    )
+  }
+
+  const isEmptyPlan = !plan || (plan.phases.length === 0 && (!plan.goal || plan.goal.trim() === ''))
+
+  if (isEmptyPlan) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '400px',
+          height: '100%',
+          width: '100%',
+          padding: '3rem 1.5rem',
+          background: 'var(--color-bg-primary)',
+          color: 'var(--color-text-primary)',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: '480px',
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            textAlign: 'center',
+            background: 'var(--color-bg-surface)',
+            padding: '2.5rem 2rem',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--color-border-default)',
+            boxShadow: 'var(--shadow-panel)',
+          }}
+        >
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '16px',
+              background: 'color-mix(in srgb, var(--color-accent-primary) 15%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--color-accent-primary) 30%, transparent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '2rem',
+              marginBottom: '1.25rem',
+              boxShadow: '0 4px 12px color-mix(in srgb, var(--color-accent-primary) 20%, transparent)',
+            }}
+          >
+            🗺️
+          </div>
+
+          <h3
+            style={{
+              margin: '0 0 0.5rem 0',
+              fontSize: '1.25rem',
+              fontWeight: 700,
+              color: 'var(--color-text-primary)',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            No Roadmap Created Yet
+          </h3>
+
+          <p
+            style={{
+              margin: '0 0 1.5rem 0',
+              fontSize: '0.88rem',
+              color: 'var(--color-text-secondary)',
+              lineHeight: 1.5,
+            }}
+          >
+            The Planner Agent has not generated an execution roadmap for this effort yet. Use the Planner Chat to define strategy and generate a research plan.
+          </p>
+
+          <Button
+            variant="outline"
+            onClick={() => void fetchPlan()}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 18px',
+              fontSize: '0.88rem',
+              fontWeight: 600,
+            }}
+          >
+            🔄 Refresh
+          </Button>
+        </div>
       </div>
     )
   }

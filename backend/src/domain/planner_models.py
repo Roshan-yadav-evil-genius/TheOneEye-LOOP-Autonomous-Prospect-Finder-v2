@@ -238,11 +238,11 @@ class Planner(BaseModel):
         description="Timestamp of the most recent state update or modification"
     )
     goal: str = Field(
-        ...,
+        default="",
         description="High-level overall objective statement for the agent system"
     )
     objective: str = Field(
-        ...,
+        default="",
         description="Detailed operational objective and scope of work"
     )
     success_criteria: List[str] = Field(

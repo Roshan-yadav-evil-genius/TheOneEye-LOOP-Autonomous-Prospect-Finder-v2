@@ -26,6 +26,7 @@ from agents.tools import (
     company_planner_tools,
     contact_finder_tools,
     sales_manager_tools,
+    wrap_tool_for_planner,
 )
 from application.loop_service import LoopService
 from browser.policy import (
@@ -167,7 +168,8 @@ async def company_finder_agent_scope(
             planner_finder_tools = [
                 t for t in all_finder_tools if getattr(t, "name", "") != "get_sales_strategy_bundle"
             ]
-            company_tools_list = company_planner_tools(session, strategy_id, effort_prefix) + planner_finder_tools
+            raw_tools = company_planner_tools(session, strategy_id, effort_prefix) + planner_finder_tools
+            company_tools_list = [wrap_tool_for_planner(t) for t in raw_tools]
             sm_tools = sales_manager_tools(session, strategy_id)
         else:
             company_tools_list = company_finder_tools(session, strategy_id, parent_thread)

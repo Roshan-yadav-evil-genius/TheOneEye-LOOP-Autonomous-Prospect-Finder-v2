@@ -2,7 +2,7 @@ from typing import Any, Literal
 
 from agents.planner_tools import company_planner_tools
 
-from langchain_core.tools import BaseTool, tool
+from langchain_core.tools import BaseTool, StructuredTool, tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents.brain import BrainMemoryService
@@ -12,6 +12,52 @@ from contracts.domain import (
     RegisterCompanyRequest,
     RegisterContactRequest,
 )
+
+ALLOWED_PLANNER_TOOLS = {
+    "get_plan_summary",
+    "update_plan_context",
+    "add_task",
+    "add_step",
+    "update_task_status",
+    "record_action_result",
+    "add_knowledge_entry",
+    "register_artifact",
+    "finalize_plan",
+    "get_sales_strategy",
+    "get_sales_strategy_bundle",
+    "sales_manager",
+}
+
+
+def wrap_tool_for_planner(tool_item: BaseTool) -> BaseTool:
+    """Wraps an execution tool to block invocation when called by the Planner agent."""
+    tool_name = getattr(tool_item, "name", str(tool_item))
+
+    if tool_name in ALLOWED_PLANNER_TOOLS:
+        return tool_item
+
+    def _denied_run(*args: Any, **kwargs: Any) -> str:
+        return (
+            f"Permission Denied: Tool '{tool_name}' is an execution tool and cannot be "
+            f"called by the Planner Agent. You must only use planner tools (e.g., add_task, add_step) "
+            f"to schedule this work for an execution agent."
+        )
+
+    async def _denied_arun(*args: Any, **kwargs: Any) -> str:
+        return (
+            f"Permission Denied: Tool '{tool_name}' is an execution tool and cannot be "
+            f"called by the Planner Agent. You must only use planner tools (e.g., add_task, add_step) "
+            f"to schedule this work for an execution agent."
+        )
+
+    return StructuredTool.from_function(
+        name=tool_name,
+        description=f"[EXECUTION ONLY] {getattr(tool_item, 'description', '')}",
+        func=_denied_run,
+        coroutine=_denied_arun,
+        args_schema=getattr(tool_item, "args_schema", None),
+    )
+
 
 
 def company_finder_tools(

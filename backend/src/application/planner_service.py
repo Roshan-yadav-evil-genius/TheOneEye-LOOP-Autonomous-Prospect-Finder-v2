@@ -72,8 +72,8 @@ class PlannerService:
     async def get_or_create_plan(
         self,
         effort_prefix: str,
-        goal: str = "Autonomous Prospecting & Research Effort",
-        objective: str = "Execute strategic client discovery and outreach pipeline",
+        goal: str = "",
+        objective: str = "",
         strategy_id: Optional[str] = None,
     ) -> Planner:
         """Get existing plan or instantiate a default plan structure."""
@@ -85,14 +85,6 @@ class PlannerService:
             planner_id=f"planner-{effort_prefix}",
             goal=goal,
             objective=objective,
-            phases=[
-                Phase(
-                    id="phase-1",
-                    title="Initial Discovery & Planning",
-                    objective="Formulate research approach and target search space",
-                    status=TaskStatus.RUNNING,
-                    tasks=[],
-                )
-            ],
+            phases=[],
         )
         return await self.save_plan(effort_prefix, initial_plan, strategy_id=strategy_id)

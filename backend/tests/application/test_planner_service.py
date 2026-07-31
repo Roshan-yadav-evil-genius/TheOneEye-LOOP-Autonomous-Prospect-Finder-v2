@@ -20,7 +20,18 @@ async def test_get_or_create_and_save_plan(session):
     )
     assert plan is not None
     assert plan.goal == "Test Goal"
-    assert len(plan.phases) == 1
+    assert len(plan.phases) == 0
+
+    # Add phase and tasks
+    plan.phases.append(
+        Phase(
+            id="phase-1",
+            title="Initial Discovery & Planning",
+            objective="Formulate research approach",
+            status=TaskStatus.RUNNING,
+            tasks=[],
+        )
+    )
 
     # Add task to phase 1
     task1 = Task(

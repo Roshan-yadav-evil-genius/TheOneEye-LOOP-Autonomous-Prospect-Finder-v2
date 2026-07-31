@@ -29,8 +29,8 @@ async def test_planner_tool_suite_execution(session):
     # 1. Tool 1: get_plan_summary
     summary = await tool_map["get_plan_summary"].ainvoke({})
     assert summary["planner_id"] == f"planner-{effort_prefix}"
-    assert len(summary["phases"]) == 1
-    phase_id = summary["phases"][0]["id"]
+    assert len(summary["phases"]) == 0
+    phase_id = "phase-1"
 
     # 1b. Tool: update_plan_context
     context_res = await tool_map["update_plan_context"].ainvoke({
@@ -117,3 +117,34 @@ async def test_planner_tool_suite_execution(session):
     assert len(final_plan.artifacts) == 1
     assert final_plan.artifacts[0].name == "ICP Market Report.pdf"
     assert final_plan.final_report == "Planning phase complete. All targets verified."
+
+
+@pytest.mark.asyncio
+async def test_wrap_tool_for_planner_permission_denied():
+    from langchain_core.tools import tool
+    from agents.tools import wrap_tool_for_planner
+
+    @tool
+    def allowed_tool() -> str:
+        """Allowed planner tool."""
+        return "ok"
+    allowed_tool.name = "add_task"
+
+    @tool
+    def execution_tool(name: str) -> str:
+        """Execution tool forbidden for planner."""
+        return f"registered {name}"
+    execution_tool.name = "register_company"
+
+    # Test allowed tool returns unmodified
+    wrapped_allowed = wrap_tool_for_planner(allowed_tool)
+    assert wrapped_allowed is allowed_tool
+    assert wrapped_allowed.invoke({}) == "ok"
+
+    # Test execution tool returns Permission Denied error message
+    wrapped_exec = wrap_tool_for_planner(execution_tool)
+    assert wrapped_exec is not execution_tool
+    res = await wrapped_exec.ainvoke({"name": "Acme Corp"})
+    assert "Permission Denied: Tool 'register_company' is an execution tool" in res
+    assert "cannot be called by the Planner Agent" in res
+
