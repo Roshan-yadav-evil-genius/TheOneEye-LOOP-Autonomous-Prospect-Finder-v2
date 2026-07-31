@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     browser_action_interval_seconds: float = Field(default=2, ge=0)
     agent_pacing_seconds: float = Field(default=300, ge=0)
     agent_consecutive_failure_limit: int = Field(default=5, ge=1, le=50)
+    agent_recursion_limit: int = Field(default=500, ge=10, le=5000)
     max_job_attempts: int = Field(default=5, ge=1, le=50)
     job_retry_base_seconds: float = Field(default=2, gt=0)
     dependency_timeout_seconds: float = Field(default=0.25, gt=0, le=5)

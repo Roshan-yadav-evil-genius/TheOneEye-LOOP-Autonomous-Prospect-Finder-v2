@@ -40,8 +40,11 @@ from observability.logging import get_logger
 log = get_logger("loop.factory")
 
 
-def _config(thread_id: str) -> dict[str, dict[str, str]]:
-    return {"configurable": {"thread_id": thread_id}}
+def _config(thread_id: str) -> dict[str, Any]:
+    return {
+        "configurable": {"thread_id": thread_id},
+        "recursion_limit": get_settings().agent_recursion_limit,
+    }
 
 
 def _browser_client() -> MultiServerMCPClient:

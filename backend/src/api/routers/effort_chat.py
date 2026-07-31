@@ -15,6 +15,7 @@ from agents.runtime import allocate_next_setup_thread_id
 from application.chat_history_service import ThreadChatHistoryService
 from application.planner_service import PlannerService
 from contracts.domain import ChatHistoryRead, ChatStreamRequest, NewThreadResponse
+from core.config import get_settings
 from persistence import models
 from persistence.database import SessionFactory, get_session
 
@@ -102,7 +103,7 @@ async def stream_chat(
 
             async with scope_cm as (graph, scope_config, parent_store):
                 config = {
-                    "recursion_limit": 100,
+                    "recursion_limit": get_settings().agent_recursion_limit,
                     "configurable": {
                         "thread_id": thread_id,
                     },

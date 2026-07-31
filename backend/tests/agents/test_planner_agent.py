@@ -37,9 +37,7 @@ async def test_planner_tool_suite_execution(session):
         "success_criteria": ["Find at least 10 qualified companies", "Verify contact email"],
         "constraints": ["EU GDPR compliance required", "Exclude agency model companies"],
     })
-    assert context_res["status"] == "success"
-    assert len(context_res["success_criteria"]) == 2
-    assert len(context_res["constraints"]) == 2
+    assert context_res == "Updated"
 
     # 2. Tool 2: add_task
     task_res = await tool_map["add_task"].ainvoke({
@@ -47,8 +45,8 @@ async def test_planner_tool_suite_execution(session):
         "title": "Analyze Target Market",
         "description": "Identify top 10 ICP tech companies",
     })
-    assert task_res["status"] == "success"
-    task_id = task_res["task_id"]
+    assert task_res == "Task added: phase-1-task-1"
+    task_id = "phase-1-task-1"
 
     # 3. Tool 3: add_step
     step_res = await tool_map["add_step"].ainvoke({
@@ -56,16 +54,15 @@ async def test_planner_tool_suite_execution(session):
         "title": "Query Brain Memory",
         "description": "Recall past strategies",
     })
-    assert step_res["status"] == "success"
-    step_id = step_res["step_id"]
+    assert step_res == "Step added: phase-1-task-1-step-1"
+    step_id = "phase-1-task-1-step-1"
 
     # 4. Tool 4: update_task_status (RUNNING)
     status_res1 = await tool_map["update_task_status"].ainvoke({
         "task_id": task_id,
         "status": "running",
     })
-    assert status_res1["status"] == "success"
-    assert status_res1["task_status"] == "running"
+    assert status_res1 == "Updated"
 
     # 5. Tool 5: record_action_result
     act_res = await tool_map["record_action_result"].ainvoke({
@@ -75,22 +72,21 @@ async def test_planner_tool_suite_execution(session):
         "tool": "recall_memory",
         "result": "Found 3 relevant strategies",
     })
-    assert act_res["status"] == "success"
+    assert act_res == "Saved: phase-1-task-1-step-1-act-1"
 
     # 6. Tool 6: add_knowledge_entry
     know_res = await tool_map["add_knowledge_entry"].ainvoke({
         "category": "findings",
         "detail": "Target market is shifting toward AI-native SaaS companies.",
     })
-    assert know_res["status"] == "success"
-    assert know_res["count"] == 1
+    assert know_res == "Saved"
 
     # 7. Tool 7: register_artifact
     art_res = await tool_map["register_artifact"].ainvoke({
         "name": "ICP Market Report.pdf",
         "content_summary": "Comprehensive analysis of top targets",
     })
-    assert art_res["status"] == "success"
+    assert art_res == "Registered: artifact-1"
 
     # 8. Tool 4: update_task_status (COMPLETED)
     status_res2 = await tool_map["update_task_status"].ainvoke({
@@ -98,14 +94,13 @@ async def test_planner_tool_suite_execution(session):
         "status": "completed",
         "result": "Found 10 qualified targets",
     })
-    assert status_res2["status"] == "success"
+    assert status_res2 == "Updated"
 
     # 9. Tool 8: finalize_plan
     final_res = await tool_map["finalize_plan"].ainvoke({
         "final_report": "Planning phase complete. All targets verified.",
     })
-    assert final_res["status"] == "success"
-    assert final_res["runtime_status"] == PlannerStatus.COMPLETED.value
+    assert final_res == "Finalized"
 
     # Verify directly via PlannerService
     service = PlannerService(session)
@@ -199,9 +194,8 @@ async def test_auto_cascade_and_dependency_enforcement(session):
         "description": "Attempting Phase 2 execution early",
         "result": "Phase 2 output",
     })
-    assert res_phase2_blocked["status"] == "error"
-    assert "Dependency Error" in res_phase2_blocked["message"]
-    assert "Preceding Phase 'Phase phase-1' (phase-1) is currently pending" in res_phase2_blocked["message"]
+    assert "Dependency Error" in res_phase2_blocked
+    assert "Preceding Phase 'Phase phase-1' (phase-1) is currently pending" in res_phase2_blocked
 
     # 2. Record action result for Step 1 in Phase 1 -> Should succeed & auto-cascade Phase 1 to RUNNING (since Step 2 is still pending)
     res_phase1_step1 = await tool_map["record_action_result"].ainvoke({
@@ -210,7 +204,7 @@ async def test_auto_cascade_and_dependency_enforcement(session):
         "description": "Executed Step 1 Phase 1",
         "result": "Found initial candidate list",
     })
-    assert res_phase1_step1["status"] == "success"
+    assert res_phase1_step1 == "Saved: phase-1-task-1-step-1-act-1"
 
     summary = await tool_map["get_plan_summary"].ainvoke({})
     phase1 = next(p for p in summary["phases"] if p["id"] == "phase-1")
@@ -223,7 +217,7 @@ async def test_auto_cascade_and_dependency_enforcement(session):
         "description": "Executed Step 2 Phase 1",
         "result": "Finalized candidate list",
     })
-    assert res_phase1_step2["status"] == "success"
+    assert res_phase1_step2 == "Saved: phase-1-task-1-step-2-act-1"
 
     summary_after_step2 = await tool_map["get_plan_summary"].ainvoke({})
     phase1_completed = next(p for p in summary_after_step2["phases"] if p["id"] == "phase-1")
@@ -236,7 +230,7 @@ async def test_auto_cascade_and_dependency_enforcement(session):
         "description": "Now Phase 2 execution is allowed",
         "result": "Qualified candidate",
     })
-    assert res_phase2_allowed["status"] == "success"
+    assert res_phase2_allowed == "Saved: phase-2-task-1-step-1-act-1"
 
 
 

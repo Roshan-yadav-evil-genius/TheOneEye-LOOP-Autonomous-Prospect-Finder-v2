@@ -47,7 +47,7 @@ def company_planner_tools(
         objective: Optional[str] = None,
         success_criteria: Optional[List[str]] = None,
         constraints: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+    ) -> str:
         """Update top-level strategic goal, operational objective, success criteria checklist, or operational constraints of the plan."""
         plan = await _get_plan()
         if goal is not None:
@@ -59,16 +59,10 @@ def company_planner_tools(
         if constraints is not None:
             plan.constraints = constraints
 
-        updated_plan = await planner_service.save_plan(
+        await planner_service.save_plan(
             effort_prefix, plan, strategy_id=strategy_id
         )
-        return {
-            "status": "success",
-            "goal": updated_plan.goal,
-            "objective": updated_plan.objective,
-            "success_criteria": updated_plan.success_criteria,
-            "constraints": updated_plan.constraints,
-        }
+        return "Updated"
 
     @tool
     async def add_task(
@@ -79,7 +73,7 @@ def company_planner_tools(
         tools: Optional[List[str]] = None,
         completion_criteria: Optional[List[str]] = None,
         expected_output: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> str:
         """Add a new task to an existing phase in the planner roadmap."""
         plan = await _get_plan()
         phase = next((p for p in plan.phases if p.id == phase_id), None)
@@ -104,20 +98,17 @@ def company_planner_tools(
             status=TaskStatus.PENDING,
         )
         phase.tasks.append(new_task)
-        updated_plan = await planner_service.save_plan(
+        await planner_service.save_plan(
             effort_prefix, plan, strategy_id=strategy_id
         )
-        return {
-            "status": "success",
-            "task_id": new_task.id,
-        }
+        return f"Task added: {new_task.id}"
 
     @tool
     async def add_step(
         task_id: str,
         title: str,
         description: str = "",
-    ) -> Dict[str, Any]:
+    ) -> str:
         """Add a granular operational step to a task."""
         plan = await _get_plan()
         target_task = None
@@ -128,7 +119,7 @@ def company_planner_tools(
                     break
 
         if not target_task:
-            return {"status": "error", "message": f"Task '{task_id}' not found."}
+            return f"Error: Task '{task_id}' not found."
 
         step_num = len(target_task.steps) + 1
         new_step = Step(
@@ -141,14 +132,14 @@ def company_planner_tools(
         await planner_service.save_plan(
             effort_prefix, plan, strategy_id=strategy_id
         )
-        return {"status": "success", "step_id": new_step.id}
+        return f"Step added: {new_step.id}"
 
     @tool
     async def update_task_status(
         task_id: str,
         status: str,
         result: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> str:
         """Update the status (e.g. 'running', 'completed', 'failed', 'blocked') and output result of a task."""
         plan = await _get_plan()
         target_phase = None
@@ -161,7 +152,7 @@ def company_planner_tools(
                     break
 
         if not target_task or not target_phase:
-            return {"status": "error", "message": f"Task '{task_id}' not found."}
+            return f"Error: Task '{task_id}' not found."
 
         try:
             enum_status = TaskStatus(status.lower())
@@ -175,7 +166,7 @@ def company_planner_tools(
                 target_task_id=target_task.id,
             )
             if dep_error:
-                return {"status": "error", "message": dep_error}
+                return dep_error
 
         target_task.status = enum_status
         if result is not None:
@@ -184,14 +175,10 @@ def company_planner_tools(
         if enum_status == TaskStatus.RUNNING:
             plan.runtime.status = PlannerStatus.RUNNING
 
-        updated_plan = await planner_service.save_plan(
+        await planner_service.save_plan(
             effort_prefix, plan, strategy_id=strategy_id
         )
-        return {
-            "status": "success",
-            "task_id": task_id,
-            "task_status": enum_status.value,
-        }
+        return "Updated"
 
     @tool
     async def record_action_result(
@@ -202,7 +189,7 @@ def company_planner_tools(
         inputs: Optional[Dict[str, Any]] = None,
         result: Optional[str] = None,
         error: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> str:
         """Record the outcome of a tool execution, reasoning step, or subagent action within a task step."""
         plan = await _get_plan()
         target_phase = None
@@ -219,10 +206,7 @@ def company_planner_tools(
                             break
 
         if not target_step or not target_task or not target_phase:
-            return {
-                "status": "error",
-                "message": f"Step '{step_id}' in Task '{task_id}' not found.",
-            }
+            return f"Error: Step '{step_id}' in Task '{task_id}' not found."
 
         dep_error = validate_dependencies(
             plan=plan,
@@ -231,7 +215,7 @@ def company_planner_tools(
             target_step_id=target_step.id,
         )
         if dep_error:
-            return {"status": "error", "message": dep_error}
+            return dep_error
 
         action_id = f"{step_id}-act-{len(target_step.actions) + 1}"
         action_status = TaskStatus.FAILED if error else TaskStatus.COMPLETED
@@ -252,13 +236,13 @@ def company_planner_tools(
         await planner_service.save_plan(
             effort_prefix, plan, strategy_id=strategy_id
         )
-        return {"status": "success", "action_id": action_id}
+        return f"Saved: {action_id}"
 
     @tool
     async def add_knowledge_entry(
         category: Literal["findings", "decisions", "discovered_entities"],
         detail: str,
-    ) -> Dict[str, Any]:
+    ) -> str:
         """Record strategic observations, architectural decisions, or discovered entities into the plan knowledge base."""
         plan = await _get_plan()
         if category == "findings":
@@ -268,23 +252,19 @@ def company_planner_tools(
         elif category == "discovered_entities":
             plan.knowledge.discovered_entities.append(detail)
         else:
-            return {"status": "error", "message": f"Invalid category '{category}'."}
+            return f"Error: Invalid category '{category}'."
 
         await planner_service.save_plan(
             effort_prefix, plan, strategy_id=strategy_id
         )
-        return {
-            "status": "success",
-            "category": category,
-            "count": len(getattr(plan.knowledge, category)),
-        }
+        return "Saved"
 
     @tool
     async def register_artifact(
         name: str,
         path_or_uri: Optional[str] = None,
         content_summary: str = "",
-    ) -> Dict[str, Any]:
+    ) -> str:
         """Register a report, source file, JSON data dump, or output document produced during effort execution."""
         plan = await _get_plan()
         artifact_id = f"artifact-{len(plan.artifacts) + 1}"
@@ -298,12 +278,12 @@ def company_planner_tools(
         await planner_service.save_plan(
             effort_prefix, plan, strategy_id=strategy_id
         )
-        return {"status": "success", "artifact_id": artifact_id, "name": name}
+        return f"Registered: {artifact_id}"
 
     @tool
     async def finalize_plan(
         final_report: str,
-    ) -> Dict[str, Any]:
+    ) -> str:
         """Finalize the plan, set runtime status to COMPLETED, and record the final summary report."""
         plan = await _get_plan()
         plan.runtime.status = PlannerStatus.COMPLETED
@@ -315,13 +295,10 @@ def company_planner_tools(
                 if task.status != TaskStatus.FAILED:
                     task.status = TaskStatus.COMPLETED
 
-        updated_plan = await planner_service.save_plan(
+        await planner_service.save_plan(
             effort_prefix, plan, strategy_id=strategy_id
         )
-        return {
-            "status": "success",
-            "runtime_status": updated_plan.runtime.status.value,
-        }
+        return "Finalized"
 
     return [
         get_plan_summary,
