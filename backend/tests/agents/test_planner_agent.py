@@ -176,4 +176,68 @@ async def test_wrap_tool_for_planner_permission_denied():
     assert "[ANALYZING MODE - FORBIDDEN TOOL]" in wrapped_analyzing.description
 
 
+@pytest.mark.asyncio
+async def test_auto_cascade_and_dependency_enforcement(session):
+    strategy_id = "strat-dep-test"
+    effort_prefix = "LOOP_dep_test_1"
+
+    tools_list = company_planner_tools(session, strategy_id, effort_prefix)
+    tool_map = {t.name: t for t in tools_list}
+
+    # Setup Phase 1 (with 2 steps) and Phase 2 tasks & steps
+    await tool_map["add_task"].ainvoke({"phase_id": "phase-1", "title": "Discovery Task"})
+    await tool_map["add_step"].ainvoke({"task_id": "phase-1-task-1", "title": "Step 1 in Phase 1"})
+    await tool_map["add_step"].ainvoke({"task_id": "phase-1-task-1", "title": "Step 2 in Phase 1"})
+
+    await tool_map["add_task"].ainvoke({"phase_id": "phase-2", "title": "Qualification Task"})
+    await tool_map["add_step"].ainvoke({"task_id": "phase-2-task-1", "title": "Step 1 in Phase 2"})
+
+    # 1. Verify executing Phase 2 while Phase 1 is pending returns Dependency Error
+    res_phase2_blocked = await tool_map["record_action_result"].ainvoke({
+        "task_id": "phase-2-task-1",
+        "step_id": "phase-2-task-1-step-1",
+        "description": "Attempting Phase 2 execution early",
+        "result": "Phase 2 output",
+    })
+    assert res_phase2_blocked["status"] == "error"
+    assert "Dependency Error" in res_phase2_blocked["message"]
+    assert "Preceding Phase 'Phase phase-1' (phase-1) is currently pending" in res_phase2_blocked["message"]
+
+    # 2. Record action result for Step 1 in Phase 1 -> Should succeed & auto-cascade Phase 1 to RUNNING (since Step 2 is still pending)
+    res_phase1_step1 = await tool_map["record_action_result"].ainvoke({
+        "task_id": "phase-1-task-1",
+        "step_id": "phase-1-task-1-step-1",
+        "description": "Executed Step 1 Phase 1",
+        "result": "Found initial candidate list",
+    })
+    assert res_phase1_step1["status"] == "success"
+
+    summary = await tool_map["get_plan_summary"].ainvoke({})
+    phase1 = next(p for p in summary["phases"] if p["id"] == "phase-1")
+    assert phase1["status"] == TaskStatus.RUNNING.value
+
+    # 3. Record action result for Step 2 in Phase 1 -> Now all steps in Phase 1 are done -> Phase 1 becomes COMPLETED
+    res_phase1_step2 = await tool_map["record_action_result"].ainvoke({
+        "task_id": "phase-1-task-1",
+        "step_id": "phase-1-task-1-step-2",
+        "description": "Executed Step 2 Phase 1",
+        "result": "Finalized candidate list",
+    })
+    assert res_phase1_step2["status"] == "success"
+
+    summary_after_step2 = await tool_map["get_plan_summary"].ainvoke({})
+    phase1_completed = next(p for p in summary_after_step2["phases"] if p["id"] == "phase-1")
+    assert phase1_completed["status"] == TaskStatus.COMPLETED.value
+
+    # 4. Now executing Phase 2 should succeed
+    res_phase2_allowed = await tool_map["record_action_result"].ainvoke({
+        "task_id": "phase-2-task-1",
+        "step_id": "phase-2-task-1-step-1",
+        "description": "Now Phase 2 execution is allowed",
+        "result": "Qualified candidate",
+    })
+    assert res_phase2_allowed["status"] == "success"
+
+
+
 

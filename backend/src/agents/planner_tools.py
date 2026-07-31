@@ -16,6 +16,8 @@ from domain.planner_models import (
     Step,
     Task,
     TaskStatus,
+    auto_cascade_statuses,
+    validate_dependencies,
 )
 
 
@@ -149,20 +151,31 @@ def company_planner_tools(
     ) -> Dict[str, Any]:
         """Update the status (e.g. 'running', 'completed', 'failed', 'blocked') and output result of a task."""
         plan = await _get_plan()
+        target_phase = None
         target_task = None
         for phase in plan.phases:
             for task in phase.tasks:
                 if task.id == task_id:
+                    target_phase = phase
                     target_task = task
                     break
 
-        if not target_task:
+        if not target_task or not target_phase:
             return {"status": "error", "message": f"Task '{task_id}' not found."}
 
         try:
             enum_status = TaskStatus(status.lower())
         except ValueError:
             enum_status = TaskStatus.RUNNING
+
+        if enum_status in (TaskStatus.RUNNING, TaskStatus.COMPLETED):
+            dep_error = validate_dependencies(
+                plan=plan,
+                target_phase_id=target_phase.id,
+                target_task_id=target_task.id,
+            )
+            if dep_error:
+                return {"status": "error", "message": dep_error}
 
         target_task.status = enum_status
         if result is not None:
@@ -192,20 +205,33 @@ def company_planner_tools(
     ) -> Dict[str, Any]:
         """Record the outcome of a tool execution, reasoning step, or subagent action within a task step."""
         plan = await _get_plan()
+        target_phase = None
+        target_task = None
         target_step = None
         for phase in plan.phases:
             for task in phase.tasks:
                 if task.id == task_id:
                     for step in task.steps:
                         if step.id == step_id:
+                            target_phase = phase
+                            target_task = task
                             target_step = step
                             break
 
-        if not target_step:
+        if not target_step or not target_task or not target_phase:
             return {
                 "status": "error",
                 "message": f"Step '{step_id}' in Task '{task_id}' not found.",
             }
+
+        dep_error = validate_dependencies(
+            plan=plan,
+            target_phase_id=target_phase.id,
+            target_task_id=target_task.id,
+            target_step_id=target_step.id,
+        )
+        if dep_error:
+            return {"status": "error", "message": dep_error}
 
         action_id = f"{step_id}-act-{len(target_step.actions) + 1}"
         action_status = TaskStatus.FAILED if error else TaskStatus.COMPLETED

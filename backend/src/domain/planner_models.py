@@ -277,3 +277,133 @@ class Planner(BaseModel):
         default=None,
         description="Comprehensive final report generated upon workflow completion"
     )
+
+
+def auto_cascade_statuses(plan: Planner) -> None:
+    """
+    Cascades execution statuses bottom-up from Actions -> Steps -> Tasks -> Phases -> Runtime.
+    Ensures parent phases and tasks automatically reflect live progress of their child elements.
+    """
+    has_any_running = False
+
+    for phase in plan.phases:
+        for task in phase.tasks:
+            # 1. Actions -> Step status
+            for step in task.steps:
+                if step.actions:
+                    if all(a.status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED) for a in step.actions):
+                        step.status = TaskStatus.COMPLETED
+                    elif any(a.status in (TaskStatus.RUNNING, TaskStatus.COMPLETED) for a in step.actions):
+                        if step.status == TaskStatus.PENDING:
+                            step.status = TaskStatus.RUNNING
+                    elif any(a.status == TaskStatus.FAILED for a in step.actions):
+                        step.status = TaskStatus.FAILED
+
+            # 2. Steps -> Task status
+            if task.steps:
+                if all(s.status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED) for s in task.steps):
+                    task.status = TaskStatus.COMPLETED
+                elif any(s.status in (TaskStatus.RUNNING, TaskStatus.COMPLETED) for s in task.steps):
+                    if task.status == TaskStatus.PENDING:
+                        task.status = TaskStatus.RUNNING
+                elif any(s.status == TaskStatus.FAILED for s in task.steps):
+                    task.status = TaskStatus.FAILED
+
+            if task.status == TaskStatus.RUNNING:
+                has_any_running = True
+
+        # 3. Tasks -> Phase status
+        if phase.tasks:
+            if all(t.status in (TaskStatus.COMPLETED, TaskStatus.SKIPPED) for t in phase.tasks):
+                phase.status = TaskStatus.COMPLETED
+            elif any(t.status in (TaskStatus.RUNNING, TaskStatus.COMPLETED) for t in phase.tasks):
+                if phase.status == TaskStatus.PENDING:
+                    phase.status = TaskStatus.RUNNING
+            elif any(t.status == TaskStatus.FAILED for t in phase.tasks):
+                phase.status = TaskStatus.FAILED
+
+        if phase.status == TaskStatus.RUNNING:
+            has_any_running = True
+
+    if has_any_running and plan.runtime.status == PlannerStatus.PLANNING:
+        plan.runtime.status = PlannerStatus.RUNNING
+
+
+def validate_dependencies(
+    plan: Planner,
+    target_phase_id: str,
+    target_task_id: str,
+    target_step_id: Optional[str] = None,
+) -> Optional[str]:
+    """
+    Validates sequential phase, task, and step execution order.
+    Returns an error message string if dependencies are unsatisfied, or None if execution order is valid.
+    """
+    # 1. Phase Sequence Check
+    target_phase_idx = -1
+    for idx, phase in enumerate(plan.phases):
+        if phase.id == target_phase_id:
+            target_phase_idx = idx
+            break
+
+    if target_phase_idx > 0:
+        for prev_phase in plan.phases[:target_phase_idx]:
+            if prev_phase.status not in (TaskStatus.COMPLETED, TaskStatus.SKIPPED):
+                return (
+                    f"Dependency Error: Cannot execute Phase '{plan.phases[target_phase_idx].title}' ({target_phase_id}). "
+                    f"Preceding Phase '{prev_phase.title}' ({prev_phase.id}) is currently {prev_phase.status.value}. "
+                    f"Please complete Phase '{prev_phase.title}' before starting Phase '{target_phase_id}'."
+                )
+
+    # 2. Task Sequence & Declared Dependency Check
+    target_phase = plan.phases[target_phase_idx] if target_phase_idx >= 0 else None
+    if target_phase:
+        target_task_idx = -1
+        for idx, task in enumerate(target_phase.tasks):
+            if task.id == target_task_id:
+                target_task_idx = idx
+                break
+
+        if target_task_idx >= 0:
+            target_task = target_phase.tasks[target_task_idx]
+
+            # Check declared task dependencies first
+            if target_task.dependencies:
+                all_tasks = {t.id: t for p in plan.phases for t in p.tasks}
+                for dep_id in target_task.dependencies:
+                    dep_task = all_tasks.get(dep_id)
+                    if not dep_task or dep_task.status not in (TaskStatus.COMPLETED, TaskStatus.SKIPPED):
+                        dep_status = dep_task.status.value if dep_task else "not found"
+                        return (
+                            f"Dependency Error: Cannot execute Task '{target_task.title}' ({target_task.id}). "
+                            f"Prerequisite Task '{dep_id}' is not completed (current status: {dep_status})."
+                        )
+            # Default sequential task ordering within phase if no dependencies declared
+            elif target_task_idx > 0:
+                for prev_task in target_phase.tasks[:target_task_idx]:
+                    if prev_task.status not in (TaskStatus.COMPLETED, TaskStatus.SKIPPED):
+                        return (
+                            f"Dependency Error: Cannot execute Task '{target_task.title}' ({target_task.id}). "
+                            f"Preceding Task '{prev_task.title}' ({prev_task.id}) is currently {prev_task.status.value}. "
+                            f"Please complete Task '{prev_task.title}' first."
+                        )
+
+            # 3. Step Sequence Check within task
+            if target_step_id and target_task.steps:
+                target_step_idx = -1
+                for idx, step in enumerate(target_task.steps):
+                    if step.id == target_step_id:
+                        target_step_idx = idx
+                        break
+
+                if target_step_idx > 0:
+                    for prev_step in target_task.steps[:target_step_idx]:
+                        if prev_step.status not in (TaskStatus.COMPLETED, TaskStatus.SKIPPED):
+                            return (
+                                f"Dependency Error: Cannot execute Step '{target_task.steps[target_step_idx].title}' ({target_step_id}). "
+                                f"Preceding Step '{prev_step.title}' ({prev_step.id}) is currently {prev_step.status.value}. "
+                                f"Please complete Step '{prev_step.title}' first."
+                            )
+
+    return None
+

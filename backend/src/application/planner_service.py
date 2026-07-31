@@ -13,6 +13,7 @@ from domain.planner_models import (
     Step,
     TaskStatus,
     PlannerStatus,
+    auto_cascade_statuses,
     utc_now,
 )
 from persistence import models
@@ -39,6 +40,7 @@ class PlannerService:
         strategy_id: Optional[str] = None,
     ) -> Planner:
         """Persist or update Planner state in the database."""
+        auto_cascade_statuses(plan)
         plan.updated_at = utc_now()
 
         stmt = select(models.PlannerState).where(
