@@ -169,7 +169,7 @@ async def company_finder_agent_scope(
                 t for t in all_finder_tools if getattr(t, "name", "") != "get_sales_strategy_bundle"
             ]
             raw_tools = company_planner_tools(session, strategy_id, effort_prefix) + planner_finder_tools
-            company_tools_list = [wrap_tool_for_planner(t) for t in raw_tools]
+            company_tools_list = [wrap_tool_for_planner(t, mode="planning") for t in raw_tools]
             sm_tools = sales_manager_tools(session, strategy_id)
         else:
             company_tools_list = company_finder_tools(session, strategy_id, parent_thread)

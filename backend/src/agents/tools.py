@@ -29,34 +29,43 @@ ALLOWED_PLANNER_TOOLS = {
 }
 
 
-def wrap_tool_for_planner(tool_item: BaseTool) -> BaseTool:
-    """Wraps an execution tool to block invocation when called by the Planner agent."""
+def wrap_tool_for_planner(
+    tool_item: BaseTool,
+    mode: Literal["planning", "analyzing"] = "planning",
+) -> BaseTool:
+    """Wraps an execution tool to block invocation when called by the Planner agent in planning or analyzing mode."""
     tool_name = getattr(tool_item, "name", str(tool_item))
 
     if tool_name in ALLOWED_PLANNER_TOOLS:
         return tool_item
 
-    def _denied_run(*args: Any, **kwargs: Any) -> str:
-        return (
+    if mode == "analyzing":
+        denied_msg = (
             f"Permission Denied: Tool '{tool_name}' is an execution tool and cannot be "
-            f"called by the Planner Agent. You must only use planner tools (e.g., add_task, add_step) "
+            f"called during Analyzing mode. You are only allowed to inspect results, record insights, "
+            f"and evaluate execution performance."
+        )
+    else:
+        denied_msg = (
+            f"Permission Denied: Tool '{tool_name}' is an execution tool and cannot be "
+            f"called during Planning mode. You must only use planner tools (e.g., add_task, add_step) "
             f"to schedule this work for an execution agent."
         )
 
+    def _denied_run(*args: Any, **kwargs: Any) -> str:
+        return denied_msg
+
     async def _denied_arun(*args: Any, **kwargs: Any) -> str:
-        return (
-            f"Permission Denied: Tool '{tool_name}' is an execution tool and cannot be "
-            f"called by the Planner Agent. You must only use planner tools (e.g., add_task, add_step) "
-            f"to schedule this work for an execution agent."
-        )
+        return denied_msg
 
     return StructuredTool.from_function(
         name=tool_name,
-        description=f"[EXECUTION ONLY] {getattr(tool_item, 'description', '')}",
+        description=f"[{mode.upper()} MODE - EXECUTION FORBIDDEN] {getattr(tool_item, 'description', '')}",
         func=_denied_run,
         coroutine=_denied_arun,
         args_schema=getattr(tool_item, "args_schema", None),
     )
+
 
 
 

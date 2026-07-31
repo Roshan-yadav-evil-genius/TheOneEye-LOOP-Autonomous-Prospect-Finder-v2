@@ -141,10 +141,21 @@ async def test_wrap_tool_for_planner_permission_denied():
     assert wrapped_allowed is allowed_tool
     assert wrapped_allowed.invoke({}) == "ok"
 
-    # Test execution tool returns Permission Denied error message
-    wrapped_exec = wrap_tool_for_planner(execution_tool)
-    assert wrapped_exec is not execution_tool
-    res = await wrapped_exec.ainvoke({"name": "Acme Corp"})
-    assert "Permission Denied: Tool 'register_company' is an execution tool" in res
-    assert "cannot be called by the Planner Agent" in res
+    # Test planning mode execution tool returns Planning mode error message
+    wrapped_planning = wrap_tool_for_planner(execution_tool, mode="planning")
+    assert wrapped_planning is not execution_tool
+    res_planning = await wrapped_planning.ainvoke({"name": "Acme Corp"})
+    assert "Permission Denied: Tool 'register_company' is an execution tool" in res_planning
+    assert "cannot be called during Planning mode" in res_planning
+    assert "[PLANNING MODE - EXECUTION FORBIDDEN]" in wrapped_planning.description
+
+    # Test analyzing mode execution tool returns Analyzing mode error message
+    wrapped_analyzing = wrap_tool_for_planner(execution_tool, mode="analyzing")
+    assert wrapped_analyzing is not execution_tool
+    res_analyzing = await wrapped_analyzing.ainvoke({"name": "Acme Corp"})
+    assert "Permission Denied: Tool 'register_company' is an execution tool" in res_analyzing
+    assert "cannot be called during Analyzing mode" in res_analyzing
+    assert "You are only allowed to inspect results, record insights" in res_analyzing
+    assert "[ANALYZING MODE - EXECUTION FORBIDDEN]" in wrapped_analyzing.description
+
 
