@@ -1,9 +1,11 @@
 """
 Planner Agent 8-Tool Suite implementation for autonomous research & orchestration.
+Standardized with explicit LangChain args_schema Pydantic validation models.
 """
 
 from typing import Any, Dict, List, Literal, Optional
 from langchain_core.tools import BaseTool, tool
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.planner_service import PlannerService
@@ -19,6 +21,188 @@ from domain.planner_models import (
     auto_cascade_statuses,
     validate_dependencies,
 )
+
+
+def _coerce_to_list(v: Any) -> List[str]:
+    """Pre-validation helper to coerce None, single strings, or iterables into List[str]."""
+    if v is None:
+        return []
+    if isinstance(v, str):
+        v_str = v.strip()
+        return [v_str] if v_str else []
+    if isinstance(v, (list, tuple, set)):
+        res = []
+        for item in v:
+            if item is not None:
+                item_str = str(item).strip()
+                if item_str:
+                    res.append(item_str)
+        return res
+    return [str(v)]
+
+
+# ============================================================================
+# Explicit Pydantic Input Schemas for Planner Tools
+# ============================================================================
+
+
+class UpdatePlanContextInput(BaseModel):
+    goal: Optional[str] = Field(
+        default=None,
+        description="High-level strategic goal statement for the effort plan. Example: 'Identify qualified B2B prospects'",
+    )
+    objective: Optional[str] = Field(
+        default=None,
+        description="Detailed operational objective and scope of work. Example: 'Discover and verify top 50 ICP tech leads'",
+    )
+    success_criteria: List[str] = Field(
+        default_factory=list,
+        description="List of verifiable success criteria strings. Example: ['10 qualified prospects registered', 'All emails verified']",
+    )
+    constraints: List[str] = Field(
+        default_factory=list,
+        description="List of operational constraints or guardrails. Example: ['GDPR compliance required', 'Exclude agency models']",
+    )
+
+    @field_validator("success_criteria", "constraints", mode="before")
+    @classmethod
+    def coerce_list_fields(cls, v: Any) -> List[str]:
+        return _coerce_to_list(v)
+
+
+class AddTaskInput(BaseModel):
+    phase_id: str = Field(
+        ...,
+        description="Target phase ID to append this task to. Example: 'phase-1'",
+    )
+    title: str = Field(
+        ...,
+        description="Short, actionable title for the task. Example: 'Analyze Target Market'",
+    )
+    description: str = Field(
+        default="",
+        description="In-depth summary of task requirements and execution scope.",
+    )
+    dependencies: List[str] = Field(
+        default_factory=list,
+        description="List of prerequisite task IDs that must complete before this task can start. Example: ['phase-1-task-1']",
+    )
+    tools: List[str] = Field(
+        default_factory=list,
+        description="List of tool names required to execute this task. Example: ['web_search', 'register_company']",
+    )
+    completion_criteria: List[str] = Field(
+        default_factory=list,
+        description="List of verifiable completion criteria strings. Example: ['ICP matched', 'Data verified']",
+    )
+    expected_output: Optional[str] = Field(
+        default=None,
+        description="Definition of expected primary deliverable or outcome from this task.",
+    )
+
+    @field_validator("dependencies", "tools", "completion_criteria", mode="before")
+    @classmethod
+    def coerce_list_fields(cls, v: Any) -> List[str]:
+        return _coerce_to_list(v)
+
+
+class AddStepInput(BaseModel):
+    task_id: str = Field(
+        ...,
+        description="Target task ID to add this step to. Example: 'phase-1-task-1'",
+    )
+    title: str = Field(
+        ...,
+        description="Short title describing the step objective. Example: 'Query Brain Memory'",
+    )
+    description: str = Field(
+        default="",
+        description="Detailed summary of operational actions to perform in this step.",
+    )
+
+
+class UpdateTaskStatusInput(BaseModel):
+    task_id: str = Field(
+        ...,
+        description="Task ID to update status for. Example: 'phase-1-task-1'",
+    )
+    status: str = Field(
+        ...,
+        description="New execution status string. Allowed values: 'pending', 'ready', 'running', 'blocked', 'completed', 'failed', 'skipped'. Example: 'running'",
+    )
+    result: Optional[str] = Field(
+        default=None,
+        description="Captured standard output, final deliverable summary, or output result of the task.",
+    )
+
+
+class RecordActionResultInput(BaseModel):
+    task_id: str = Field(
+        ...,
+        description="Task ID containing the step. Example: 'phase-1-task-1'",
+    )
+    step_id: str = Field(
+        ...,
+        description="Step ID where action was performed. Example: 'phase-1-task-1-step-1'",
+    )
+    description: str = Field(
+        ...,
+        description="Human-readable description of the specific action taken or tool invoked.",
+    )
+    tool: Optional[str] = Field(
+        default=None,
+        description="Name of the external tool or function invoked, if applicable. Example: 'recall_memory'",
+    )
+    inputs: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Dictionary of input parameters passed to the tool or action execution.",
+    )
+    result: Optional[str] = Field(
+        default=None,
+        description="Captured output, returned data, or summary of the completed action.",
+    )
+    error: Optional[str] = Field(
+        default=None,
+        description="Error message or failure details if the action failed.",
+    )
+
+
+class AddKnowledgeEntryInput(BaseModel):
+    category: Literal["findings", "decisions", "discovered_entities"] = Field(
+        ...,
+        description="Category of knowledge base entry: 'findings' (observations), 'decisions' (choices), or 'discovered_entities' (entities found).",
+    )
+    detail: str = Field(
+        ...,
+        description="Detailed text content or summary of the strategic observation, decision, or discovered entity.",
+    )
+
+
+class RegisterArtifactInput(BaseModel):
+    name: str = Field(
+        ...,
+        description="Human-readable filename or title of the artifact. Example: 'ICP Market Report.pdf'",
+    )
+    path_or_uri: Optional[str] = Field(
+        default=None,
+        description="Absolute file path or URI pointing to the artifact storage location.",
+    )
+    content_summary: str = Field(
+        default="",
+        description="Concise summary or excerpt describing the contents of the artifact.",
+    )
+
+
+class FinalizePlanInput(BaseModel):
+    final_report: str = Field(
+        ...,
+        description="Comprehensive final summary report summarizing all findings, completed roadmap, and execution results.",
+    )
+
+
+# ============================================================================
+# Planner Tools Factory
+# ============================================================================
 
 
 def company_planner_tools(
@@ -41,7 +225,7 @@ def company_planner_tools(
         plan = await _get_plan()
         return plan.model_dump(mode="json")
 
-    @tool
+    @tool(args_schema=UpdatePlanContextInput)
     async def update_plan_context(
         goal: Optional[str] = None,
         objective: Optional[str] = None,
@@ -54,9 +238,9 @@ def company_planner_tools(
             plan.goal = goal
         if objective is not None:
             plan.objective = objective
-        if success_criteria is not None:
+        if success_criteria:
             plan.success_criteria = success_criteria
-        if constraints is not None:
+        if constraints:
             plan.constraints = constraints
 
         await planner_service.save_plan(
@@ -64,7 +248,7 @@ def company_planner_tools(
         )
         return "Updated"
 
-    @tool
+    @tool(args_schema=AddTaskInput)
     async def add_task(
         phase_id: str,
         title: str,
@@ -103,7 +287,7 @@ def company_planner_tools(
         )
         return f"Task added: {new_task.id}"
 
-    @tool
+    @tool(args_schema=AddStepInput)
     async def add_step(
         task_id: str,
         title: str,
@@ -134,7 +318,7 @@ def company_planner_tools(
         )
         return f"Step added: {new_step.id}"
 
-    @tool
+    @tool(args_schema=UpdateTaskStatusInput)
     async def update_task_status(
         task_id: str,
         status: str,
@@ -180,7 +364,7 @@ def company_planner_tools(
         )
         return "Updated"
 
-    @tool
+    @tool(args_schema=RecordActionResultInput)
     async def record_action_result(
         task_id: str,
         step_id: str,
@@ -238,7 +422,7 @@ def company_planner_tools(
         )
         return f"Saved: {action_id}"
 
-    @tool
+    @tool(args_schema=AddKnowledgeEntryInput)
     async def add_knowledge_entry(
         category: Literal["findings", "decisions", "discovered_entities"],
         detail: str,
@@ -259,7 +443,7 @@ def company_planner_tools(
         )
         return "Saved"
 
-    @tool
+    @tool(args_schema=RegisterArtifactInput)
     async def register_artifact(
         name: str,
         path_or_uri: Optional[str] = None,
@@ -280,7 +464,7 @@ def company_planner_tools(
         )
         return f"Registered: {artifact_id}"
 
-    @tool
+    @tool(args_schema=FinalizePlanInput)
     async def finalize_plan(
         final_report: str,
     ) -> str:

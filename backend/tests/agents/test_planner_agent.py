@@ -233,5 +233,62 @@ async def test_auto_cascade_and_dependency_enforcement(session):
     assert res_phase2_allowed == "Saved: phase-2-task-1-step-1-act-1"
 
 
+@pytest.mark.asyncio
+async def test_planner_tools_schema_and_list_coercion(session):
+    from agents.planner_tools import (
+        AddTaskInput,
+        UpdatePlanContextInput,
+    )
+
+    tools_list = company_planner_tools(session, "strat-schema-test", "LOOP_schema_test_1")
+    tool_map = {t.name: t for t in tools_list}
+
+    # 1. Verify args_schema is bound to tool decorators
+    tools_with_schemas = [
+        "update_plan_context",
+        "add_task",
+        "add_step",
+        "update_task_status",
+        "record_action_result",
+        "add_knowledge_entry",
+        "register_artifact",
+        "finalize_plan",
+    ]
+    for tool_name in tools_with_schemas:
+        tool_obj = tool_map[tool_name]
+        assert tool_obj.args_schema is not None, f"Tool {tool_name} missing args_schema"
+
+    # 2. Test list coercion: single string -> List[str]
+    input_single_str = AddTaskInput(
+        phase_id="phase-1",
+        title="Test Task",
+        dependencies="phase-1-task-1",
+        tools="web_search",
+        completion_criteria="single_criterion",
+    )
+    assert input_single_str.dependencies == ["phase-1-task-1"]
+    assert input_single_str.tools == ["web_search"]
+    assert input_single_str.completion_criteria == ["single_criterion"]
+
+    # 3. Test list coercion: None -> List[str] ([])
+    input_none = UpdatePlanContextInput(
+        success_criteria=None,
+        constraints=None,
+    )
+    assert input_none.success_criteria == []
+    assert input_none.constraints == []
+
+    # 4. Test tool execution with coerced single string parameter via ainvoke
+    res_task = await tool_map["add_task"].ainvoke({
+        "phase_id": "phase-1",
+        "title": "Single String Coercion Task",
+        "dependencies": "prereq-task-1",
+        "tools": "brain_recall",
+        "completion_criteria": "done_check",
+    })
+    assert res_task == "Task added: phase-1-task-1"
+
+
+
 
 
