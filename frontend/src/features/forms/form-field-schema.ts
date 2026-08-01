@@ -87,107 +87,12 @@ export const organizationFormSections: FormSectionDefinition[] = [
     ],
   },
   {
-    key: 'industry',
-    title: 'Industry',
-    help: 'Industries the seller organization operates in.',
+    key: 'operating_territories',
+    title: 'Operating territories',
+    help: 'Countries and regions where seller can legally and logistically operate and support clients.',
     fields: [
-      text('primary', 'Primary industry', 'Main industry label, e.g. Software or Manufacturing', true),
-      stringList('secondary', 'Secondary industries', 'Other industries you operate in; one per line'),
-      stringList('sub_verticals', 'Sub-verticals or niches', 'Niche focus areas within your industries; one per line'),
-    ],
-  },
-  {
-    key: 'business_model',
-    title: 'Business model',
-    help: 'How the company makes money.',
-    fields: [
-      stringList('types', 'Model types', 'B2B, B2C, B2G, SaaS, agency, etc.'),
-      area('description', 'How the company makes money', 'Revenue streams, pricing motion, and how you deliver value'),
-    ],
-  },
-  {
-    key: 'company_size',
-    title: 'Company size',
-    help: 'Employees, revenue, and years in business.',
-    fields: [
-      text('employees', 'Employee count / range', 'Headcount or band, e.g. 51–200 or 500+'),
-      text('revenue_range', 'Annual revenue range', 'Typical annual revenue band, e.g. $10M–$25M'),
-      num('years_in_business', 'Years in business', 'Years operating under the current brand or model'),
-    ],
-  },
-  {
-    key: 'target_markets',
-    title: 'Target markets',
-    help: 'Where and who the organization serves.',
-    fields: [
-      stringList('countries', 'Countries', 'Countries you actively sell into; one per line'),
+      stringList('countries', 'Countries', 'Countries you actively operate in; one per line'),
       stringList('regions', 'Regions', 'Macro regions served, e.g. North America or EMEA; one per line'),
-      stringList('industries', 'Industries served', 'Industry verticals you target; one per line'),
-      stringList('excluded', 'Markets not served', 'Regions or segments you do not pursue; one per line'),
-    ],
-  },
-  {
-    key: 'existing_customers',
-    title: 'Existing customers',
-    help: 'Patterns of companies already served.',
-    fields: [
-      area('typical_profile', 'Typical customer profile', 'Size, industry, and traits of your best-fit existing customers'),
-      stringList('strong_industries', 'Industries with strongest traction', 'Industries where you win most often; one per line'),
-    ],
-  },
-  {
-    key: 'customer_segments',
-    title: 'Customer segments',
-    help: 'Segments the organization sells into.',
-    fields: [
-      stringList('primary', 'Primary segments', 'Main ICP segments, e.g. mid-market SaaS; one per line'),
-      stringList('secondary', 'Secondary segments', 'Additional segments you accept; one per line'),
-      stringList('avoid', 'Segments to avoid', 'Segments you decline or deprioritize; one per line'),
-    ],
-  },
-  {
-    key: 'brand_positioning',
-    title: 'Brand positioning',
-    help: 'How the market perceives the company.',
-    fields: [
-      text('position', 'Position', 'Market tier or stance, e.g. premium niche or cost leader'),
-      area('statement', 'Positioning statement', '2–4 sentences on who you serve and why you win'),
-    ],
-  },
-  {
-    key: 'unique_strengths',
-    title: 'Unique strengths',
-    help: 'Company-level competitive advantages.',
-    fields: [stringList('.', 'Strengths', 'Distinct competitive advantages; one per line')],
-  },
-  {
-    key: 'competitive_landscape',
-    title: 'Competitive landscape',
-    help: 'Main competitors and differentiators.',
-    fields: [
-      stringList('competitors', 'Main competitors', 'Direct competitors by name; one per line'),
-      stringList('differentiators', 'Differentiators', 'Why customers choose you over rivals; one per line'),
-      area('win_loss_notes', 'Common win/loss reasons', 'Recurring patterns when you win or lose against key competitors'),
-    ],
-  },
-  {
-    key: 'sales_goals',
-    title: 'Sales goals',
-    help: 'Current commercial priorities.',
-    fields: [
-      text('revenue_targets', 'Revenue or pipeline targets', 'Quarterly or annual revenue and pipeline goals'),
-      stringList('strategic_industries', 'Strategic industries', 'Industries prioritized this planning period; one per line'),
-      stringList('expansion_markets', 'Expansion markets', 'New geographies or verticals you are entering; one per line'),
-    ],
-  },
-  {
-    key: 'partnership_strategy',
-    title: 'Partnership strategy',
-    help: 'Direct, partner, reseller model.',
-    fields: [
-      text('model', 'Partnership model', 'GTM motion: direct, reseller, referral, or hybrid'),
-      text('regions', 'Partner-led regions', 'Territories sold primarily through partners'),
-      area('notes', 'Constraints / notes', 'Partner restrictions, margin rules, or exclusivity terms'),
     ],
   },
   {
@@ -223,26 +128,6 @@ export const organizationFormSections: FormSectionDefinition[] = [
     ],
   },
   {
-    key: 'case_studies',
-    title: 'Case studies',
-    help: 'Notable projects and outcomes.',
-    fields: [
-      {
-        path: '.',
-        label: 'Case studies',
-        kind: 'object-list',
-        help: 'Notable customer projects the agents can cite in outreach.',
-        itemFields: [
-          text('title', 'Title', 'Short project or customer name'),
-          text('customer_type', 'Customer type', 'Segment or industry of the customer'),
-          area('challenge', 'Challenge', 'Problem the customer faced before working with you'),
-          area('outcome', 'Outcome', 'Measurable result or business impact achieved'),
-          text('link', 'Link', 'URL to a public case study or reference page'),
-        ],
-      },
-    ],
-  },
-  {
     key: 'references',
     title: 'References',
     help: 'Well-known clients and reference industries.',
@@ -261,33 +146,11 @@ export const organizationFormSections: FormSectionDefinition[] = [
     ],
   },
   {
-    key: 'pricing_position',
-    title: 'Pricing position',
-    help: 'Organization-level price band.',
-    fields: [
-      text('band', 'Price band', 'Relative price position, e.g. mid-market or enterprise premium'),
-      text('typical_contract_size', 'Typical contract size', 'Usual deal size or ACV band, e.g. $25K–$100K'),
-      area('positioning_notes', 'Positioning notes', 'How you justify pricing vs alternatives'),
-    ],
-  },
-  {
-    key: 'sales_process',
-    title: 'Sales process',
-    help: 'Typical stages from first touch to contract.',
-    fields: [
-      stringList('stages', 'Stages', 'Sales stages from first touch to signed contract; one per line'),
-      text('cycle_length', 'Average cycle length', 'Typical days or weeks from lead to close'),
-      stringList('stakeholders', 'Required stakeholders', 'Roles that must be involved to win; one per line'),
-    ],
-  },
-  {
-    key: 'deal_constraints',
-    title: 'Deal constraints',
-    help: 'Hard rules for business fit.',
+    key: 'macro_deal_constraints',
+    title: 'Macro deal constraints',
+    help: 'Hard rules for business fit and deal breakers.',
     fields: [
       text('min_contract_value', 'Minimum contract value', 'Smallest deal size you will pursue, in your currency'),
-      stringList('preferred_industries', 'Preferred industries', 'Industries you prioritize for new business; one per line'),
-      stringList('excluded_industries', 'Excluded industries', 'Industries you will not sell into; one per line'),
       stringList('geographic_limits', 'Geographic limitations', 'Regions or countries you cannot serve; one per line'),
       area('other', 'Other deal breakers', 'Any other hard rules that disqualify an opportunity'),
     ],
@@ -345,6 +208,9 @@ export const productFormSections: FormSectionDefinition[] = [
     title: 'Ideal customer profile',
     help: 'General fit profile for this offering.',
     fields: [
+      stringList('customer_segments.primary', 'Primary customer segments', 'Main ICP segments; one per line'),
+      stringList('customer_segments.secondary', 'Secondary customer segments', 'Additional accepted segments; one per line'),
+      stringList('customer_segments.avoid', 'Avoid customer segments', 'Segments to decline or deprioritize; one per line'),
       stringList('industries.primary', 'Primary industries', 'Best-fit industries for this offering; one per line'),
       stringList('industries.secondary', 'Secondary industries', 'Acceptable but lower-priority industries; one per line'),
       stringList('industries.avoid', 'Industries to avoid', 'Industries that are a poor fit; one per line'),
@@ -395,12 +261,16 @@ export const productFormSections: FormSectionDefinition[] = [
     fields: [stringList('.', 'Triggers', 'Events that indicate a prospect may need this now; one per line')],
   },
   {
-    key: 'exclusion rules',
-    title: 'Blacklist',
-    help: 'Companies that are not a good fit.',
+    key: 'pricing',
+    title: 'Pricing',
+    help: 'Model, price band, range, and minimum deal size.',
     fields: [
-      stringList('rules', 'Exclusion rules', 'Hard rules that disqualify a company for this offering; one per line'),
-      area('free_text', 'Other exclusion rules', 'Additional fit rules not captured above'),
+      text('model', 'Pricing model', 'How you charge, e.g. subscription, usage, or project', true),
+      text('price_band', 'Price band', 'Relative price position, e.g. mid-market or enterprise premium'),
+      text('typical_range', 'Typical price range', 'Usual price band for a standard deal'),
+      text('min_deal_size', 'Minimum deal size', 'Smallest contract you will accept for this offering', true),
+      text('sales_cycle', 'Sales cycle length', 'Typical time from first meeting to signed contract'),
+      text('engagement_model', 'Engagement model', 'How delivery starts, e.g. pilot, POC, or full rollout'),
     ],
   },
   {
@@ -432,18 +302,6 @@ export const productFormSections: FormSectionDefinition[] = [
     title: 'Differentiators',
     help: 'Why customers choose you.',
     fields: [stringList('.', 'Differentiators', 'Reasons customers pick you over competitors; one per line')],
-  },
-  {
-    key: 'pricing',
-    title: 'Pricing',
-    help: 'Model, range, and minimum deal size.',
-    fields: [
-      text('model', 'Pricing model', 'How you charge, e.g. subscription, usage, or project', true),
-      text('typical_range', 'Typical price range', 'Usual price band for a standard deal'),
-      text('min_deal_size', 'Minimum deal size', 'Smallest contract you will accept for this offering', true),
-      text('sales_cycle', 'Sales cycle length', 'Typical time from first meeting to signed contract'),
-      text('engagement_model', 'Engagement model', 'How delivery starts, e.g. pilot, POC, or full rollout'),
-    ],
   },
   {
     key: 'implementation',
@@ -509,6 +367,15 @@ export const productFormSections: FormSectionDefinition[] = [
     help: 'Public indicators of active need.',
     fields: [stringList('.', 'Signals', 'Public indicators that a company may need this offering; one per line')],
   },
+  {
+    key: 'exclusion_rules',
+    title: 'Exclusion rules',
+    help: 'Companies that are not a good fit.',
+    fields: [
+      stringList('rules', 'Exclusion rules', 'Hard rules that disqualify a company for this offering; one per line'),
+      area('free_text', 'Other exclusion rules', 'Additional fit rules not captured above'),
+    ],
+  },
 ]
 
 export const strategyFormSections: FormSectionDefinition[] = [
@@ -521,6 +388,40 @@ export const strategyFormSections: FormSectionDefinition[] = [
       text('name', 'Sales strategy name', 'Short label for this prospecting run', true),
       area('description', 'Description', 'What this strategy is trying to achieve and for which offering'),
       area('target_companies_narrative', 'Target companies in your own words', 'Describe ideal companies in plain language — agents use this to guide search', true),
+    ],
+  },
+  {
+    key: 'run_targets',
+    title: 'Run targets',
+    help: 'Operational quotas for this sales strategy.',
+    fields: [
+      num('target_companies', 'Target company count', 'How many companies to register for this strategy'),
+      num('contacts_per_company_default', 'Default contacts per company', 'How many prospects to find per registered company'),
+    ],
+  },
+  {
+    key: 'target_decision_makers',
+    title: 'Target decision makers',
+    help: 'Roles to contact first.',
+    fields: [
+      stringList('primary_titles', 'Primary titles', 'First-choice job titles to contact; one per line'),
+      stringList('secondary_titles', 'Secondary titles', 'Backup titles if primary contacts are unavailable; one per line'),
+      {
+        path: 'seniority_levels',
+        label: 'Seniority levels',
+        kind: 'multi-select',
+        help: 'Target seniority tiers to focus on.',
+        options: ['C-Suite', 'VP', 'Director', 'Head Of', 'Manager'],
+      },
+      {
+        path: 'department_functions',
+        label: 'Department functions',
+        kind: 'multi-select',
+        help: 'Department functions to target.',
+        options: ['Engineering', 'Sales', 'Product', 'Marketing', 'IT', 'Finance', 'Operations'],
+      },
+      stringList('seniority_order', 'Seniority order', 'Preferred seniority sequence, e.g. VP then Director; one per line'),
+      stringList('contact_buying_signals', 'Contact buying signals', 'Per-contact signals that indicate readiness; one per line'),
     ],
   },
   {
@@ -542,17 +443,6 @@ export const strategyFormSections: FormSectionDefinition[] = [
       },
       stringList('keywords', 'Keywords', 'Terms to find lookalike companies; one per line'),
       stringList('problems_they_should_have', 'Problems they should have', 'Pains ideal targets should be feeling now; one per line'),
-    ],
-  },
-  {
-    key: 'target_decision_makers',
-    title: 'Target decision makers',
-    help: 'Roles to contact first.',
-    fields: [
-      stringList('primary_titles', 'Primary titles', 'First-choice job titles to contact; one per line'),
-      stringList('secondary_titles', 'Secondary titles', 'Backup titles if primary contacts are unavailable; one per line'),
-      stringList('seniority_order', 'Seniority order', 'Preferred seniority sequence, e.g. VP then Director; one per line'),
-      stringList('contact_buying_signals', 'Contact buying signals', 'Per-contact signals that indicate readiness; one per line'),
     ],
   },
   {
@@ -636,42 +526,17 @@ export const strategyFormSections: FormSectionDefinition[] = [
           'Apollo',
         ],
       },
+      stringList('excluded_domain_types', 'Excluded domain types', 'Types of sites to skip during discovery, e.g. Job boards, Blog aggregators; one per line'),
     ],
   },
   {
-    key: 'outreach_strategy',
-    title: 'Outreach strategy',
-    help: 'How operators approach contacts.',
+    key: 'competitor_targeting',
+    title: 'Competitor targeting',
+    help: 'Incumbents that make good targets.',
     fields: [
-      {
-        path: 'primary_channel',
-        label: 'Primary channel',
-        kind: 'select',
-        help: 'Default first-touch channel for this strategy.',
-        options: [
-          'LinkedIn connection',
-          'InMail',
-          'email',
-          'phone',
-          'referral',
-          'partner intro',
-        ],
-      },
-      stringList('channels', 'Channels', 'All channels operators may use; one per line'),
-      area('sequence_notes', 'Sequence notes', 'Cadence, follow-up timing, and messaging sequence guidance'),
-      stringList('do_not_contact_rules', 'Do-not-contact rules', 'People or situations to avoid contacting; one per line'),
-    ],
-  },
-  {
-    key: 'messaging_hypotheses',
-    title: 'Messaging hypotheses',
-    help: 'Angles to test in outreach.',
-    fields: [
-      area('primary_hook', 'Primary hook', 'Main angle for first-touch messages'),
-      stringList('secondary_hooks', 'Secondary hooks', 'Backup angles to test; one per line'),
-      stringList('proof_points', 'Proof points', 'Evidence or references to cite in outreach; one per line'),
-      text('tone', 'Tone', 'Voice for messages, e.g. consultative or direct'),
-      area('message_guidance', 'Message guidance', 'Do and do-not guidance plus phrasing operators should follow'),
+      stringList('incumbents_to_target', 'Incumbents to target', 'Competitor products customers may want to replace; one per line'),
+      stringList('switch_triggers', 'Switch triggers', 'Events that push buyers to switch away from incumbents; one per line'),
+      stringList('avoid_unless_scaling', 'Avoid unless scaling', 'Incumbents to skip unless the company is growing fast; one per line'),
     ],
   },
   {
@@ -685,32 +550,17 @@ export const strategyFormSections: FormSectionDefinition[] = [
     ],
   },
   {
-    key: 'blacklist_criteria',
-    title: 'Blacklist criteria',
-    help: 'When to skip a company.',
-    fields: [stringList('rules', 'Rules', 'Conditions that disqualify a company from outreach; one per line')],
-  },
-  {
     key: 'prioritization_rules',
     title: 'Prioritization rules',
     help: 'Who to contact or validate first.',
     fields: [stringList('rules', 'Rules', 'How to rank companies or contacts when quota is tight; one per line')],
   },
   {
-    key: 'competitor_targeting',
-    title: 'Competitor targeting',
-    help: 'Incumbents that make good targets.',
-    fields: [
-      stringList('incumbents_to_target', 'Incumbents to target', 'Competitor products customers may want to replace; one per line'),
-      stringList('switch_triggers', 'Switch triggers', 'Events that push buyers to switch away from incumbents; one per line'),
-      stringList('avoid_unless_scaling', 'Avoid unless scaling', 'Incumbents to skip unless the company is growing fast; one per line'),
-    ],
-  },
-  {
     key: 'exclusion_rules',
     title: 'Exclusion rules',
-    help: 'Hard avoids for this strategy.',
+    help: 'Hard rules and exclusions for skipping companies or prospects.',
     fields: [
+      stringList('rules', 'Exclusion rules', 'Conditions that disqualify a company from outreach; one per line'),
       stringList('companies', 'Companies', 'Named companies to never contact; one per line'),
       stringList('domains', 'Domains', 'Email or web domains to block; one per line'),
       stringList('industries', 'Industries', 'Industries to exclude from this run; one per line'),
@@ -741,29 +591,5 @@ export const strategyFormSections: FormSectionDefinition[] = [
     title: 'Success metrics',
     help: 'Operator-defined run targets.',
     fields: [stringList('targets', 'Targets', 'Measurable goals for this run, e.g. meetings booked; one per line')],
-  },
-  {
-    key: 'lessons_learned',
-    title: 'Lessons learned',
-    help: 'What worked and what did not.',
-    fields: [
-      stringList('worked', 'What worked', 'Tactics that produced good results; one per line'),
-      stringList('did_not_work', 'What did not work', 'Tactics to avoid repeating; one per line'),
-    ],
-  },
-  {
-    key: 'best_practices',
-    title: 'Best practices',
-    help: 'Repeatable tactics.',
-    fields: [stringList('.', 'Best practices', 'Repeatable tactics operators and agents should follow; one per line')],
-  },
-  {
-    key: 'run_targets',
-    title: 'Run targets',
-    help: 'Operational quotas for this sales strategy.',
-    fields: [
-      num('target_companies', 'Target company count', 'How many companies to register for this strategy'),
-      num('contacts_per_company_default', 'Default contacts per company', 'How many prospects to find per registered company'),
-    ],
   },
 ]

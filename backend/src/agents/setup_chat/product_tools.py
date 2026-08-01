@@ -54,7 +54,7 @@ async def _do_save_product_section(
     product = await ctx.service.get_product(ctx.product_id)
     current_form = copy.deepcopy(product.icp_form)
 
-    form_key = "exclusion rules" if section_key in ("exclusion_rules", "exclusion rules") else section_key
+    form_key = "exclusion_rules" if section_key in ("exclusion_rules", "exclusion rules") else section_key
 
     if form_key == "identity":
         name = updates.get("name", product.name)

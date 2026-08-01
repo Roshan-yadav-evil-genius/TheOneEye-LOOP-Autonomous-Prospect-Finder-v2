@@ -4,9 +4,8 @@ from agents.setup_chat.org_tools import (
     get_all_tools,
     get_organization_profile,
     set_identity,
-    set_brand_positioning,
-    set_unique_strengths,
-    set_case_studies,
+    set_operating_territories,
+    set_macro_deal_constraints,
 )
 from agents.setup_chat.strategy_tools import (
     get_strategy_tools,
@@ -58,48 +57,11 @@ async def test_org_tools_successful_update_returns_saved_data():
     ctx = SetupChatToolContext(organization_id="org-123", mode="agent", service=mock_service)
     config = {"configurable": {"tool_context": ctx}}
 
-    res = await set_brand_positioning.ainvoke({"position": "Premium"}, config=config)
+    res = await set_operating_territories.ainvoke({"countries": ["US"]}, config=config)
     assert res == "Saved!"
 
-    res_strengths = await set_unique_strengths.ainvoke({"items": ["Fast", "Reliable"]}, config=config)
-    assert res_strengths == "Saved!"
-
-
-async def test_case_studies_saved_as_direct_list_and_normalized():
-    mock_service = AsyncMock()
-    mock_org = MagicMock()
-    mock_org.name = "Acme"
-    mock_org.website = "https://acme.com"
-    mock_org.primary_contact_email = "a@b.com"
-    mock_org.org_form = {}
-    mock_service.get_organization.return_value = mock_org
-
-    ctx = SetupChatToolContext(organization_id="org-123", mode="agent", service=mock_service)
-    config = {"configurable": {"tool_context": ctx}}
-
-    cs_items = [{"title": "Case 1", "customer_type": "Enterprise", "challenge": "X", "outcome": "Y", "link": "http"}]
-    res = await set_case_studies.ainvoke({"items": cs_items}, config=config)
-    assert res == "Saved!"
-
-    mock_service.update_organization_profile.assert_called_once()
-    saved_form = mock_service.update_organization_profile.call_args.kwargs["form"]
-    assert saved_form["case_studies"] == cs_items
-    assert isinstance(saved_form["case_studies"], list)
-
-    # Test get_organization_profile transformation for case_studies and identity
-    mock_org.org_form = {"case_studies": {"items": cs_items}}
-    profile_res = await get_organization_profile.ainvoke({}, config=config)
-    assert profile_res["case_studies"][0]["value"] == cs_items
-    assert profile_res["identity"][0] == {
-        "name": "Organization name",
-        "description": "Legal or brand name",
-        "value": "Acme",
-    }
-    assert profile_res["identity"][1] == {
-        "name": "Website",
-        "description": "Canonical company website URL",
-        "value": "https://acme.com",
-    }
+    res_constraints = await set_macro_deal_constraints.ainvoke({"min_contract_value": "10000"}, config=config)
+    assert res_constraints == "Saved!"
 
 
 async def test_strategy_tools_returns_saved_data():
@@ -263,7 +225,7 @@ def test_build_agent_profile_dict_normalization():
             "mission": [],
             "founded_year": 0,
         },
-        "unique_strengths": [],
+        "operating_territories": [],
     }
 
     result = build_agent_profile_dict(ORGANIZATION_FORM, form_data)
@@ -278,8 +240,8 @@ def test_build_agent_profile_dict_normalization():
     assert overview_fields["Mission or vision"] is None
     assert overview_fields["Year founded"] == 0
 
-    strengths_fields = {f["name"]: f["value"] for f in result["unique_strengths"]}
-    assert strengths_fields["Strengths"] is None
+    territories_fields = {f["name"]: f["value"] for f in result["operating_territories"]}
+    assert territories_fields["Countries"] is None
 
 
 

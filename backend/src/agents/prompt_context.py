@@ -55,6 +55,9 @@ def company_finder_prompt_values(bundle: dict[str, Any]) -> dict[str, str]:
         "exclusion_rules": _as_text(form.get("exclusion_rules") or form.get("blacklist_criteria")),
         "priority_rules": _as_text(form.get("prioritization_rules")),
         "search_constraints": _as_text(form.get("prospecting_strategy") or form.get("search_constraints")),
+        "excluded_domain_types": _as_text(
+            _dig(form, "prospecting_strategy", "excluded_domain_types")
+        ),
     }
 
 
@@ -89,14 +92,23 @@ def contact_finder_prompt_values(
             or _dig(form, "target_decision_makers", "primary_titles")
             or _dig(icp, "buyer_personas", "primary_titles")
         ),
+        "seniority_levels": _as_text(
+            _dig(form, "target_decision_makers", "seniority_levels")
+            or _dig(icp, "buyer_personas", "seniority")
+        ),
+        "department_functions": _as_text(
+            _dig(form, "target_decision_makers", "department_functions")
+            or _dig(form, "target_decision_makers", "departments")
+        ),
         "target_departments": _as_text(
-            _dig(form, "target_decision_makers", "departments")
+            _dig(form, "target_decision_makers", "department_functions")
+            or _dig(form, "target_decision_makers", "departments")
         ),
         "prospect_qualification_criteria": _as_text(
             form.get("prospect_qualification_criteria") or form.get("qualification_criteria")
         ),
         "prospect_exclusion_rules": _as_text(
-            form.get("prospect_exclusion_rules") or form.get("exclusion_rules")
+            form.get("prospect_exclusion_rules") or form.get("exclusion_rules") or form.get("blacklist_criteria")
         ),
         "prioritization_rules": _as_text(form.get("prioritization_rules")),
         "search_constraints": _as_text(form.get("prospecting_strategy") or form.get("search_constraints")),

@@ -151,6 +151,8 @@ async def set_strategy_target_decision_makers(
     config: RunnableConfig,
     primary_titles: list[str] | None = None,
     secondary_titles: list[str] | None = None,
+    seniority_levels: list[str] | None = None,
+    department_functions: list[str] | None = None,
     seniority_order: list[str] | None = None,
     contact_buying_signals: list[str] | None = None,
 ) -> str:
@@ -159,6 +161,8 @@ async def set_strategy_target_decision_makers(
     Args:
         primary_titles: First-choice job titles to target.
         secondary_titles: Backup job titles.
+        seniority_levels: Target seniority tiers (e.g. ['C-Suite', 'VP', 'Director']).
+        department_functions: Target department functions (e.g. ['Engineering', 'Sales']).
         seniority_order: Preferred seniority hierarchy sequence.
         contact_buying_signals: Per-contact readiness signals.
     """
@@ -167,6 +171,10 @@ async def set_strategy_target_decision_makers(
         updates["primary_titles"] = primary_titles
     if secondary_titles is not None:
         updates["secondary_titles"] = secondary_titles
+    if seniority_levels is not None:
+        updates["seniority_levels"] = seniority_levels
+    if department_functions is not None:
+        updates["department_functions"] = department_functions
     if seniority_order is not None:
         updates["seniority_order"] = seniority_order
     if contact_buying_signals is not None:
@@ -286,116 +294,23 @@ async def set_strategy_buying_signals(
 async def set_strategy_prospecting_strategy(
     config: RunnableConfig,
     sources: list[str] | None = None,
+    excluded_domain_types: list[str] | None = None,
 ) -> str:
     """Agent mode only. Update the strategy prospecting sources section.
 
     Args:
         sources: Where to discover target companies (e.g. ['LinkedIn', 'Crunchbase']).
+        excluded_domain_types: Types of sites to skip during discovery (e.g. ['Job boards']).
     """
     updates = {}
     if sources is not None:
         updates["sources"] = sources
+    if excluded_domain_types is not None:
+        updates["excluded_domain_types"] = excluded_domain_types
     return await _save_strategy_section(config, "prospecting_strategy", updates)
 
 
-@tool
-async def set_strategy_outreach_strategy(
-    config: RunnableConfig,
-    primary_channel: str | None = None,
-    channels: list[str] | None = None,
-    sequence_notes: str | None = None,
-    do_not_contact_rules: list[str] | None = None,
-) -> str:
-    """Agent mode only. Update the strategy outreach strategy section.
 
-    Args:
-        primary_channel: Default first-touch channel (e.g. 'LinkedIn connection', 'email').
-        channels: All channels operators may use.
-        sequence_notes: Cadence and follow-up guidance notes.
-        do_not_contact_rules: Rules for contacts/situations to avoid.
-    """
-    updates = {}
-    if primary_channel is not None:
-        updates["primary_channel"] = primary_channel
-    if channels is not None:
-        updates["channels"] = channels
-    if sequence_notes is not None:
-        updates["sequence_notes"] = sequence_notes
-    if do_not_contact_rules is not None:
-        updates["do_not_contact_rules"] = do_not_contact_rules
-    return await _save_strategy_section(config, "outreach_strategy", updates)
-
-
-@tool
-async def set_strategy_messaging_hypotheses(
-    config: RunnableConfig,
-    primary_hook: str | None = None,
-    secondary_hooks: list[str] | None = None,
-    proof_points: list[str] | None = None,
-    tone: str | None = None,
-    message_guidance: str | None = None,
-) -> str:
-    """Agent mode only. Update the strategy messaging hypotheses section.
-
-    Args:
-        primary_hook: Main angle for first-touch outreach messages.
-        secondary_hooks: Backup messaging angles to test.
-        proof_points: Evidence or customer metrics to cite.
-        tone: Voice for outreach messages (e.g. 'consultative').
-        message_guidance: Do and do-not phrasing guidance.
-    """
-    updates = {}
-    if primary_hook is not None:
-        updates["primary_hook"] = primary_hook
-    if secondary_hooks is not None:
-        updates["secondary_hooks"] = secondary_hooks
-    if proof_points is not None:
-        updates["proof_points"] = proof_points
-    if tone is not None:
-        updates["tone"] = tone
-    if message_guidance is not None:
-        updates["message_guidance"] = message_guidance
-    return await _save_strategy_section(config, "messaging_hypotheses", updates)
-
-
-@tool
-async def set_strategy_qualification_criteria(
-    config: RunnableConfig,
-    must_have: list[str] | None = None,
-    nice_to_have: list[str] | None = None,
-    min_confidence_hint: int | None = None,
-) -> str:
-    """Agent mode only. Update the strategy qualification criteria section.
-
-    Args:
-        must_have: Mandatory attributes a company must possess.
-        nice_to_have: Attributes that improve target priority.
-        min_confidence_hint: Lowest agent confidence score to retain a company.
-    """
-    updates = {}
-    if must_have is not None:
-        updates["must_have"] = must_have
-    if nice_to_have is not None:
-        updates["nice_to_have"] = nice_to_have
-    if min_confidence_hint is not None:
-        updates["min_confidence_hint"] = min_confidence_hint
-    return await _save_strategy_section(config, "qualification_criteria", updates)
-
-
-@tool
-async def set_strategy_blacklist_criteria(
-    config: RunnableConfig,
-    rules: list[str] | None = None,
-) -> str:
-    """Agent mode only. Update the strategy blacklist criteria section.
-
-    Args:
-        rules: Conditions that immediately disqualify a company.
-    """
-    updates = {}
-    if rules is not None:
-        updates["rules"] = rules
-    return await _save_strategy_section(config, "blacklist_criteria", updates)
 
 
 @tool
@@ -441,6 +356,7 @@ async def set_strategy_competitor_targeting(
 @tool
 async def set_strategy_exclusion_rules(
     config: RunnableConfig,
+    rules: list[str] | None = None,
     companies: list[str] | None = None,
     domains: list[str] | None = None,
     industries: list[str] | None = None,
@@ -449,12 +365,15 @@ async def set_strategy_exclusion_rules(
     """Agent mode only. Update the strategy exclusion rules section.
 
     Args:
+        rules: Conditions that disqualify a company from outreach.
         companies: Named companies to never contact.
         domains: Email or web domains to block.
         industries: Industries excluded from this run.
         regions: Regions excluded from this run.
     """
     updates = {}
+    if rules is not None:
+        updates["rules"] = rules
     if companies is not None:
         updates["companies"] = companies
     if domains is not None:
@@ -499,59 +418,27 @@ async def set_strategy_success_metrics(
 
 
 @tool
-async def set_strategy_lessons_learned(
+async def set_strategy_qualification_criteria(
     config: RunnableConfig,
-    worked: list[str] | None = None,
-    did_not_work: list[str] | None = None,
+    must_have: list[str] | None = None,
+    nice_to_have: list[str] | None = None,
+    min_confidence_hint: int | None = None,
 ) -> str:
-    """Agent mode only. Update the strategy lessons learned section.
+    """Agent mode only. Update the strategy qualification criteria section.
 
     Args:
-        worked: Tactics that produced positive outcomes.
-        did_not_work: Tactics to avoid repeating.
+        must_have: Mandatory attributes a company must possess.
+        nice_to_have: Attributes that improve target priority.
+        min_confidence_hint: Lowest agent confidence score to retain a company.
     """
     updates = {}
-    if worked is not None:
-        updates["worked"] = worked
-    if did_not_work is not None:
-        updates["did_not_work"] = did_not_work
-    return await _save_strategy_section(config, "lessons_learned", updates)
-
-
-@tool
-async def set_strategy_best_practices(
-    config: RunnableConfig,
-    items: list[str] | None = None,
-) -> str:
-    """Agent mode only. Update the strategy best practices section.
-
-    Args:
-        items: Repeatable tactics and best practice notes.
-    """
-    updates = {}
-    if items is not None:
-        updates["items"] = items
-    return await _save_strategy_section(config, "best_practices", updates)
-
-
-@tool
-async def set_strategy_run_targets(
-    config: RunnableConfig,
-    target_companies: int | None = None,
-    contacts_per_company_default: int | None = None,
-) -> str:
-    """Agent mode only. Update the strategy run targets section.
-
-    Args:
-        target_companies: Number of companies to find/register in this run.
-        contacts_per_company_default: Default target contacts per company.
-    """
-    updates = {}
-    if target_companies is not None:
-        updates["target_companies"] = target_companies
-    if contacts_per_company_default is not None:
-        updates["contacts_per_company_default"] = contacts_per_company_default
-    return await _save_strategy_section(config, "run_targets", updates)
+    if must_have is not None:
+        updates["must_have"] = must_have
+    if nice_to_have is not None:
+        updates["nice_to_have"] = nice_to_have
+    if min_confidence_hint is not None:
+        updates["min_confidence_hint"] = min_confidence_hint
+    return await _save_strategy_section(config, "qualification_criteria", updates)
 
 
 def get_strategy_tools() -> list[Any]:
@@ -559,23 +446,18 @@ def get_strategy_tools() -> list[Any]:
     return [
         get_strategy_profile,
         set_strategy_overview,
-        set_strategy_target_company_profile,
+        set_strategy_run_targets,
         set_strategy_target_decision_makers,
+        set_strategy_target_company_profile,
         set_strategy_priority_industries,
         set_strategy_priority_geographies,
         set_strategy_company_size,
         set_strategy_buying_signals,
         set_strategy_prospecting_strategy,
-        set_strategy_outreach_strategy,
-        set_strategy_messaging_hypotheses,
-        set_strategy_qualification_criteria,
-        set_strategy_blacklist_criteria,
-        set_strategy_prioritization_rules,
         set_strategy_competitor_targeting,
+        set_strategy_qualification_criteria,
+        set_strategy_prioritization_rules,
         set_strategy_exclusion_rules,
         set_strategy_experiments,
         set_strategy_success_metrics,
-        set_strategy_lessons_learned,
-        set_strategy_best_practices,
-        set_strategy_run_targets,
     ]

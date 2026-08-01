@@ -74,7 +74,7 @@ ORGANIZATION_FORM = FormTemplateDef(
     ),
     provide_guidance=(
         "Accurate facts about your seller organization (the company you work for).",
-        "Mission, industries served, target markets, customer segments, and deal constraints.",
+        "Mission, operating territories, delivery capability, certifications, and macro deal constraints.",
         "Optional sections are still valuable — fill what you know.",
     ),
     avoid_guidance=(
@@ -106,107 +106,12 @@ ORGANIZATION_FORM = FormTemplateDef(
             ),
         ),
         FormSectionDef(
-            "industry",
-            "Industry",
-            "Industries the seller organization operates in.",
+            "operating_territories",
+            "Operating territories",
+            "Countries and regions where seller can legally and logistically operate and support clients.",
             (
-                _txt("primary", "Primary industry", "Main industry label, e.g. Software", required=True),
-                _sl("secondary", "Secondary industries", "One industry per line"),
-                _sl("sub_verticals", "Sub-verticals or niches", "One niche per line"),
-            ),
-        ),
-        FormSectionDef(
-            "business_model",
-            "Business model",
-            "How the company makes money.",
-            (
-                _sl("types", "Model types", "B2B, B2C, B2G, SaaS, agency, etc. — one per line", required=True),
-                _area("description", "How the company makes money", "Revenue streams and delivery model"),
-            ),
-        ),
-        FormSectionDef(
-            "company_size",
-            "Company size",
-            "Employees, revenue, and years in business.",
-            (
-                _txt("employees", "Employee count / range", "Headcount or band, e.g. 51–200"),
-                _txt("revenue_range", "Annual revenue range", "Typical annual revenue band"),
-                _num("years_in_business", "Years in business", "Years operating under current brand"),
-            ),
-        ),
-        FormSectionDef(
-            "target_markets",
-            "Target markets",
-            "Where and who the organization serves.",
-            (
-                _sl("countries", "Countries", "Countries you actively sell into — one per line"),
+                _sl("countries", "Countries", "Countries you actively operate in — one per line"),
                 _sl("regions", "Regions", "Macro regions served — one per line"),
-                _sl("industries", "Industries served", "Industry verticals you target — one per line"),
-                _sl("excluded", "Markets not served", "Regions or segments you do not pursue"),
-            ),
-        ),
-        FormSectionDef(
-            "existing_customers",
-            "Existing customers",
-            "Patterns of companies already served.",
-            (
-                _area("typical_profile", "Typical customer profile", "Size, industry, and traits of best-fit customers"),
-                _sl("strong_industries", "Industries with strongest traction", "One industry per line"),
-            ),
-        ),
-        FormSectionDef(
-            "customer_segments",
-            "Customer segments",
-            "Segments the organization sells into.",
-            (
-                _sl("primary", "Primary segments", "Main ICP segments — one per line", required=True),
-                _sl("secondary", "Secondary segments", "Additional segments you accept"),
-                _sl("avoid", "Segments to avoid", "Segments you decline or deprioritize"),
-            ),
-        ),
-        FormSectionDef(
-            "brand_positioning",
-            "Brand positioning",
-            "How the market perceives the company.",
-            (
-                _txt("position", "Position", "Market tier or stance, e.g. premium niche"),
-                _area("statement", "Positioning statement", "2–4 sentences on who you serve and why you win"),
-            ),
-        ),
-        FormSectionDef(
-            "unique_strengths",
-            "Unique strengths",
-            "Company-level competitive advantages.",
-            (_sl(".", "Strengths", "Distinct competitive advantages — one per line"),),
-        ),
-        FormSectionDef(
-            "competitive_landscape",
-            "Competitive landscape",
-            "Main competitors and differentiators.",
-            (
-                _sl("competitors", "Main competitors", "Direct competitors by name — one per line"),
-                _sl("differentiators", "Differentiators", "Why customers choose you — one per line"),
-                _area("win_loss_notes", "Common win/loss reasons", "Recurring patterns when you win or lose"),
-            ),
-        ),
-        FormSectionDef(
-            "sales_goals",
-            "Sales goals",
-            "Current commercial priorities.",
-            (
-                _txt("revenue_targets", "Revenue or pipeline targets", "Quarterly or annual goals"),
-                _sl("strategic_industries", "Strategic industries", "One industry per line"),
-                _sl("expansion_markets", "Expansion markets", "New geographies or verticals"),
-            ),
-        ),
-        FormSectionDef(
-            "partnership_strategy",
-            "Partnership strategy",
-            "Direct, partner, or reseller model.",
-            (
-                _txt("model", "Partnership model", "GTM motion: direct, reseller, referral, or hybrid"),
-                _txt("regions", "Partner-led regions", "Territories sold primarily through partners"),
-                _area("notes", "Constraints / notes", "Partner restrictions or exclusivity terms"),
             ),
         ),
         FormSectionDef(
@@ -242,26 +147,6 @@ ORGANIZATION_FORM = FormTemplateDef(
             ),
         ),
         FormSectionDef(
-            "case_studies",
-            "Case studies",
-            "Notable projects and outcomes.",
-            (
-                FormFieldDef(
-                    ".",
-                    "Case studies",
-                    "object-list",
-                    "Notable customer projects agents can cite. Duplicate the block for each case study.",
-                    item_fields=(
-                        _txt("title", "Title", "Short project or customer name"),
-                        _txt("customer_type", "Customer type", "Segment or industry"),
-                        _area("challenge", "Challenge", "Problem before working with you"),
-                        _area("outcome", "Outcome", "Measurable result achieved"),
-                        _txt("link", "Link", "URL to public case study"),
-                    ),
-                ),
-            ),
-        ),
-        FormSectionDef(
             "references",
             "References",
             "Well-known clients and reference industries.",
@@ -280,33 +165,11 @@ ORGANIZATION_FORM = FormTemplateDef(
             ),
         ),
         FormSectionDef(
-            "pricing_position",
-            "Pricing position",
-            "Organization-level price band.",
-            (
-                _txt("band", "Price band", "Relative price position, e.g. mid-market"),
-                _txt("typical_contract_size", "Typical contract size", "Usual deal size or ACV band"),
-                _area("positioning_notes", "Positioning notes", "How you justify pricing vs alternatives"),
-            ),
-        ),
-        FormSectionDef(
-            "sales_process",
-            "Sales process",
-            "Typical stages from first touch to contract.",
-            (
-                _sl("stages", "Stages", "Sales stages — one per line"),
-                _txt("cycle_length", "Average cycle length", "Typical days or weeks to close"),
-                _sl("stakeholders", "Required stakeholders", "Roles that must be involved — one per line"),
-            ),
-        ),
-        FormSectionDef(
-            "deal_constraints",
-            "Deal constraints",
-            "Hard rules for business fit.",
+            "macro_deal_constraints",
+            "Macro deal constraints",
+            "Hard rules for business fit and deal breakers.",
             (
                 _txt("min_contract_value", "Minimum contract value", "Smallest deal size you will pursue"),
-                _sl("preferred_industries", "Preferred industries", "One industry per line"),
-                _sl("excluded_industries", "Excluded industries", "Industries you will not sell into"),
                 _sl("geographic_limits", "Geographic limitations", "Regions you cannot serve"),
                 _area("other", "Other deal breakers", "Any other hard disqualifiers"),
             ),
@@ -383,6 +246,9 @@ PRODUCT_FORM = FormTemplateDef(
             "Ideal customer profile",
             "General fit profile for this offering.",
             (
+                _sl("customer_segments.primary", "Primary customer segments", "Main ICP segments — one per line"),
+                _sl("customer_segments.secondary", "Secondary customer segments", "Additional accepted segments"),
+                _sl("customer_segments.avoid", "Avoid customer segments", "Segments to decline or deprioritize"),
                 _sl("industries.primary", "Primary industries", "Best-fit industries — one per line"),
                 _sl("industries.secondary", "Secondary industries", "Lower-priority industries"),
                 _sl("industries.avoid", "Industries to avoid", "Poor-fit industries"),
@@ -433,12 +299,16 @@ PRODUCT_FORM = FormTemplateDef(
             (_sl(".", "Triggers", "Events indicating a prospect may need this now — one per line"),),
         ),
         FormSectionDef(
-            "exclusion rules",
-            "Blacklist",
-            "Companies that are not a good fit for this offering.",
+            "pricing",
+            "Pricing",
+            "Model, price band, range, and minimum deal size.",
             (
-                _sl("rules", "Exclusion rules", "Hard disqualifiers — one per line"),
-                _area("free_text", "Other exclusion rules", "Additional fit rules"),
+                _txt("model", "Pricing model", "How you charge, e.g. subscription", required=True),
+                _txt("price_band", "Price band", "Relative price position, e.g. mid-market"),
+                _txt("typical_range", "Typical price range", "Usual price band"),
+                _txt("min_deal_size", "Minimum deal size", "Smallest contract accepted", required=True),
+                _txt("sales_cycle", "Sales cycle length", "Typical time to signed contract"),
+                _txt("engagement_model", "Engagement model", "How delivery starts, e.g. pilot or POC"),
             ),
         ),
         FormSectionDef(
@@ -470,18 +340,6 @@ PRODUCT_FORM = FormTemplateDef(
             "Differentiators",
             "Why customers choose you.",
             (_sl(".", "Differentiators", "Reasons customers pick you — one per line", required=True),),
-        ),
-        FormSectionDef(
-            "pricing",
-            "Pricing",
-            "Model, range, and minimum deal size.",
-            (
-                _txt("model", "Pricing model", "How you charge, e.g. subscription", required=True),
-                _txt("typical_range", "Typical price range", "Usual price band"),
-                _txt("min_deal_size", "Minimum deal size", "Smallest contract accepted", required=True),
-                _txt("sales_cycle", "Sales cycle length", "Typical time to signed contract"),
-                _txt("engagement_model", "Engagement model", "How delivery starts, e.g. pilot or POC"),
-            ),
         ),
         FormSectionDef(
             "implementation",
@@ -547,6 +405,15 @@ PRODUCT_FORM = FormTemplateDef(
             "Public indicators of active need.",
             (_sl(".", "Signals", "Public indicators of need — one per line"),),
         ),
+        FormSectionDef(
+            "exclusion_rules",
+            "Exclusion rules",
+            "Companies that are not a good fit for this offering.",
+            (
+                _sl("rules", "Exclusion rules", "Hard disqualifiers — one per line"),
+                _area("free_text", "Other exclusion rules", "Additional fit rules"),
+            ),
+        ),
     ),
 )
 
@@ -586,6 +453,45 @@ STRATEGY_FORM = FormTemplateDef(
             ),
         ),
         FormSectionDef(
+            "run_targets",
+            "Run targets",
+            "Operational quotas for this sales strategy.",
+            (
+                _num("target_companies", "Target company count", "How many companies to register", required=True),
+                _num(
+                    "contacts_per_company_default",
+                    "Default contacts per company",
+                    "How many prospects to find per company",
+                    required=True,
+                ),
+            ),
+        ),
+        FormSectionDef(
+            "target_decision_makers",
+            "Target decision makers",
+            "Roles to contact first.",
+            (
+                _sl("primary_titles", "Primary titles", "First-choice job titles"),
+                _sl("secondary_titles", "Secondary titles", "Backup titles"),
+                FormFieldDef(
+                    "seniority_levels",
+                    "Seniority levels",
+                    "multi-select",
+                    "Target seniority tiers to focus on.",
+                    options=("C-Suite", "VP", "Director", "Head Of", "Manager"),
+                ),
+                FormFieldDef(
+                    "department_functions",
+                    "Department functions",
+                    "multi-select",
+                    "Department functions to target.",
+                    options=("Engineering", "Sales", "Product", "Marketing", "IT", "Finance", "Operations"),
+                ),
+                _sl("seniority_order", "Seniority order", "Preferred seniority sequence"),
+                _sl("contact_buying_signals", "Contact buying signals", "Per-contact readiness signals"),
+            ),
+        ),
+        FormSectionDef(
             "target_company_profile",
             "Target company profile",
             "What kinds of companies to approach now.",
@@ -604,17 +510,6 @@ STRATEGY_FORM = FormTemplateDef(
                 ),
                 _sl("keywords", "Keywords", "Terms to find lookalike companies"),
                 _sl("problems_they_should_have", "Problems they should have", "Pains ideal targets should feel"),
-            ),
-        ),
-        FormSectionDef(
-            "target_decision_makers",
-            "Target decision makers",
-            "Roles to contact first.",
-            (
-                _sl("primary_titles", "Primary titles", "First-choice job titles"),
-                _sl("secondary_titles", "Secondary titles", "Backup titles"),
-                _sl("seniority_order", "Seniority order", "Preferred seniority sequence"),
-                _sl("contact_buying_signals", "Contact buying signals", "Per-contact readiness signals"),
             ),
         ),
         FormSectionDef(
@@ -703,42 +598,17 @@ STRATEGY_FORM = FormTemplateDef(
                         "Apollo",
                     ),
                 ),
+                _sl("excluded_domain_types", "Excluded domain types", "Types of sites to skip during discovery"),
             ),
         ),
         FormSectionDef(
-            "outreach_strategy",
-            "Outreach strategy",
-            "How operators approach contacts.",
+            "competitor_targeting",
+            "Competitor targeting",
+            "Incumbents that make good targets.",
             (
-                FormFieldDef(
-                    "primary_channel",
-                    "Primary channel",
-                    "select",
-                    "Default first-touch channel for this strategy.",
-                    options=(
-                        "LinkedIn connection",
-                        "InMail",
-                        "email",
-                        "phone",
-                        "referral",
-                        "partner intro",
-                    ),
-                ),
-                _sl("channels", "Channels", "All channels operators may use"),
-                _area("sequence_notes", "Sequence notes", "Cadence and follow-up guidance"),
-                _sl("do_not_contact_rules", "Do-not-contact rules", "People or situations to avoid"),
-            ),
-        ),
-        FormSectionDef(
-            "messaging_hypotheses",
-            "Messaging hypotheses",
-            "Angles to test in outreach.",
-            (
-                _area("primary_hook", "Primary hook", "Main angle for first-touch messages"),
-                _sl("secondary_hooks", "Secondary hooks", "Backup angles to test"),
-                _sl("proof_points", "Proof points", "Evidence to cite in outreach"),
-                _txt("tone", "Tone", "Voice for messages, e.g. consultative"),
-                _area("message_guidance", "Message guidance", "Do and do-not phrasing guidance"),
+                _sl("incumbents_to_target", "Incumbents to target", "Competitor products to displace"),
+                _sl("switch_triggers", "Switch triggers", "Events that push buyers to switch"),
+                _sl("avoid_unless_scaling", "Avoid unless scaling", "Incumbents to skip unless growing fast"),
             ),
         ),
         FormSectionDef(
@@ -752,32 +622,17 @@ STRATEGY_FORM = FormTemplateDef(
             ),
         ),
         FormSectionDef(
-            "blacklist_criteria",
-            "Blacklist criteria",
-            "When to skip a company.",
-            (_sl("rules", "Rules", "Conditions that disqualify a company"),),
-        ),
-        FormSectionDef(
             "prioritization_rules",
             "Prioritization rules",
             "Who to contact or validate first.",
             (_sl("rules", "Rules", "How to rank companies or contacts when quota is tight"),),
         ),
         FormSectionDef(
-            "competitor_targeting",
-            "Competitor targeting",
-            "Incumbents that make good targets.",
-            (
-                _sl("incumbents_to_target", "Incumbents to target", "Competitor products to displace"),
-                _sl("switch_triggers", "Switch triggers", "Events that push buyers to switch"),
-                _sl("avoid_unless_scaling", "Avoid unless scaling", "Incumbents to skip unless growing fast"),
-            ),
-        ),
-        FormSectionDef(
             "exclusion_rules",
             "Exclusion rules",
             "Hard avoids for this strategy.",
             (
+                _sl("rules", "Exclusion rules", "Conditions that disqualify a company"),
                 _sl("companies", "Companies", "Named companies to never contact"),
                 _sl("domains", "Domains", "Email or web domains to block"),
                 _sl("industries", "Industries", "Industries to exclude from this run"),
@@ -808,35 +663,6 @@ STRATEGY_FORM = FormTemplateDef(
             "Success metrics",
             "Operator-defined run targets.",
             (_sl("targets", "Targets", "Measurable goals, e.g. meetings booked"),),
-        ),
-        FormSectionDef(
-            "lessons_learned",
-            "Lessons learned",
-            "What worked and what did not.",
-            (
-                _sl("worked", "What worked", "Tactics that produced good results"),
-                _sl("did_not_work", "What did not work", "Tactics to avoid repeating"),
-            ),
-        ),
-        FormSectionDef(
-            "best_practices",
-            "Best practices",
-            "Repeatable tactics.",
-            (_sl(".", "Best practices", "Repeatable tactics — one per line"),),
-        ),
-        FormSectionDef(
-            "run_targets",
-            "Run targets",
-            "Operational quotas for this sales strategy.",
-            (
-                _num("target_companies", "Target company count", "How many companies to register", required=True),
-                _num(
-                    "contacts_per_company_default",
-                    "Default contacts per company",
-                    "How many prospects to find per company",
-                    required=True,
-                ),
-            ),
         ),
     ),
 )

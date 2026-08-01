@@ -9,46 +9,23 @@ export interface FormTheme {
 export const organizationFormThemes: FormTheme[] = [
   {
     key: 'identity',
-    label: 'Identity',
-    sectionKeys: ['identity', 'company_overview', 'industry', 'business_model', 'company_size'],
+    label: 'Identity & Overview',
+    sectionKeys: ['identity', 'company_overview'],
   },
   {
-    key: 'markets',
-    label: 'Markets & ICP',
-    sectionKeys: [
-      'target_markets',
-      'existing_customers',
-      'customer_segments',
-      'brand_positioning',
-      'unique_strengths',
-    ],
+    key: 'operations',
+    label: 'Territories & Delivery',
+    sectionKeys: ['operating_territories', 'delivery_capability'],
   },
   {
-    key: 'gtm',
-    label: 'GTM',
-    sectionKeys: [
-      'competitive_landscape',
-      'sales_goals',
-      'partnership_strategy',
-      'sales_process',
-      'pricing_position',
-      'deal_constraints',
-    ],
+    key: 'capabilities',
+    label: 'Capabilities & Compliance',
+    sectionKeys: ['certifications_compliance', 'technology_expertise'],
   },
   {
-    key: 'delivery',
-    label: 'Delivery',
-    sectionKeys: [
-      'delivery_capability',
-      'technology_expertise',
-      'case_studies',
-      'references',
-    ],
-  },
-  {
-    key: 'compliance',
-    label: 'Compliance',
-    sectionKeys: ['certifications_compliance'],
+    key: 'references_and_constraints',
+    label: 'References & Constraints',
+    sectionKeys: ['references', 'macro_deal_constraints'],
   },
 ]
 
@@ -60,70 +37,71 @@ export const productFormThemes: FormTheme[] = [
   },
   {
     key: 'icp',
-    label: 'ICP',
-    sectionKeys: ['icp', 'buyer_personas', 'use_cases', 'customer_triggers', 'exclusion rules'],
+    label: 'ICP & Buyer Personas',
+    sectionKeys: ['icp', 'buyer_personas', 'use_cases', 'customer_triggers'],
   },
   {
-    key: 'gtm',
-    label: 'GTM',
+    key: 'commercials_and_diffs',
+    label: 'Pricing & Differentiation',
     sectionKeys: [
+      'pricing',
       'competitors',
       'differentiators',
-      'pricing',
       'keywords',
       'signals',
     ],
   },
   {
     key: 'delivery',
-    label: 'Delivery',
+    label: 'Delivery & Proof',
     sectionKeys: ['implementation', 'integrations', 'customer_success_stories'],
   },
   {
-    key: 'compliance',
-    label: 'Compliance',
-    sectionKeys: ['compliance_restrictions'],
+    key: 'compliance_and_exclusions',
+    label: 'Compliance & Exclusions',
+    sectionKeys: ['compliance_restrictions', 'exclusion_rules'],
   },
 ]
 
 export const strategyFormThemes: FormTheme[] = [
   {
-    key: 'identity',
-    label: 'Identity',
+    key: 'overview_and_targets',
+    label: 'Overview & Targets',
     sectionKeys: ['overview', 'run_targets'],
   },
   {
-    key: 'icp',
-    label: 'ICP',
+    key: 'target_decision_makers',
+    label: 'Decision Makers',
+    sectionKeys: ['target_decision_makers'],
+  },
+  {
+    key: 'target_company_profile',
+    label: 'Company Profile',
     sectionKeys: [
       'target_company_profile',
-      'target_decision_makers',
       'priority_industries',
       'priority_geographies',
       'company_size',
     ],
   },
   {
-    key: 'gtm',
-    label: 'GTM',
+    key: 'discovery_signals_and_sources',
+    label: 'Discovery & Sources',
     sectionKeys: [
       'buying_signals',
       'prospecting_strategy',
-      'outreach_strategy',
-      'messaging_hypotheses',
-      'qualification_criteria',
-      'prioritization_rules',
       'competitor_targeting',
     ],
   },
   {
-    key: 'guardrails',
-    label: 'Guardrails',
-    sectionKeys: ['blacklist_criteria', 'exclusion_rules'],
-  },
-  {
-    key: 'learning',
-    label: 'Learning',
-    sectionKeys: ['experiments', 'success_metrics', 'lessons_learned', 'best_practices'],
+    key: 'qualification_and_exclusions',
+    label: 'Qualification & Exclusions',
+    sectionKeys: [
+      'qualification_criteria',
+      'prioritization_rules',
+      'exclusion_rules',
+      'experiments',
+      'success_metrics',
+    ],
   },
 ]

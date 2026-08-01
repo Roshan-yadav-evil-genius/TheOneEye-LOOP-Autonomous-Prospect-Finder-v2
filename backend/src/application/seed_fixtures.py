@@ -20,17 +20,12 @@ def organization_form(**overrides: Any) -> dict[str, Any]:
             "description": "B2B seller operating an operator-led prospecting console",
             "mission": "Turn ICP fit into qualified pipeline faster",
         },
-        "industry": {"primary": "Software"},
-        "business_model": {"types": ["B2B", "SaaS"]},
-        "target_markets": {
+        "operating_territories": {
             "countries": ["US"],
             "regions": ["North America"],
-            "industries": ["SaaS"],
         },
-        "customer_segments": {"primary": ["mid-market"]},
-        "deal_constraints": {
+        "macro_deal_constraints": {
             "min_contract_value": "10000",
-            "excluded_industries": ["gambling"],
             "geographic_limits": [],
         },
         "delivery_capability": {"geography": ["US"], "support_hours": "9-5 ET"},
