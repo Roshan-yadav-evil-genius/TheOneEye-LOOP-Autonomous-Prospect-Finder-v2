@@ -484,6 +484,16 @@ def company_planner_tools(
         )
         return "Finalized"
 
+    @tool
+    async def mark_planning_as_complete() -> str:
+        """Mark the planning phase as complete and set the plan runtime status to READY for execution workers."""
+        plan = await _get_plan()
+        plan.runtime.status = PlannerStatus.READY
+        await planner_service.save_plan(
+            effort_prefix, plan, strategy_id=strategy_id
+        )
+        return "Plan status set to ready."
+
     return [
         get_plan_summary,
         update_plan_context,
@@ -493,5 +503,7 @@ def company_planner_tools(
         record_action_result,
         add_knowledge_entry,
         register_artifact,
+        mark_planning_as_complete,
         finalize_plan,
     ]
+

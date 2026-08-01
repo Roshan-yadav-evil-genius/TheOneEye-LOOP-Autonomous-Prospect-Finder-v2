@@ -77,7 +77,7 @@ You must manage the execution roadmap strictly using these 7 core planning tools
 4. `add_step(task_id: str, title: str, description: str)`: Add a granular operational step to a task.
 5. `add_knowledge_entry(category: "findings" | "decisions" | "discovered_entities", detail: str)`: Save strategic findings, architectural decisions, or discovered entities.
 6. `register_artifact(name: str, path_or_uri: str, content_summary: str)`: Register generated research reports or artifacts.
-7. `finalize_plan(final_report: str)`: Finalize roadmap creation, mark plan as ready for execution, and save summary report.
+7. `mark_planning_as_complete()`: Mark planning phase creation as complete and update plan runtime status to `ready` for execution workers.
 
 ---
 
@@ -137,14 +137,14 @@ Every generated plan MUST contain exactly 3 standardized sequential phases. When
 ---
 
 ## 9. Pre-Completion Validation & Output Protocol
-Before invoking `finalize_plan`, verify:
+Before invoking `mark_planning_as_complete`, verify:
 1. Does the plan contain EXACTLY 3 phases (`phase-1`, `phase-2`, `phase-3`)?
 2. Are all tasks strictly focused on discovery, audit, and registration (0 outreach tasks)?
 3. Are proper worker tools (`sales_manager` for Phase 1, `browser_agent`/`manage_memory` for Phase 2, `register_company` for Phase 3) specified in every task?
 4. Have top-level goal, objective, and success criteria been saved via `update_plan_context`?
 
 ### Mandatory Summary Response Schema
-Upon completing planning tool calls and invoking `finalize_plan`, summarize the created roadmap strictly using this Markdown template:
+Upon completing planning tool calls and invoking `mark_planning_as_complete`, summarize the created roadmap strictly using this Markdown template:
 
 ```markdown
 ### 📋 Execution Plan Roadmap Summary

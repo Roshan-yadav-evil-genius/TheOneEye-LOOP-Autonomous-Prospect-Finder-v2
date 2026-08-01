@@ -12,7 +12,7 @@ async def test_planner_tool_suite_execution(session):
     tools_list = company_planner_tools(session, strategy_id, effort_prefix)
     tool_map = {t.name: t for t in tools_list}
 
-    # Verify all 9 tools exist
+    # Verify all 10 tools exist
     expected_tools = {
         "get_plan_summary",
         "update_plan_context",
@@ -22,6 +22,7 @@ async def test_planner_tool_suite_execution(session):
         "record_action_result",
         "add_knowledge_entry",
         "register_artifact",
+        "mark_planning_as_complete",
         "finalize_plan",
     }
     assert expected_tools.issubset(set(tool_map.keys()))
@@ -88,7 +89,16 @@ async def test_planner_tool_suite_execution(session):
     })
     assert art_res == "Registered: artifact-1"
 
-    # 8. Tool 4: update_task_status (COMPLETED)
+    # 8. Tool: mark_planning_as_complete (planning mode completion tool)
+    mark_res = await tool_map["mark_planning_as_complete"].ainvoke({})
+    assert mark_res == "Plan status set to ready."
+
+    service = PlannerService(session)
+    ready_plan = await service.get_plan(effort_prefix)
+    assert ready_plan is not None
+    assert ready_plan.runtime.status == PlannerStatus.READY
+
+    # 9. Tool 4: update_task_status (COMPLETED)
     status_res2 = await tool_map["update_task_status"].ainvoke({
         "task_id": task_id,
         "status": "completed",
@@ -96,14 +106,13 @@ async def test_planner_tool_suite_execution(session):
     })
     assert status_res2 == "Updated"
 
-    # 9. Tool 8: finalize_plan
+    # 10. Tool 8: finalize_plan
     final_res = await tool_map["finalize_plan"].ainvoke({
         "final_report": "Planning phase complete. All targets verified.",
     })
     assert final_res == "Finalized"
 
     # Verify directly via PlannerService
-    service = PlannerService(session)
     final_plan = await service.get_plan(effort_prefix)
     assert final_plan is not None
     assert final_plan.runtime.status == PlannerStatus.COMPLETED
@@ -156,6 +165,19 @@ async def test_wrap_tool_for_planner_permission_denied():
     res_status_planning = await wrapped_status_planning.ainvoke({"task_id": "t1", "status": "running"})
     assert "Permission Denied: Tool 'update_task_status' tracks execution progress/results" in res_status_planning
     assert "cannot be called during Planning mode" in res_status_planning
+
+    # Test finalize_plan tool forbidden in planning mode
+    @tool
+    def finalize_tool(final_report: str) -> str:
+        """Finalize plan tool."""
+        return "finalized"
+    finalize_tool.name = "finalize_plan"
+
+    wrapped_finalize_planning = wrap_tool_for_planner(finalize_tool, mode="planning")
+    assert wrapped_finalize_planning is not finalize_tool
+    res_finalize_planning = await wrapped_finalize_planning.ainvoke({"final_report": "done"})
+    assert "Permission Denied: Tool 'finalize_plan' is an execution tool" in res_finalize_planning
+    assert "cannot be called during Planning mode" in res_finalize_planning
 
     # Test progress tools allowed in analyzing mode
     wrapped_status_analyzing = wrap_tool_for_planner(status_tool, mode="analyzing")
