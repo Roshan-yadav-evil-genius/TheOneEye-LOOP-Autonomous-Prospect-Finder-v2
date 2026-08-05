@@ -14,7 +14,7 @@ from deepagents import (
     SubAgent,
     create_deep_agent,
 )
-from deepagents.backends.protocol import BackendFactory, BackendProtocol
+from deepagents.backends.protocol import BackendProtocol
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
@@ -155,7 +155,7 @@ class LoopDeepAgentConfig:
     loop_context: LoopAgentToolContext
     model: BaseChatModel | None = None
     subagents: Sequence[SubAgent | CompiledSubAgent | AsyncSubAgent] | None = None
-    backend: BackendProtocol | BackendFactory | None = None
+    backend: BackendProtocol | Any | None = None
     permissions: list[FilesystemPermission] | None = None
     brain_tools: Sequence[BaseTool] | None = None
     brain_responsibility: str | None = None
@@ -271,7 +271,7 @@ def build_loop_agent_graph(
     store: BaseStore | None = None,
     subagents: Sequence[SubAgent | CompiledSubAgent | AsyncSubAgent] | None = None,
     middleware: Sequence[AgentMiddleware] | None = None,
-    backend: BackendProtocol | BackendFactory | None = None,
+    backend: BackendProtocol | Any | None = None,
     permissions: list[FilesystemPermission] | None = None,
     name: str | None = None,
 ) -> Any:

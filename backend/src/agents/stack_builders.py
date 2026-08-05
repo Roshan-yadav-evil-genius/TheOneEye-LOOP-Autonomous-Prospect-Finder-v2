@@ -10,7 +10,7 @@ from langchain_core.language_models import BaseLanguageModel
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.store.base import BaseStore
 from deepagents import FilesystemPermission
-from deepagents.backends.protocol import BackendFactory, BackendProtocol
+from deepagents.backends.protocol import BackendProtocol
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.tools import BaseTool
 
@@ -114,7 +114,7 @@ def build_company_finder_stack(
     company_middlewares: Sequence[AgentMiddleware] | None = None,
     browser_middlewares: Sequence[AgentMiddleware] | None = None,
     wrap_subagent: WrapSubagent | None = None,
-    backend: BackendProtocol | BackendFactory | None = None,
+    backend: BackendProtocol | Any | None = None,
     permissions: list[FilesystemPermission] | None = None,
     strategy_bundle: dict[str, Any] | None = None,
     is_planner: bool = False,
@@ -234,7 +234,7 @@ def build_contact_finder_stack(
     contact_middlewares: Sequence[AgentMiddleware] | None = None,
     browser_middlewares: Sequence[AgentMiddleware] | None = None,
     wrap_subagent: WrapSubagent | None = None,
-    backend: BackendProtocol | BackendFactory | None = None,
+    backend: BackendProtocol | Any | None = None,
     permissions: list[FilesystemPermission] | None = None,
     strategy_bundle: dict[str, Any] | None = None,
     company_payload: dict[str, Any] | None = None,

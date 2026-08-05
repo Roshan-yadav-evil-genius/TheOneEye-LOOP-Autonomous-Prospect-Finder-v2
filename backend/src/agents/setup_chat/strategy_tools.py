@@ -115,6 +115,26 @@ async def set_strategy_overview(
 
 
 @tool
+async def set_strategy_run_targets(
+    config: RunnableConfig,
+    target_companies: int | None = None,
+    contacts_per_company_default: int | None = None,
+) -> str:
+    """Agent mode only. Update the strategy run targets section.
+
+    Args:
+        target_companies: Total number of companies to target in this strategy run.
+        contacts_per_company_default: Default number of prospects/contacts per company.
+    """
+    updates = {}
+    if target_companies is not None:
+        updates["target_companies"] = target_companies
+    if contacts_per_company_default is not None:
+        updates["contacts_per_company_default"] = contacts_per_company_default
+    return await _save_strategy_section(config, "run_targets", updates)
+
+
+@tool
 async def set_strategy_target_company_profile(
     config: RunnableConfig,
     company_types: list[str] | None = None,

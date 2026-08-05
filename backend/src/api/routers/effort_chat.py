@@ -233,12 +233,7 @@ async def delete_chat_message(
     thread_id: str | None = None,
 ) -> None:
     target_thread_id = thread_id or f"{effort_prefix}_planner_1"
-    success = await ThreadChatHistoryService.delete_message(target_thread_id, message_id)
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete message {message_id}",
-        )
+    await ThreadChatHistoryService.delete_message(target_thread_id, message_id)
 
 
 @router.get("/{effort_prefix}/plan")

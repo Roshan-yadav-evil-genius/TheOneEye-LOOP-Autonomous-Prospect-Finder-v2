@@ -11,6 +11,7 @@ from agents.setup_chat.strategy_tools import (
     get_strategy_tools,
     get_strategy_profile,
     set_strategy_overview,
+    set_strategy_run_targets,
     set_strategy_company_size,
     set_strategy_experiments,
 )
@@ -81,6 +82,14 @@ async def test_strategy_tools_returns_saved_data():
 
     res = await set_strategy_overview.ainvoke({"name": "New Strategy"}, config=config)
     assert res == "Saved!"
+
+    res_targets = await set_strategy_run_targets.ainvoke({"target_companies": 50}, config=config)
+    assert res_targets == "Saved!"
+
+    # Verify get_strategy_tools() returns valid tools list
+    tools = get_strategy_tools()
+    assert set_strategy_run_targets in tools
+    assert len(tools) == 16
 
     # Test empty payload guard on strategy tool
     res_empty = await set_strategy_company_size.ainvoke({}, config=config)
