@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
 from agents.runtime import build_product_setup_thread_id, allocate_next_setup_thread_id
+from application.product_service import ProductService
 from application.loop_service import LoopService
 from application.setup_chat_service import SetupChatService
 from agents.setup_chat.product_agent import create_product_setup_agent
@@ -25,12 +26,13 @@ async def chat_service(
     product_id: str,
     thread_id: str | None = None,
 ) -> SetupChatService:
-    loop_service = LoopService(session, getattr(request.state, "request_id", None))
-    product = await loop_service.get_product(product_id)
+    prod_svc = ProductService(session, getattr(request.state, "request_id", None))
+    loop_svc = LoopService(session, getattr(request.state, "request_id", None))
+    product = await prod_svc.get_product(product_id)
     organization_id = product.organization_id
     
     async def verify_entity() -> None:
-        await loop_service.get_product(product_id)
+        await prod_svc.get_product(product_id)
         
     actual_thread_id = thread_id or build_product_setup_thread_id(organization_id, product_id)
     
@@ -38,7 +40,7 @@ async def chat_service(
         organization_id=organization_id,
         product_id=product_id,
         mode="chat",
-        service=loop_service,
+        service=loop_svc,
     )
     
     return SetupChatService(
@@ -54,8 +56,8 @@ async def get_threads(
     product_id: str,
     session: Session,
 ) -> list[str]:
-    loop_service = LoopService(session)
-    product = await loop_service.get_product(product_id)
+    prod_svc = ProductService(session)
+    product = await prod_svc.get_product(product_id)
     organization_id = product.organization_id
     store = ThreadCheckpointStore()
     base = build_product_setup_thread_id(organization_id, product_id)
@@ -68,8 +70,8 @@ async def new_thread(
     product_id: str,
     session: Session,
 ) -> NewThreadResponse:
-    loop_service = LoopService(session)
-    product = await loop_service.get_product(product_id)
+    prod_svc = ProductService(session)
+    product = await prod_svc.get_product(product_id)
     organization_id = product.organization_id
     store = ThreadCheckpointStore()
     base = build_product_setup_thread_id(organization_id, product_id)

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
 from agents.runtime import build_org_setup_thread_id, allocate_next_setup_thread_id
+from application.organization_service import OrganizationService
 from application.loop_service import LoopService
 from application.setup_chat_service import SetupChatService
 from agents.setup_chat.org_agent import create_organization_setup_agent
@@ -24,16 +25,17 @@ def chat_service(
     organization_id: str,
     thread_id: str | None = None,
 ) -> SetupChatService:
-    loop_service = LoopService(session, getattr(request.state, "request_id", None))
+    org_svc = OrganizationService(session, getattr(request.state, "request_id", None))
+    loop_svc = LoopService(session, getattr(request.state, "request_id", None))
     
     async def verify_entity() -> None:
-        await loop_service.get_organization(organization_id)
+        await org_svc.get_organization(organization_id)
         
     actual_thread_id = thread_id or build_org_setup_thread_id(organization_id)
     tool_context = SetupChatToolContext(
         organization_id=organization_id,
-        mode="chat", # Set appropriately in stream, but context is updated per stream request later
-        service=loop_service,
+        mode="chat",
+        service=loop_svc,
     )
     
     return SetupChatService(

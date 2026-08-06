@@ -19,7 +19,11 @@ from agents.runtime import (
     build_role_thread_id,
 )
 from agents.usage import apply_usage
-from application.loop_service import DomainError, LoopService, utcnow
+from application.common import DomainError, utcnow
+from application.company_service import CompanyService
+from application.product_service import ProductService
+from application.prospect_service import ProspectService
+from application.strategy_service import StrategyService
 from browser.pool import BrowserPool
 from contracts.domain import (
     BlacklistProspectRequest,
@@ -142,10 +146,12 @@ class CompanyFinderEffort:
 
     async def execute(self, strategy_id: str) -> models.AgentRun | None:
         log.info("company_finder.execute.enter", strategy_id=strategy_id)
-        service = LoopService(self.session)
-        bundle = await service.bundle(strategy_id)
-        strategy = await service.get_strategy(strategy_id)
-        registered = await service.companies_registered(strategy_id)
+        strat_svc = StrategyService(self.session)
+        comp_svc = CompanyService(self.session)
+
+        bundle = await strat_svc.bundle(strategy_id)
+        strategy = await strat_svc.get_strategy(strategy_id)
+        registered = await comp_svc.companies_registered(strategy_id)
         if registered >= strategy.target_companies:
             log.info(
                 "company_finder.target_reached",
@@ -274,7 +280,7 @@ class CompanyFinderEffort:
                 log.info("company_finder.deterministic_decide", strategy_id=strategy_id)
                 decision = await self.model.decide(prompt)
                 if decision.get("action") == "register_company":
-                    result = await service.register_company(
+                    result = await comp_svc.register_company(
                         strategy_id,
                         RegisterCompanyRequest.model_validate(decision["company"]),
                         thread_id=thread_id,
@@ -297,7 +303,7 @@ class CompanyFinderEffort:
             if state:
                 state.heartbeat_at = utcnow()
                 await _record_success(state)
-                if await service.companies_registered(strategy_id) >= strategy.target_companies:
+                if await comp_svc.companies_registered(strategy_id) >= strategy.target_companies:
                     state.actual_state = state.desired_state = "stopped"
             await self.session.commit()
             log.info(
@@ -378,9 +384,9 @@ class ContactFinderEffort:
                 .order_by(models.SalesStrategyCompany.validated_at)
             )
         ).all()
-        service = LoopService(self.session)
+        prospect_svc = ProspectService(self.session)
         for row in rows:
-            registered = await service.contacts_registered(strategy_id, row.company_id)
+            registered = await prospect_svc.contacts_registered(strategy_id, row.company_id)
             if registered < row.contacts_target:
                 # Company-level lock: skip companies with a running contact effort.
                 active = await self.session.scalar(
@@ -398,8 +404,12 @@ class ContactFinderEffort:
 
     async def execute(self, strategy_id: str) -> models.AgentRun | None:
         log.info("contact_finder.execute.enter", strategy_id=strategy_id)
-        service = LoopService(self.session)
-        strategy = await service.get_strategy(strategy_id)
+        strat_svc = StrategyService(self.session)
+        prod_svc = ProductService(self.session)
+        comp_svc = CompanyService(self.session)
+        prospect_svc = ProspectService(self.session)
+
+        strategy = await strat_svc.get_strategy(strategy_id)
         try:
             company_link = await self._next_company(strategy_id)
         except DomainError as exc:
@@ -426,7 +436,7 @@ class ContactFinderEffort:
             raise
 
         company_link.contact_effort_seq += 1
-        product = await service.get_product(strategy.product_id)
+        product = await prod_svc.get_product(strategy.product_id)
         prefix = build_contact_effort_prefix(
             product.organization_id,
             strategy.product_id,
@@ -476,9 +486,9 @@ class ContactFinderEffort:
         await self.session.commit()
         prompt = json.dumps(
             {
-                "bundle": (await service.bundle(strategy_id)).model_dump(mode="json"),
+                "bundle": (await strat_svc.bundle(strategy_id)).model_dump(mode="json"),
                 "company": (
-                    await service.company_detail(strategy_id, company_link.company_id)
+                    await comp_svc.company_detail(strategy_id, company_link.company_id)
                 ).model_dump(mode="json"),
                 "instruction": "Return register_contact, blacklist_prospect, or no_candidate JSON.",
             }
@@ -545,7 +555,7 @@ class ContactFinderEffort:
                 decision: dict[str, Any] = await self.model.decide(prompt)
                 action = decision.get("action")
                 if action == "register_contact":
-                    result = await service.register_contact(
+                    result = await prospect_svc.register_contact(
                         strategy_id,
                         company_link.company_id,
                         RegisterContactRequest.model_validate(decision["contact"]),
@@ -555,7 +565,7 @@ class ContactFinderEffort:
                         result.sales_strategy_prospect_id
                     )
                 elif action == "blacklist_prospect":
-                    await service.blacklist_prospect(
+                    await prospect_svc.blacklist_prospect(
                         strategy_id,
                         company_link.company_id,
                         BlacklistProspectRequest.model_validate(decision["prospect"]),

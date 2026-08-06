@@ -6,7 +6,11 @@ from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents.checkpoints import ThreadCheckpointStore
-from application.loop_service import LoopService
+from application.organization_service import OrganizationService
+from application.product_service import ProductService
+from application.strategy_service import StrategyService
+from application.company_service import CompanyService
+from application.prospect_service import ProspectService
 from application.process_service import ProcessService
 from application.chat_history_service import ThreadChatHistoryService
 from contracts.domain import (
@@ -48,39 +52,55 @@ router = APIRouter(prefix="/api/v1", tags=["loop"])
 Session = Annotated[AsyncSession, Depends(get_session)]
 
 
-def service(session: AsyncSession, request: Request) -> LoopService:
-    return LoopService(session, getattr(request.state, "request_id", None))
+def org_svc(session: AsyncSession, request: Request) -> OrganizationService:
+    return OrganizationService(session, getattr(request.state, "request_id", None))
+
+
+def product_svc(session: AsyncSession, request: Request) -> ProductService:
+    return ProductService(session, getattr(request.state, "request_id", None))
+
+
+def strategy_svc(session: AsyncSession, request: Request) -> StrategyService:
+    return StrategyService(session, getattr(request.state, "request_id", None))
+
+
+def company_svc(session: AsyncSession, request: Request) -> CompanyService:
+    return CompanyService(session, getattr(request.state, "request_id", None))
+
+
+def prospect_svc(session: AsyncSession, request: Request) -> ProspectService:
+    return ProspectService(session, getattr(request.state, "request_id", None))
 
 
 @router.post("/organizations", response_model=OrganizationRead, status_code=status.HTTP_201_CREATED)
 async def create_organization(
     data: OrganizationCreate, session: Session, request: Request
 ) -> object:
-    return await service(session, request).create_organization(data)
+    return await org_svc(session, request).create_organization(data)
 
 
 @router.get("/organizations", response_model=list[OrganizationRead])
 async def list_organizations(session: Session, request: Request) -> object:
-    return await service(session, request).list_organizations()
+    return await org_svc(session, request).list_organizations()
 
 
 @router.get("/organizations/{organization_id}", response_model=OrganizationRead)
 async def get_organization(organization_id: str, session: Session, request: Request) -> object:
-    return await service(session, request).get_organization(organization_id)
+    return await org_svc(session, request).get_organization(organization_id)
 
 
 @router.get("/organizations/{organization_id}/profile", response_model=OrganizationRead)
 async def get_organization_profile(
     organization_id: str, session: Session, request: Request
 ) -> object:
-    return await service(session, request).get_organization(organization_id)
+    return await org_svc(session, request).get_organization(organization_id)
 
 
 @router.patch("/organizations/{organization_id}/profile", response_model=OrganizationRead)
 async def update_organization_profile(
     organization_id: str, data: OrganizationProfileUpdate, session: Session, request: Request
 ) -> object:
-    return await service(session, request).update_organization_profile(
+    return await org_svc(session, request).update_organization_profile(
         organization_id,
         form=data.form,
         name=data.name,
@@ -92,12 +112,12 @@ async def update_organization_profile(
 
 @router.post("/organizations/{organization_id}/profile/validate", response_model=ValidationResult)
 async def validate_organization(organization_id: str, session: Session, request: Request) -> object:
-    return await service(session, request).validate_organization(organization_id)
+    return await org_svc(session, request).validate_organization(organization_id)
 
 
 @router.delete("/organizations/{organization_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_organization(organization_id: str, session: Session, request: Request) -> None:
-    await service(session, request).delete_organization(organization_id)
+    await org_svc(session, request).delete_organization(organization_id)
 
 
 @router.post("/orgs/{org_id}/thumbnail")
@@ -107,7 +127,7 @@ async def upload_org_thumbnail(
     session: Session = None,
     request: Request = None,
 ) -> dict[str, str]:
-    svc = service(session, request)
+    svc = org_svc(session, request)
     org = await svc.get_organization(org_id)
     
     settings = get_settings()
@@ -141,7 +161,7 @@ async def upload_org_thumbnail(
 async def create_product(
     organization_id: str, data: ProductCreate, session: Session, request: Request
 ) -> object:
-    return await service(session, request).create_product(organization_id, data)
+    return await product_svc(session, request).create_product(organization_id, data)
 
 
 @router.get(
@@ -151,24 +171,24 @@ async def create_product(
 async def list_products(
     organization_id: str, session: Session, request: Request
 ) -> object:
-    return await service(session, request).list_products(organization_id)
+    return await product_svc(session, request).list_products(organization_id)
 
 
 @router.get("/products/{product_id}", response_model=ProductRead)
 async def get_product(product_id: str, session: Session, request: Request) -> object:
-    return await service(session, request).get_product(product_id)
+    return await product_svc(session, request).get_product(product_id)
 
 
 @router.get("/products/{product_id}/profile", response_model=ProductRead)
 async def get_product_profile(product_id: str, session: Session, request: Request) -> object:
-    return await service(session, request).get_product(product_id)
+    return await product_svc(session, request).get_product(product_id)
 
 
 @router.patch("/products/{product_id}/profile", response_model=ProductRead)
 async def update_product_profile(
     product_id: str, data: ProductProfileUpdate, session: Session, request: Request
 ) -> object:
-    return await service(session, request).update_product_profile(
+    return await product_svc(session, request).update_product_profile(
         product_id,
         form=data.form,
         name=data.name,
@@ -179,12 +199,12 @@ async def update_product_profile(
 
 @router.post("/products/{product_id}/profile/validate", response_model=ValidationResult)
 async def validate_product(product_id: str, session: Session, request: Request) -> object:
-    return await service(session, request).validate_product(product_id)
+    return await product_svc(session, request).validate_product(product_id)
 
 
 @router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(product_id: str, session: Session, request: Request) -> None:
-    await service(session, request).delete_product(product_id)
+    await product_svc(session, request).delete_product(product_id)
 
 
 @router.post("/orgs/{org_id}/products/{product_id}/thumbnail")
@@ -195,7 +215,7 @@ async def upload_product_thumbnail(
     session: Session = None,
     request: Request = None,
 ) -> dict[str, str]:
-    svc = service(session, request)
+    svc = product_svc(session, request)
     product = await svc.get_product(product_id)
     
     if product.organization_id != org_id:
@@ -232,7 +252,7 @@ async def upload_product_thumbnail(
 async def create_strategy(
     product_id: str, data: SalesStrategyCreate, session: Session, request: Request
 ) -> object:
-    return await service(session, request).create_strategy(product_id, data)
+    return await strategy_svc(session, request).create_strategy(product_id, data)
 
 
 @router.get(
@@ -242,26 +262,26 @@ async def create_strategy(
 async def list_strategies(
     product_id: str, session: Session, request: Request
 ) -> object:
-    return await service(session, request).list_strategies(product_id)
+    return await strategy_svc(session, request).list_strategies(product_id)
 
 
 @router.get("/sales-strategies/{strategy_id}/strategy", response_model=SalesStrategyRead)
 async def get_strategy(strategy_id: str, session: Session, request: Request) -> object:
-    return await service(session, request).get_strategy(strategy_id)
+    return await strategy_svc(session, request).get_strategy(strategy_id)
 
 
 @router.patch("/sales-strategies/{strategy_id}/strategy", response_model=SalesStrategyRead)
 async def update_strategy(
     strategy_id: str, data: SalesStrategyProfileUpdate, session: Session, request: Request
 ) -> object:
-    return await service(session, request).update_strategy_profile(
+    return await strategy_svc(session, request).update_strategy_profile(
         strategy_id, form=data.form, name=data.name
     )
 
 
 @router.delete("/sales-strategies/{strategy_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_strategy(strategy_id: str, session: Session, request: Request) -> None:
-    await service(session, request).delete_strategy(strategy_id)
+    await strategy_svc(session, request).delete_strategy(strategy_id)
 
 
 @router.post("/orgs/{org_id}/products/{product_id}/sales-strategies/{strategy_id}/thumbnail")
@@ -273,13 +293,14 @@ async def upload_strategy_thumbnail(
     session: Session = None,
     request: Request = None,
 ) -> dict[str, str]:
-    svc = service(session, request)
-    strategy = await svc.get_strategy(strategy_id)
+    strat_svc = strategy_svc(session, request)
+    strategy = await strat_svc.get_strategy(strategy_id)
     
     if strategy.product_id != product_id:
         raise HTTPException(status_code=400, detail="Strategy does not belong to this product")
         
-    product = await svc.get_product(product_id)
+    prod_svc = product_svc(session, request)
+    product = await prod_svc.get_product(product_id)
     if product.organization_id != org_id:
         raise HTTPException(status_code=400, detail="Product does not belong to this organization")
     
@@ -308,26 +329,26 @@ async def upload_strategy_thumbnail(
 
 @router.get("/sales-strategies/{strategy_id}/bundle", response_model=SalesStrategyBundle)
 async def get_bundle(strategy_id: str, session: Session, request: Request) -> object:
-    return await service(session, request).bundle(strategy_id)
+    return await strategy_svc(session, request).bundle(strategy_id)
 
 
 @router.get("/sales-strategies/{strategy_id}/companies", response_model=list[CompanySummary])
 async def records(strategy_id: str, session: Session, request: Request) -> object:
-    return await service(session, request).records(strategy_id)
+    return await company_svc(session, request).records(strategy_id)
 
 
 @router.post("/sales-strategies/{strategy_id}/companies", response_model=RegisterCompanyResult)
 async def register_company(
     strategy_id: str, data: RegisterCompanyRequest, session: Session, request: Request
 ) -> object:
-    return await service(session, request).register_company(strategy_id, data)
+    return await company_svc(session, request).register_company(strategy_id, data)
 
 
 @router.get("/sales-strategies/{strategy_id}/companies/{company_id}", response_model=CompanyDetail)
 async def company_detail(
     strategy_id: str, company_id: str, session: Session, request: Request
 ) -> object:
-    return await service(session, request).company_detail(strategy_id, company_id)
+    return await company_svc(session, request).company_detail(strategy_id, company_id)
 
 
 @router.patch("/sales-strategies/{strategy_id}/companies/{company_id}/profile", response_model=CompanyDetail)
@@ -338,7 +359,7 @@ async def update_company_profile(
     session: Session,
     request: Request,
 ) -> object:
-    return await service(session, request).update_company_profile(strategy_id, company_id, data)
+    return await company_svc(session, request).update_company_profile(strategy_id, company_id, data)
 
 
 @router.post(
@@ -348,7 +369,7 @@ async def update_company_profile(
 async def validate_company(
     strategy_id: str, company_id: str, session: Session, request: Request
 ) -> object:
-    return await service(session, request).validate_company(strategy_id, company_id)
+    return await company_svc(session, request).validate_company(strategy_id, company_id)
 
 
 @router.post(
@@ -362,7 +383,7 @@ async def blacklist_company(
     session: Session,
     request: Request,
 ) -> object:
-    return await service(session, request).set_company_blacklist(
+    return await company_svc(session, request).set_company_blacklist(
         strategy_id, company_id, blacklisted=True, reason=data.blacklist_reason
     )
 
@@ -374,7 +395,7 @@ async def blacklist_company(
 async def unblacklist_company(
     strategy_id: str, company_id: str, session: Session, request: Request
 ) -> object:
-    return await service(session, request).set_company_blacklist(
+    return await company_svc(session, request).set_company_blacklist(
         strategy_id, company_id, blacklisted=False, reason=None
     )
 
@@ -390,7 +411,7 @@ async def register_contact(
     session: Session,
     request: Request,
 ) -> object:
-    return await service(session, request).register_contact(strategy_id, company_id, data)
+    return await prospect_svc(session, request).register_contact(strategy_id, company_id, data)
 
 
 @router.post(
@@ -404,7 +425,7 @@ async def sparse_blacklist_prospect(
     session: Session,
     request: Request,
 ) -> object:
-    return await service(session, request).blacklist_prospect(strategy_id, company_id, data)
+    return await prospect_svc(session, request).blacklist_prospect(strategy_id, company_id, data)
 
 
 @router.post(
@@ -419,7 +440,7 @@ async def blacklist_prospect(
     session: Session,
     request: Request,
 ) -> None:
-    await service(session, request).set_prospect_blacklist(
+    await prospect_svc(session, request).set_prospect_blacklist(
         strategy_id, company_id, prospect_id, blacklisted=True, reason=data.blacklist_reason
     )
 
@@ -435,7 +456,7 @@ async def unblacklist_prospect(
     session: Session,
     request: Request,
 ) -> None:
-    await service(session, request).set_prospect_blacklist(
+    await prospect_svc(session, request).set_prospect_blacklist(
         strategy_id, company_id, prospect_id, blacklisted=False, reason=None
     )
 
@@ -452,12 +473,12 @@ async def update_outreach(
     session: Session,
     request: Request,
 ) -> None:
-    await service(session, request).update_outreach(strategy_id, company_id, prospect_id, data)
+    await prospect_svc(session, request).update_outreach(strategy_id, company_id, prospect_id, data)
 
 
 @router.get("/sales-strategies/{strategy_id}/progress", response_model=ProgressRead)
 async def progress(strategy_id: str, session: Session, request: Request) -> object:
-    return await service(session, request).progress(strategy_id)
+    return await company_svc(session, request).progress(strategy_id)
 
 
 @router.post("/sales-strategies/{strategy_id}/agents/{role}/start", response_model=ProcessStatus)
@@ -475,9 +496,6 @@ async def process_status(strategy_id: str, role: AgentRole, session: Session) ->
     return await ProcessService(session).status(strategy_id, role)
 
 
-
-
-
 @router.get("/sales-strategies/{strategy_id}/agents/company-finder/threads", response_model=list[str])
 async def company_finder_threads(strategy_id: str) -> list[str]:
     store = ThreadCheckpointStore()
@@ -488,9 +506,6 @@ async def company_finder_threads(strategy_id: str) -> list[str]:
 async def contact_finder_threads(strategy_id: str) -> list[str]:
     store = ThreadCheckpointStore()
     return await store.search_threads(contains=f"_{strategy_id}_", suffix="contact_finder")
-
-
-
 
 
 @router.get("/threads", response_model=list[str])
@@ -553,4 +568,3 @@ async def list_contact_finder_efforts(
 @router.get("/efforts/{effort_prefix:path}", response_model=EffortDetailRead)
 async def get_effort_detail(effort_prefix: str, session: Session) -> object:
     return await ProcessService(session).effort_detail(effort_prefix)
-

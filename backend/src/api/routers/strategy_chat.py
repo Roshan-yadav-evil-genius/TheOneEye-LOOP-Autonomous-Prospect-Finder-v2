@@ -6,6 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
 from agents.runtime import build_strategy_setup_thread_id, allocate_next_setup_thread_id
+from application.strategy_service import StrategyService
+from application.product_service import ProductService
 from application.loop_service import LoopService
 from application.setup_chat_service import SetupChatService
 from agents.setup_chat.strategy_agent import create_strategy_setup_agent
@@ -25,14 +27,17 @@ async def chat_service(
     strategy_id: str,
     thread_id: str | None = None,
 ) -> SetupChatService:
-    loop_service = LoopService(session, getattr(request.state, "request_id", None))
-    strategy = await loop_service.get_strategy(strategy_id)
-    product = await loop_service.get_product(strategy.product_id)
+    strat_svc = StrategyService(session, getattr(request.state, "request_id", None))
+    prod_svc = ProductService(session, getattr(request.state, "request_id", None))
+    loop_svc = LoopService(session, getattr(request.state, "request_id", None))
+
+    strategy = await strat_svc.get_strategy(strategy_id)
+    product = await prod_svc.get_product(strategy.product_id)
     organization_id = product.organization_id
     product_id = product.id
 
     async def verify_entity() -> None:
-        await loop_service.get_strategy(strategy_id)
+        await strat_svc.get_strategy(strategy_id)
 
     actual_thread_id = thread_id or build_strategy_setup_thread_id(
         organization_id=organization_id,
@@ -45,7 +50,7 @@ async def chat_service(
         product_id=product_id,
         strategy_id=strategy_id,
         mode="chat",
-        service=loop_service,
+        service=loop_svc,
     )
 
     return SetupChatService(
@@ -61,9 +66,10 @@ async def get_threads(
     strategy_id: str,
     session: Session,
 ) -> list[str]:
-    loop_service = LoopService(session)
-    strategy = await loop_service.get_strategy(strategy_id)
-    product = await loop_service.get_product(strategy.product_id)
+    strat_svc = StrategyService(session)
+    prod_svc = ProductService(session)
+    strategy = await strat_svc.get_strategy(strategy_id)
+    product = await prod_svc.get_product(strategy.product_id)
     organization_id = product.organization_id
     product_id = product.id
     store = ThreadCheckpointStore()
@@ -81,9 +87,10 @@ async def new_thread(
     strategy_id: str,
     session: Session,
 ) -> NewThreadResponse:
-    loop_service = LoopService(session)
-    strategy = await loop_service.get_strategy(strategy_id)
-    product = await loop_service.get_product(strategy.product_id)
+    strat_svc = StrategyService(session)
+    prod_svc = ProductService(session)
+    strategy = await strat_svc.get_strategy(strategy_id)
+    product = await prod_svc.get_product(strategy.product_id)
     organization_id = product.organization_id
     product_id = product.id
     store = ThreadCheckpointStore()

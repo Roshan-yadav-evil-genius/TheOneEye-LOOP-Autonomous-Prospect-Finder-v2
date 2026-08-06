@@ -1,7 +1,9 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from application.loop_service import DomainError, LoopService, utcnow
+from application.common import DomainError, utcnow
+from application.company_service import CompanyService
+from application.strategy_service import StrategyService
 from contracts.domain import AgentRunSummary, EffortDetailRead, ProcessLogRead, ProcessStatus
 from observability.logging import get_logger
 from persistence import models
@@ -28,10 +30,10 @@ class ProcessService:
         from agents.cancel import clear_cancel
 
         clear_cancel(strategy_id, role)
-        strategy = await LoopService(self.session).get_strategy(strategy_id)
+        strategy = await StrategyService(self.session).get_strategy(strategy_id)
         state = await self._state(strategy_id, role)
         if role == "company-finder":
-            progress = await LoopService(self.session).progress(strategy_id)
+            progress = await CompanyService(self.session).progress(strategy_id)
             if progress.companies_registered >= strategy.target_companies:
                 raise DomainError(
                     "company_quota_reached", "The strategy company target has been reached."
@@ -58,11 +60,10 @@ class ProcessService:
                 sales_strategy_id=strategy_id,
                 role=role,
                 event_code="process_started",
-                message=f"{role} process started.",
+                message=f"Process requested for {role}.",
             )
         )
         await self.session.commit()
-        log.info("process_started_job_enqueued", strategy_id=strategy_id, role=role)
         return await self.status(strategy_id, role)
 
     async def stop(self, strategy_id: str, role: str) -> ProcessStatus:
@@ -72,26 +73,15 @@ class ProcessService:
         state = await self._state(strategy_id, role)
         state.desired_state = state.actual_state = "stopped"
         state.active_company_id = None
+        state.heartbeat_at = utcnow()
         self.session.add(
             models.ProcessLog(
                 sales_strategy_id=strategy_id,
                 role=role,
                 event_code="process_stopped",
-                message=f"{role} process stopped immediately.",
+                message=f"Process stop requested for {role}.",
             )
         )
-        runs = (
-            await self.session.scalars(
-                select(models.AgentRun).where(
-                    models.AgentRun.sales_strategy_id == strategy_id,
-                    models.AgentRun.agent_role == role.replace("-", "_"),
-                    models.AgentRun.status == "running",
-                )
-            )
-        ).all()
-        for run in runs:
-            run.status = "stopped"
-            run.completed_at = utcnow()
         queued_jobs = (
             await self.session.scalars(
                 select(models.JobRun).where(
@@ -140,18 +130,6 @@ class ProcessService:
             execution_count=count,
             logs=[ProcessLogRead.model_validate(item) for item in logs],
         )
-
-
-
-    async def threads(self, strategy_id: str) -> list[AgentRunSummary]:
-        rows = (
-            await self.session.scalars(
-                select(models.AgentRun)
-                .where(models.AgentRun.sales_strategy_id == strategy_id)
-                .order_by(models.AgentRun.created_at.desc())
-            )
-        ).all()
-        return [AgentRunSummary.model_validate(row) for row in rows]
 
     async def list_efforts(
         self, strategy_id: str, role: str | None = None, company_id: str | None = None
@@ -207,4 +185,3 @@ class ProcessService:
             created_at=run.created_at,
             completed_at=run.completed_at,
         )
-

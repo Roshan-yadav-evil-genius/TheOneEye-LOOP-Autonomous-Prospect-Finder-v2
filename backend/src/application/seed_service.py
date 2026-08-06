@@ -14,7 +14,8 @@ from pydantic import HttpUrl
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from application.loop_service import LoopService, normalize_domain, utcnow
+from application.common import normalize_domain, utcnow
+from application.loop_service import LoopService
 from application.process_service import ProcessService
 from application.seed_fixtures import (
     DISTRIBUTOR_COMPANIES,
