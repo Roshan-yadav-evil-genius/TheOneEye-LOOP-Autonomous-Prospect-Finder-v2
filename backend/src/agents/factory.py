@@ -16,7 +16,9 @@ from agents.model_provider import resolve_chat_model
 from agents.nested_checkpointing import to_checkpointed_compiled_subagent
 from agents.parent_state import ParentSubagentStateStore, make_parent_state_callbacks
 from agents.runtime import LoopAgentToolContext, build_role_thread_id
+from agents.planner_graph import create_planner_graph
 from agents.stack_builders import (
+    _render_company_responsibility,
     build_company_finder_stack,
     build_contact_finder_stack,
 )
@@ -173,10 +175,26 @@ async def company_finder_agent_scope(
             ]
             raw_tools = company_planner_tools(session, strategy_id, effort_prefix) + planner_finder_tools
             company_tools_list = [wrap_tool_for_planner(t, mode="planning") for t in raw_tools]
-            sm_tools = sales_manager_tools(session, strategy_id)
-        else:
-            company_tools_list = company_finder_tools(session, strategy_id, parent_thread)
-            sm_tools = None
+            
+            planner_graph = create_planner_graph(
+                checkpointer=checkpointer,
+                model=model,
+                tools=company_tools_list,
+            )
+            try:
+                log.info(
+                    "company_finder_scope.planner_ready",
+                    strategy_id=strategy_id,
+                    parent_thread=parent_thread,
+                )
+                yield planner_graph, _config(parent_thread), store
+            finally:
+                await store.flush()
+                log.info("company_finder_scope.closed", strategy_id=strategy_id, parent_thread=parent_thread)
+            return
+
+        company_tools_list = company_finder_tools(session, strategy_id, parent_thread)
+        sm_tools = None
 
         stack = build_company_finder_stack(
             effort_prefix=effort_prefix,

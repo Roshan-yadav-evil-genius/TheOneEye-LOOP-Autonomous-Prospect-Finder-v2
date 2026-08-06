@@ -6,19 +6,22 @@ export function ChatComposer({
   onContinue, 
   disabled, 
   incompleteTurn = false,
-  canResume = false
+  canResume = false,
+  noInputRequired = false
 }: { 
   onSend: (msg: string) => void, 
   onContinue: () => void, 
   disabled: boolean, 
   incompleteTurn?: boolean,
-  canResume?: boolean
+  canResume?: boolean,
+  noInputRequired?: boolean
 }) {
   const [text, setText] = useState('')
 
   const handleSend = () => {
-    if (!text.trim() || disabled) return
-    onSend(text.trim())
+    if (disabled) return
+    if (!noInputRequired && !text.trim()) return
+    onSend(noInputRequired ? '' : text.trim())
     setText('')
   }
 
@@ -29,18 +32,22 @@ export function ChatComposer({
 
   const buttonText = incompleteTurn 
     ? (canResume ? 'Continue' : 'Retry') 
-    : 'Send'
+    : (noInputRequired ? 'Start' : 'Send')
 
   const showWaitPlaceholder = incompleteTurn
-  const disableInput = disabled || incompleteTurn
+  const disableInput = disabled || incompleteTurn || noInputRequired
+
+  const placeholderText = showWaitPlaceholder
+    ? 'Waiting for AI to finish turn...'
+    : (noInputRequired ? 'No input required. Click Start to run the Planner agent.' : 'Type a message...')
 
   return (
     <div style={{ display: 'flex', gap: '8px', marginTop: '16px', alignItems: 'flex-end' }}>
       <textarea
-        value={showWaitPlaceholder ? '' : text}
+        value={showWaitPlaceholder || noInputRequired ? '' : text}
         onChange={(e) => setText(e.target.value)}
         disabled={disableInput}
-        placeholder={showWaitPlaceholder ? 'Waiting for AI to finish turn...' : 'Type a message...'}
+        placeholder={placeholderText}
         style={{
           flex: 1,
           padding: '10px 12px',
@@ -67,7 +74,11 @@ export function ChatComposer({
           }
         }}
       />
-      <Button type="button" onClick={incompleteTurn ? handleContinue : handleSend} disabled={disabled || (!incompleteTurn && !text.trim())}>
+      <Button
+        type="button"
+        onClick={incompleteTurn ? handleContinue : handleSend}
+        disabled={disabled || (!incompleteTurn && !noInputRequired && !text.trim())}
+      >
         {buttonText}
       </Button>
     </div>

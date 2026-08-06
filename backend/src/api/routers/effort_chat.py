@@ -117,14 +117,19 @@ async def stream_chat(
                         can_resume = False
                     if not can_resume:
                         if data.redo_last and data.message:
-                            input_data = {"messages": [("user", data.message)]}
+                            chat_key = "planner_chat" if is_planner else "messages"
+                            input_data = {chat_key: [("user", data.message)]}
                         else:
                             yield f"event: error\ndata: {json.dumps({'message': 'No pending actions to retry.', 'can_resume': False})}\n\n"
                             return
                     else:
                         input_data = None
                 else:
-                    input_data = {"messages": [("user", data.message)]}
+                    if not data.message:
+                        input_data = {}
+                    else:
+                        chat_key = "planner_chat" if is_planner else "messages"
+                        input_data = {chat_key: [("user", data.message)]}
 
                 disconnected = False
                 try:

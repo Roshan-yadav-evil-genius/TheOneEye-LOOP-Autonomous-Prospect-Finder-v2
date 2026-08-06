@@ -698,6 +698,7 @@ export function EffortDetailPage({ role }: { role: 'company-finder' | 'contact-f
           entityId={effort?.effort_prefix || ''}
           agentDescription="Directly orchestrate research, prospect discovery, and delegation for this effort."
           store={chatStore}
+          noInputRequired={true}
         />
       }
     />

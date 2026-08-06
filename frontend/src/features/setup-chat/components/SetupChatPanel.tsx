@@ -9,6 +9,7 @@ export interface SetupChatPanelProps {
   entityId: string
   agentDescription: string
   store: SetupChatStoreState
+  noInputRequired?: boolean
 }
 
 type TabMode = 'chat' | 'agent' | 'history'
@@ -58,7 +59,7 @@ function TabButton({
   )
 }
 
-export function SetupChatPanel({ title: _title, threadId: _threadId, entityId, agentDescription: _agentDescription, store }: SetupChatPanelProps) {
+export function SetupChatPanel({ title: _title, threadId: _threadId, entityId, agentDescription: _agentDescription, store, noInputRequired = false }: SetupChatPanelProps) {
   const handleSend = (msg: string) => {
     void store.send(entityId, msg)
   }
@@ -179,6 +180,7 @@ export function SetupChatPanel({ title: _title, threadId: _threadId, entityId, a
               disabled={store.streaming}
               incompleteTurn={store.incompleteTurn}
               canResume={store.canResume}
+              noInputRequired={noInputRequired}
             />
           </div>
         </>

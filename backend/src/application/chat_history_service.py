@@ -35,8 +35,8 @@ class ThreadChatHistoryService:
                 can_resume = bool(state.next) if state else False
                 messages = []
 
-                if state and state.values and "messages" in state.values:
-                    raw_messages = state.values["messages"]
+                if state and state.values:
+                    raw_messages = state.values.get("planner_chat") or state.values.get("messages") or []
                     for msg in raw_messages:
                         messages.append(message_to_dict(msg))
 
@@ -101,10 +101,11 @@ class ThreadChatHistoryService:
             config = _thread_config(thread_id)
 
             state = await agent.aget_state(config)
-            if not state or not state.values or "messages" not in state.values:
+            if not state or not state.values:
                 return False
 
-            raw_messages = state.values["messages"]
+            chat_key = "planner_chat" if "planner_chat" in state.values else "messages"
+            raw_messages = state.values.get(chat_key, [])
             messages_to_remove = [RemoveMessage(id=message_id)]
 
             target_msg = None
@@ -125,12 +126,12 @@ class ThreadChatHistoryService:
                             messages_to_remove.append(RemoveMessage(id=m.id))
 
             try:
-                await agent.aupdate_state(config, {"messages": messages_to_remove})
+                await agent.aupdate_state(config, {chat_key: messages_to_remove})
             except Exception:
                 nodes = [n for n in agent.get_graph().nodes.keys() if n not in ("__start__", "__end__")]
                 node_name = "model" if "model" in agent.get_graph().nodes else (nodes[0] if nodes else None)
                 if node_name:
-                    await agent.aupdate_state(config, {"messages": messages_to_remove}, as_node=node_name)
+                    await agent.aupdate_state(config, {chat_key: messages_to_remove}, as_node=node_name)
                 else:
                     raise
             return True

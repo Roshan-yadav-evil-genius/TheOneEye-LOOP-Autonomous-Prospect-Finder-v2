@@ -278,8 +278,11 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
     send: async (entityId, message) => {
       const { mode, messages, activeThreadId } = get()
       
-      const userMsg: ChatUiMessage = { id: `user-${Date.now()}`, kind: 'user', content: message }
-      set({ messages: [...messages, userMsg], streaming: true, error: null, lastUserMessage: message })
+      const newMessages = message.trim() 
+        ? [...messages, { id: `user-${Date.now()}`, kind: 'user', content: message } as ChatUiMessage]
+        : messages
+
+      set({ messages: newMessages, streaming: true, error: null, lastUserMessage: message || null })
 
       const modeArg = mode === 'history' ? 'chat' : mode
       await get()._runStream(entityId, { message, mode: modeArg, thread_id: activeThreadId })
