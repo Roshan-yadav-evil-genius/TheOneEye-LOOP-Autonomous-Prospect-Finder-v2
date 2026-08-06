@@ -8,11 +8,14 @@ import {
 import type { SetupChatApi } from '../../setup-chat/stores/store-factory'
 
 export const effortChatApi: SetupChatApi = {
-  getHistory: async (effortPrefix: string, threadId?: string | null) => {
-    const params = threadId ? `?thread_id=${encodeURIComponent(threadId)}` : ''
+  getHistory: async (effortPrefix: string, threadId?: string | null, checkpoint_ns?: string | null) => {
+    const searchParams = new URLSearchParams()
+    if (threadId) searchParams.set('thread_id', threadId)
+    if (checkpoint_ns) searchParams.set('checkpoint_ns', checkpoint_ns)
+    const queryString = searchParams.toString() ? `?${searchParams.toString()}` : ''
     return (
       await apiClient.get<ChatHistoryRead>(
-        `/api/v1/efforts/${encodeURIComponent(effortPrefix)}/chat/history${params}`
+        `/api/v1/efforts/${encodeURIComponent(effortPrefix)}/chat/history${queryString}`
       )
     ).data
   },
@@ -43,9 +46,9 @@ export const effortChatApi: SetupChatApi = {
     return streamChatGeneric(url, data, onEvent)
   },
 
-  getThreads: async (effortPrefix: string): Promise<string[]> =>
+  getThreads: async (effortPrefix: string): Promise<{ threads: string[]; namespaces?: Record<string, string[]> }> =>
     (
-      await apiClient.get<string[]>(
+      await apiClient.get<{ threads: string[]; namespaces?: Record<string, string[]> }>(
         `/api/v1/efforts/${encodeURIComponent(effortPrefix)}/chat/threads`
       )
     ).data,

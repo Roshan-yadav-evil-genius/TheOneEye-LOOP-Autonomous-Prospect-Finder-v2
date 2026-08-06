@@ -24,13 +24,15 @@ export interface SetupChatStoreState {
   canResume: boolean
   lastUserMessage: string | null
 
-  /** Thread state */
+  /** Thread & Namespace state */
   threadsList: string[]
   activeThreadId: string | null
+  activeNamespace: string | null
+  namespacesMap: Record<string, string[]>
   loadingThreads: boolean
   
   setMode: (mode: 'chat' | 'agent' | 'history') => void
-  loadHistory: (entityId: string, threadId?: string | null) => Promise<void>
+  loadHistory: (entityId: string, threadId?: string | null, checkpoint_ns?: string | null) => Promise<void>
   clearHistory: (entityId: string) => Promise<void>
   deleteMessage: (entityId: string, messageId: string) => Promise<void>
   send: (entityId: string, message: string) => Promise<void>
@@ -38,7 +40,7 @@ export interface SetupChatStoreState {
   reset: () => void
   clearDirtyFlag: () => void
   fetchThreads: (entityId: string) => Promise<void>
-  selectThread: (entityId: string, threadId: string) => Promise<void>
+  selectThread: (entityId: string, threadId: string, checkpoint_ns?: string | null) => Promise<void>
   createNewThread: (entityId: string) => Promise<void>
   deleteThread: (entityId: string, threadId: string) => Promise<void>
   
@@ -46,11 +48,11 @@ export interface SetupChatStoreState {
 }
 
 export interface SetupChatApi {
-  getHistory: (entityId: string, threadId?: string | null) => Promise<ChatHistoryRead>
+  getHistory: (entityId: string, threadId?: string | null, checkpoint_ns?: string | null) => Promise<ChatHistoryRead>
   clearChat: (entityId: string, threadId?: string | null) => Promise<any>
   deleteMessage?: (entityId: string, messageId: string, threadId?: string | null) => Promise<any>
   streamChat: (entityId: string, request: ChatStreamRequest, onEvent: (event: ChatStreamEvent) => void) => Promise<void>
-  getThreads?: (entityId: string) => Promise<string[]>
+  getThreads?: (entityId: string) => Promise<string[] | { threads: string[]; namespaces?: Record<string, string[]> }>
   newThread?: (entityId: string) => Promise<{ thread_id: string }>
 }
 
@@ -80,6 +82,8 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
     lastUserMessage: null,
     threadsList: [],
     activeThreadId: null,
+    activeNamespace: null,
+    namespacesMap: {},
     loadingThreads: false,
 
     setMode: (mode) => {
@@ -103,6 +107,8 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
       lastUserMessage: null,
       threadsList: [],
       activeThreadId: null,
+      activeNamespace: null,
+      namespacesMap: {},
       loadingThreads: false,
     }),
     
@@ -112,8 +118,12 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
       if (!api.getThreads) return
       try {
         set({ loadingThreads: true, error: null })
-        const threads = await api.getThreads(entityId)
-        set({ threadsList: threads })
+        const res = await api.getThreads(entityId)
+        if (Array.isArray(res)) {
+          set({ threadsList: res, namespacesMap: {} })
+        } else {
+          set({ threadsList: res.threads || [], namespacesMap: res.namespaces || {} })
+        }
       } catch (e: any) {
         set({ error: e.message || 'Failed to load threads' })
       } finally {
@@ -121,9 +131,9 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
       }
     },
 
-    selectThread: async (entityId, threadId) => {
-      set({ activeThreadId: threadId, mode: 'chat' })
-      await get().loadHistory(entityId, threadId)
+    selectThread: async (entityId, threadId, checkpoint_ns = null) => {
+      set({ activeThreadId: threadId, activeNamespace: checkpoint_ns, mode: 'chat' })
+      await get().loadHistory(entityId, threadId, checkpoint_ns)
     },
 
     createNewThread: async (entityId) => {
@@ -133,6 +143,7 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
         const { thread_id } = await api.newThread(entityId)
         set({
           activeThreadId: thread_id,
+          activeNamespace: null,
           messages: [],
           mode: 'chat',
           incompleteTurn: false,
@@ -158,6 +169,7 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
           } else {
             set({
               activeThreadId: null,
+              activeNamespace: null,
               messages: [],
               incompleteTurn: false,
               canResume: false,
@@ -170,11 +182,12 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
       }
     },
 
-    loadHistory: async (entityId, threadId) => {
+    loadHistory: async (entityId, threadId, checkpoint_ns) => {
       try {
         set({ error: null })
         const targetThreadId = threadId ?? get().activeThreadId
-        const history = await api.getHistory(entityId, targetThreadId)
+        const targetNs = checkpoint_ns !== undefined ? checkpoint_ns : get().activeNamespace
+        const history = await api.getHistory(entityId, targetThreadId, targetNs)
         
         const messages: ChatUiMessage[] = []
         let lastUserMsg: string | null = null

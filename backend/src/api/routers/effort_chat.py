@@ -45,23 +45,34 @@ async def get_effort_info(session: AsyncSession, effort_prefix: str) -> tuple[st
     raise ValueError(f"Could not determine strategy and role for effort_prefix: {effort_prefix}")
 
 
-@router.get("/{effort_prefix}/chat/threads", response_model=list[str])
+@router.get("/{effort_prefix}/chat/threads")
 async def get_threads(
     effort_prefix: str,
-) -> list[str]:
+) -> dict[str, Any]:
     base_thread_id = f"{effort_prefix}_planner_1"
     stem = f"{effort_prefix}_planner"
     store = ThreadCheckpointStore()
     found = await store.search_threads(prefix=stem)
     if not found:
-        return [base_thread_id]
-    cleaned = []
-    for tid in found:
-        if tid == stem:
-            cleaned.append(base_thread_id)
-        else:
-            cleaned.append(tid)
-    return list(dict.fromkeys(cleaned))
+        threads = [base_thread_id]
+    else:
+        cleaned = []
+        for tid in found:
+            if tid == stem:
+                cleaned.append(base_thread_id)
+            else:
+                cleaned.append(tid)
+        threads = list(dict.fromkeys(cleaned))
+
+    namespaces_map: dict[str, list[str]] = {}
+    for tid in threads:
+        ns_list = await store.list_namespaces(tid)
+        namespaces_map[tid] = ns_list
+
+    return {
+        "threads": threads,
+        "namespaces": namespaces_map,
+    }
 
 
 @router.post("/{effort_prefix}/chat/new-thread", response_model=NewThreadResponse)
@@ -118,64 +129,28 @@ async def stream_chat(
                     if not can_resume:
                         if data.redo_last and data.message:
                             chat_key = "planner_chat" if is_planner else "messages"
-                            input_data = {chat_key: [("user", data.message)]}
-                        else:
-                            yield f"event: error\ndata: {json.dumps({'message': 'No pending actions to retry.', 'can_resume': False})}\n\n"
-                            return
-                    else:
-                        input_data = None
-                else:
-                    if not data.message:
-                        input_data = {}
-                    else:
-                        chat_key = "planner_chat" if is_planner else "messages"
-                        input_data = {chat_key: [("user", data.message)]}
+                            last_msg = data.message
+                            await ThreadChatHistoryService.delete_message(thread_id, last_msg)
 
-                disconnected = False
+                input_data: Any = None if data.retry and can_resume else ({
+                    "planner_chat": [data.message]
+                } if is_planner and data.message else ([{"role": "user", "content": data.message}] if data.message else {}))
+
                 try:
-                    async for event in graph.astream_events(input_data, config, version="v2"):
+                    events = stream_planner_graph(graph, input_data, thread_id) if is_planner else graph.astream_events(input_data, config=config, version="v2")
+                    disconnected = False
+                    async for event in events:
                         if await request.is_disconnected():
                             disconnected = True
                             break
-
-                        kind = event["event"]
+                        kind = event.get("event")
                         evt_data = event.get("data", {})
-
                         if kind == "on_chat_model_stream":
                             chunk = evt_data.get("chunk")
                             if chunk:
-                                if (
-                                    hasattr(chunk, "additional_kwargs")
-                                    and "reasoning_content" in chunk.additional_kwargs
-                                ):
-                                    reasoning = chunk.additional_kwargs["reasoning_content"]
-                                    if reasoning:
-                                        yield f"event: reasoning\ndata: {json.dumps({'text': reasoning})}\n\n"
-
-                                content = chunk.content
-                                if content:
-                                    if isinstance(content, list):
-                                        content = json.dumps(content)
-                                    yield f"event: content\ndata: {json.dumps({'text': content})}\n\n"
-
-                        elif kind == "on_chat_model_end":
-                            output = evt_data.get("output", {})
-                            if (
-                                hasattr(output, "generations")
-                                and len(output.generations) > 0
-                                and len(output.generations[0]) > 0
-                            ):
-                                msg = getattr(output.generations[0][0], "message", None)
-                                if msg:
-                                    meta = {}
-                                    if hasattr(msg, "usage_metadata") and msg.usage_metadata:
-                                        meta["usage_metadata"] = msg.usage_metadata
-                                    if hasattr(msg, "response_metadata") and msg.response_metadata:
-                                        meta["response_metadata"] = msg.response_metadata
-                                    if hasattr(msg, "id") and msg.id:
-                                        meta["id"] = msg.id
-                                    if meta:
-                                        yield f"event: metadata\ndata: {json.dumps(meta)}\n\n"
+                                content = getattr(chunk, "content", "")
+                                if isinstance(content, str) and content:
+                                    yield f"event: message\ndata: {json.dumps({'content': content})}\n\n"
 
                         elif kind == "on_tool_start":
                             name = event.get("name")
@@ -217,9 +192,10 @@ async def stream_chat(
 async def get_history(
     effort_prefix: str,
     thread_id: str | None = None,
+    checkpoint_ns: str | None = None,
 ) -> ChatHistoryRead:
     target_thread_id = thread_id or f"{effort_prefix}_planner_1"
-    return await ThreadChatHistoryService.get_history(target_thread_id)
+    return await ThreadChatHistoryService.get_history(target_thread_id, checkpoint_ns=checkpoint_ns)
 
 
 @router.delete("/{effort_prefix}/chat", status_code=status.HTTP_204_NO_CONTENT)

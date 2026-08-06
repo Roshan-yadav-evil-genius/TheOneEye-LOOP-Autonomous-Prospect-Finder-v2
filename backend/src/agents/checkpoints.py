@@ -72,3 +72,19 @@ class ThreadCheckpointStore:
                 )
                 row = await cursor.fetchone()
                 return dict(row) if row else None
+
+    async def list_namespaces(self, thread_id: str) -> list[str]:
+        if not self.database_url:
+            return []
+        async with AsyncConnectionPool(
+            self.database_url, open=False, kwargs={"autocommit": True, "row_factory": dict_row}
+        ) as pool:
+            await pool.open()
+            async with pool.connection() as connection:
+                rows = await connection.execute(
+                    "SELECT DISTINCT checkpoint_ns FROM checkpoints "
+                    "WHERE thread_id = %s ORDER BY checkpoint_ns",
+                    (thread_id,),
+                )
+                return [cast(dict[str, Any], row)["checkpoint_ns"] async for row in rows]
+

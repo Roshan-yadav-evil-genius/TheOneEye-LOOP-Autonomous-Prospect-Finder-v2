@@ -38,6 +38,8 @@ def create_planner_agent(
     tools: list[Any] | None = None,
     response_format: Any | None = None,
 ) -> Any:
+    if model is None:
+        return None
     kwargs: dict[str, Any] = {
         "model": model,
         "tools": tools or [],
@@ -128,16 +130,21 @@ def replan_router(state: AgentState) -> str:
 
 
 def create_planner_graph(
+    agent: Any | None = None,
+    evaluator_agent: Any | None = None,
     checkpointer: BaseCheckpointSaver | None = None,
     model: BaseChatModel | None = None,
+    system_prompt: str = COMPANY_FINDER_PLANNER_PROMPT,
+    evaluator_system_prompt: str = COMPANY_FINDER_PLANNER_EVALUATOR_PROMPT,
     tools: list[Any] | None = None,
 ) -> CompiledStateGraph:
     """Build a StateGraph(AgentState) graph that wraps the planner and evaluator agent nodes.
 
     Compiles the graph with the provided checkpointer and tools.
     """
-    agent = create_planner_agent(
-            model=model, system_prompt=COMPANY_FINDER_PLANNER_PROMPT, tools=tools
+    if agent is None:
+        agent = create_planner_agent(
+            model=model, system_prompt=system_prompt, tools=tools
         )
 
     async def planner(state: AgentState, config: Optional[RunnableConfig] = None) -> dict[str, Any]:
@@ -191,6 +198,11 @@ def create_planner_graph(
             out_messages = result
         else:
             out_messages = [AIMessage(content=str(result))]
+
+        if isinstance(out_messages, list):
+            new_msgs = [m for m in out_messages if m not in input_msgs]
+            if new_msgs:
+                out_messages = new_msgs
 
         # Fetch plan from DB for this effort
         plan_obj = None

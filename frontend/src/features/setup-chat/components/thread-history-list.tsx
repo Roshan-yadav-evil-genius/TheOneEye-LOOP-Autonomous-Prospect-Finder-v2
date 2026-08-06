@@ -27,8 +27,8 @@ export function ThreadHistoryList({ entityId, store }: ThreadHistoryListProps) {
     void store.fetchThreads(entityId)
   }
 
-  const handleSelect = (threadId: string) => {
-    void store.selectThread(entityId, threadId)
+  const handleSelect = (threadId: string, ns: string | null = null) => {
+    void store.selectThread(entityId, threadId, ns)
   }
 
   const handleCopy = (e: React.MouseEvent, threadId: string) => {
@@ -47,7 +47,7 @@ export function ThreadHistoryList({ entityId, store }: ThreadHistoryListProps) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <p className="muted" style={{ margin: 0, fontSize: '0.825rem' }}>
-          Select a previous thread to resume it in chat.
+          Select a thread or subagent namespace to load chat.
         </p>
         <button
           type="button"
@@ -84,96 +84,130 @@ export function ThreadHistoryList({ entityId, store }: ThreadHistoryListProps) {
           </p>
         </div>
       ) : (
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {store.threadsList.map((threadId) => {
-            const isActive = threadId === store.activeThreadId
+            const isThreadActive = threadId === store.activeThreadId
+            const namespaces = store.namespacesMap[threadId] || []
+            const currentNs = isThreadActive ? store.activeNamespace : null
+
             return (
-              <button
+              <div
                 key={threadId}
-                type="button"
-                onClick={() => handleSelect(threadId)}
-                title={threadId}
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '10px 14px',
-                  background: isActive
-                    ? 'var(--color-accent-primary)'
-                    : 'var(--color-bg-elevated)',
-                  color: isActive
-                    ? 'var(--color-accent-foreground)'
-                    : 'var(--color-text-primary)',
-                  border: `1px solid ${isActive ? 'var(--color-accent-primary)' : 'var(--color-border-default)'}`,
+                  flexDirection: 'column',
+                  gap: '6px',
+                  padding: '10px',
+                  background: isThreadActive
+                    ? 'var(--color-bg-elevated)'
+                    : 'var(--color-bg-subtle)',
+                  border: `1px solid ${isThreadActive ? 'var(--color-accent-primary)' : 'var(--color-border-default)'}`,
                   borderRadius: 'var(--radius-md)',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                  fontSize: '0.8rem',
-                  fontFamily: 'monospace',
-                  wordBreak: 'break-all',
                 }}
               >
-                <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}>
-                  {isActive ? <span style={{ fontSize: '0.95rem' }}>▶</span> : getIconForThread(threadId)}
-                </span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  {shortThreadId(threadId)}
-                </span>
-                {isActive && (
-                  <span style={{ flexShrink: 0, fontSize: '0.7rem', opacity: 0.85, marginRight: '8px' }}>
-                    active
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}>
+                    {isThreadActive && currentNs === null ? <span style={{ fontSize: '0.95rem' }}>▶</span> : getIconForThread(threadId)}
                   </span>
+                  <span
+                    onClick={() => handleSelect(threadId, null)}
+                    title={threadId}
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      cursor: 'pointer',
+                      fontSize: '0.8rem',
+                      fontFamily: 'monospace',
+                      fontWeight: isThreadActive && currentNs === null ? 'bold' : 'normal',
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {shortThreadId(threadId)}
+                  </span>
+                  {isThreadActive && currentNs === null && (
+                    <span style={{ flexShrink: 0, fontSize: '0.7rem', opacity: 0.85, marginRight: '4px' }}>
+                      active
+                    </span>
+                  )}
+                  <span
+                    role="button"
+                    title="Copy thread ID"
+                    onClick={(e) => handleCopy(e, threadId)}
+                    style={{
+                      flexShrink: 0,
+                      fontSize: '0.85rem',
+                      cursor: 'copy',
+                      opacity: 0.6,
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    📋
+                  </span>
+                  <span
+                    role="button"
+                    title="Delete thread"
+                    onClick={(e) => handleDelete(e, threadId)}
+                    style={{
+                      flexShrink: 0,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      opacity: 0.6,
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    🗑️
+                  </span>
+                </div>
+
+                {namespaces.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', paddingLeft: '30px', marginTop: '2px' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', width: '100%', marginBottom: '2px' }}>
+                      Subagent Namespaces:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleSelect(threadId, null)}
+                      style={{
+                        padding: '2px 8px',
+                        fontSize: '0.725rem',
+                        borderRadius: '12px',
+                        border: '1px solid var(--color-border-default)',
+                        background: isThreadActive && currentNs === null ? 'var(--color-accent-primary)' : 'var(--color-bg-elevated)',
+                        color: isThreadActive && currentNs === null ? 'var(--color-accent-foreground)' : 'var(--color-text-primary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      [Main Graph]
+                    </button>
+                    {namespaces.map((ns) => {
+                      if (!ns) return null
+                      const isNsActive = isThreadActive && currentNs === ns
+                      return (
+                        <button
+                          key={ns}
+                          type="button"
+                          onClick={() => handleSelect(threadId, ns)}
+                          title={`View namespace chat: ${ns}`}
+                          style={{
+                            padding: '2px 8px',
+                            fontSize: '0.725rem',
+                            borderRadius: '12px',
+                            border: `1px solid ${isNsActive ? 'var(--color-accent-primary)' : 'var(--color-border-default)'}`,
+                            background: isNsActive ? 'var(--color-accent-primary)' : 'var(--color-bg-elevated)',
+                            color: isNsActive ? 'var(--color-accent-foreground)' : 'var(--color-text-primary)',
+                            cursor: 'pointer',
+                            fontFamily: 'monospace',
+                          }}
+                        >
+                          📦 {ns}
+                        </button>
+                      )
+                    })}
+                  </div>
                 )}
-                <span
-                  role="button"
-                  title="Copy thread ID"
-                  onClick={(e) => handleCopy(e, threadId)}
-                  style={{
-                    flexShrink: 0,
-                    fontSize: '0.85rem',
-                    cursor: 'copy',
-                    opacity: 0.6,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    transition: 'opacity 0.2s, background 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.opacity = '1'
-                    e.currentTarget.style.background = isActive ? 'rgba(0,0,0,0.1)' : 'var(--color-bg-subtle)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = '0.6'
-                    e.currentTarget.style.background = 'transparent'
-                  }}
-                >
-                  📋
-                </span>
-                <span
-                  role="button"
-                  title="Delete thread"
-                  onClick={(e) => handleDelete(e, threadId)}
-                  style={{
-                    flexShrink: 0,
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    opacity: 0.6,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    transition: 'opacity 0.2s, background 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.opacity = '1'
-                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = '0.6'
-                    e.currentTarget.style.background = 'transparent'
-                  }}
-                >
-                  🗑️
-                </span>
-              </button>
+              </div>
             )
           })}
         </div>

@@ -18,31 +18,57 @@ def _thread_config(thread_id: str) -> dict[str, Any]:
 
 class ThreadChatHistoryService:
     @staticmethod
-    async def get_history(thread_id: str) -> ChatHistoryRead:
+    async def get_history(thread_id: str, checkpoint_ns: str | None = None) -> ChatHistoryRead:
         conn_string = get_settings().resolved_threads_database_url
         if not conn_string:
             return ChatHistoryRead(thread_id=thread_id, messages=[], can_resume=False)
 
         try:
             async with AsyncPostgresSaver.from_conn_string(conn_string) as checkpointer:
-                try:
-                    model = resolve_chat_model()
-                except Exception:
-                    model = FakeListChatModel(responses=[""])
+                config: dict[str, Any] = {"configurable": {"thread_id": thread_id}}
+                if checkpoint_ns is not None:
+                    config["configurable"]["checkpoint_ns"] = checkpoint_ns
 
-                agent = create_deep_agent(model, checkpointer=checkpointer)
-                state = await agent.aget_state(_thread_config(thread_id))
-                can_resume = bool(state.next) if state else False
                 messages = []
+                can_resume = False
 
-                if state and state.values:
-                    raw_messages = state.values.get("planner_chat") or state.values.get("messages") or []
-                    for msg in raw_messages:
-                        messages.append(message_to_dict(msg))
+                if checkpoint_ns:
+                    tuple_val = await checkpointer.aget_tuple(config)
+                    if tuple_val and tuple_val.checkpoint:
+                        channel_values = tuple_val.checkpoint.get("channel_values", {})
+                        raw_messages = (
+                            channel_values.get("planner_chat")
+                            or channel_values.get("evaluator_chat")
+                            or channel_values.get("messages")
+                            or []
+                        )
+                        for msg in raw_messages:
+                            messages.append(message_to_dict(msg))
+                        can_resume = bool(tuple_val.pending_writes)
+                else:
+                    try:
+                        model = resolve_chat_model()
+                    except Exception:
+                        model = FakeListChatModel(responses=[""])
+
+                    agent = create_deep_agent(model, checkpointer=checkpointer)
+                    state = await agent.aget_state(config)
+                    can_resume = bool(state.next) if state else False
+
+                    if state and state.values:
+                        raw_messages = state.values.get("planner_chat") or state.values.get("messages") or []
+                        for msg in raw_messages:
+                            messages.append(message_to_dict(msg))
 
                 return ChatHistoryRead(thread_id=thread_id, messages=messages, can_resume=can_resume)
         except Exception:
             return ChatHistoryRead(thread_id=thread_id, messages=[], can_resume=False)
+
+    @staticmethod
+    async def list_namespaces(thread_id: str) -> list[str]:
+        from agents.checkpoints import ThreadCheckpointStore
+        store = ThreadCheckpointStore()
+        return await store.list_namespaces(thread_id)
 
     @staticmethod
     async def delete_thread(thread_id: str) -> bool:
