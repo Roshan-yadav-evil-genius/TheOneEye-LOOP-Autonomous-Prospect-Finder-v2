@@ -24,8 +24,7 @@ def sample_planning_tool(query: str) -> str:
 @pytest.mark.asyncio
 async def test_create_planner_graph_and_checkpoint():
     checkpointer = MemorySaver()
-    dummy_agent = DummyAgent("Test Plan Strategy")
-    graph = create_planner_graph(agent=dummy_agent, checkpointer=checkpointer, tools=[sample_planning_tool])
+    graph = create_planner_graph(checkpointer=checkpointer, effort_prefix="LOOP_123")
 
     thread_id = "LOOP_123_planner_1"
     config = {"configurable": {"thread_id": thread_id}}
@@ -36,18 +35,17 @@ async def test_create_planner_graph_and_checkpoint():
     )
 
     assert "planner_chat" in result
-    assert result["planner_chat"][-1].content == "Test Plan Strategy"
+    assert result["planner_chat"][-1].content == "Planner agent completed step."
 
     # Verify state saved under thread_id checkpoint
     saved_state = await graph.aget_state(config)
-    assert saved_state.values["planner_chat"][-1].content == "Test Plan Strategy"
+    assert saved_state.values["planner_chat"][-1].content == "Planner agent completed step."
 
 
 @pytest.mark.asyncio
 async def test_stream_planner_graph():
     checkpointer = MemorySaver()
-    dummy_agent = DummyAgent("Streamed Plan Response")
-    graph = create_planner_graph(agent=dummy_agent, checkpointer=checkpointer, tools=[sample_planning_tool])
+    graph = create_planner_graph(checkpointer=checkpointer, effort_prefix="LOOP_456")
 
     thread_id = "LOOP_456_planner_1"
     events = []
@@ -62,7 +60,7 @@ async def test_stream_planner_graph():
     # State checkpointer verify
     config = {"configurable": {"thread_id": thread_id}}
     state = await graph.aget_state(config)
-    assert state.values["planner_chat"][-1].content == "Streamed Plan Response"
+    assert state.values["planner_chat"][-1].content == "Planner agent completed step."
 
 
 @pytest.mark.asyncio
@@ -98,8 +96,7 @@ async def test_planner_graph_evaluator_and_db_plan():
         await svc.save_plan(effort_prefix, plan)
 
     checkpointer = MemorySaver()
-    dummy_agent = DummyAgent("Executed Plan Tools")
-    graph = create_planner_graph(agent=dummy_agent, checkpointer=checkpointer)
+    graph = create_planner_graph(checkpointer=checkpointer, effort_prefix=effort_prefix)
 
     thread_id = f"{effort_prefix}_planner_1"
     config = {"configurable": {"thread_id": thread_id, "effort_prefix": effort_prefix}}
@@ -120,8 +117,7 @@ async def test_planner_graph_evaluator_and_db_plan():
 @pytest.mark.asyncio
 async def test_stream_planner_graph_empty_messages():
     checkpointer = MemorySaver()
-    dummy_agent = DummyAgent("Streamed Plan Response without initial user message")
-    graph = create_planner_graph(agent=dummy_agent, checkpointer=checkpointer)
+    graph = create_planner_graph(checkpointer=checkpointer, effort_prefix="LOOP_789")
 
     thread_id = "LOOP_789_planner_1"
     events = []
@@ -135,6 +131,6 @@ async def test_stream_planner_graph_empty_messages():
     assert len(events) > 0
     config = {"configurable": {"thread_id": thread_id}}
     state = await graph.aget_state(config)
-    assert state.values["planner_chat"][-1].content == "Streamed Plan Response without initial user message"
+    assert state.values["planner_chat"][-1].content == "Planner agent completed step."
 
 

@@ -25,10 +25,8 @@ from agents.stack_builders import (
 from agents.tools import (
     brain_tools,
     company_finder_tools,
-    company_planner_tools,
     contact_finder_tools,
     sales_manager_tools,
-    wrap_tool_for_planner,
 )
 from application.loop_service import LoopService
 from browser.policy import (
@@ -169,17 +167,11 @@ async def company_finder_agent_scope(
     ) as browser_session:
         log.info("company_finder_scope.stack_build", strategy_id=strategy_id, parent_thread=parent_thread)
         if is_planner:
-            all_finder_tools = company_finder_tools(session, strategy_id, parent_thread)
-            planner_finder_tools = [
-                t for t in all_finder_tools if getattr(t, "name", "") != "get_sales_strategy_bundle"
-            ]
-            raw_tools = company_planner_tools(session, strategy_id, effort_prefix) + planner_finder_tools
-            company_tools_list = [wrap_tool_for_planner(t, mode="planning") for t in raw_tools]
-            
             planner_graph = create_planner_graph(
                 checkpointer=checkpointer,
                 model=model,
-                tools=company_tools_list,
+                effort_prefix=effort_prefix,
+                strategy_id=strategy_id,
             )
             try:
                 log.info(

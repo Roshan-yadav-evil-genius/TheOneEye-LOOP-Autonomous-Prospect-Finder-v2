@@ -1,6 +1,11 @@
 import pytest
 from domain.planner_models import TaskStatus, PlannerStatus
-from agents.planner_tools import company_planner_tools
+from agents.planner_tools import (
+    get_plan_creation_tools,
+    get_plan_evaluator_tools,
+    get_plan_status_updater_tools,
+    get_plan_monitoring_tools,
+)
 from application.planner_service import PlannerService
 
 
@@ -9,21 +14,20 @@ async def test_planner_tool_suite_execution(session):
     strategy_id = "strat-123"
     effort_prefix = "LOOP_org1_prod1_strat123_1"
 
-    tools_list = company_planner_tools(session, strategy_id, effort_prefix)
+    tools_list = (
+        get_plan_creation_tools(session, strategy_id, effort_prefix)
+        + get_plan_evaluator_tools(session, strategy_id, effort_prefix)
+        + get_plan_status_updater_tools(session, strategy_id, effort_prefix)
+        + get_plan_monitoring_tools(session, strategy_id, effort_prefix)
+    )
     tool_map = {t.name: t for t in tools_list}
 
-    # Verify all 10 tools exist
     expected_tools = {
         "get_plan_summary",
         "update_plan_context",
         "add_task",
         "add_step",
-        "update_task_status",
-        "record_action_result",
         "add_knowledge_entry",
-        "register_artifact",
-        "mark_planning_as_complete",
-        "finalize_plan",
     }
     assert expected_tools.issubset(set(tool_map.keys()))
 
@@ -82,14 +86,7 @@ async def test_planner_tool_suite_execution(session):
     })
     assert know_res == "Saved"
 
-    # 7. Tool 7: register_artifact
-    art_res = await tool_map["register_artifact"].ainvoke({
-        "name": "ICP Market Report.pdf",
-        "content_summary": "Comprehensive analysis of top targets",
-    })
-    assert art_res == "Registered: artifact-1"
-
-    # 8. Tool: mark_planning_as_complete (planning mode completion tool)
+    # 7. Tool: mark_planning_as_complete (planning mode completion tool)
     mark_res = await tool_map["mark_planning_as_complete"].ainvoke({})
     assert mark_res == "Plan status set to ready."
 
@@ -98,7 +95,7 @@ async def test_planner_tool_suite_execution(session):
     assert ready_plan is not None
     assert ready_plan.runtime.status == PlannerStatus.READY
 
-    # 9. Tool 4: update_task_status (COMPLETED)
+    # 8. Tool 4: update_task_status (COMPLETED)
     status_res2 = await tool_map["update_task_status"].ainvoke({
         "task_id": task_id,
         "status": "completed",
@@ -106,7 +103,7 @@ async def test_planner_tool_suite_execution(session):
     })
     assert status_res2 == "Updated"
 
-    # 10. Tool 8: finalize_plan
+    # 9. Tool 8: finalize_plan
     final_res = await tool_map["finalize_plan"].ainvoke({
         "final_report": "Planning phase complete. All targets verified.",
     })
@@ -118,79 +115,10 @@ async def test_planner_tool_suite_execution(session):
     assert final_plan.runtime.status == PlannerStatus.COMPLETED
     assert len(final_plan.knowledge.findings) == 1
     assert final_plan.knowledge.findings[0] == "Target market is shifting toward AI-native SaaS companies."
-    assert len(final_plan.artifacts) == 1
-    assert final_plan.artifacts[0].name == "ICP Market Report.pdf"
     assert final_plan.final_report == "Planning phase complete. All targets verified."
 
 
-@pytest.mark.asyncio
-async def test_wrap_tool_for_planner_permission_denied():
-    from langchain_core.tools import tool
-    from agents.tools import wrap_tool_for_planner
-
-    @tool
-    def allowed_tool() -> str:
-        """Allowed planner tool."""
-        return "ok"
-    allowed_tool.name = "add_task"
-
-    @tool
-    def execution_tool(name: str) -> str:
-        """Execution tool forbidden for planner."""
-        return f"registered {name}"
-    execution_tool.name = "register_company"
-
-    # Test allowed tool returns unmodified
-    wrapped_allowed = wrap_tool_for_planner(allowed_tool)
-    assert wrapped_allowed is allowed_tool
-    assert wrapped_allowed.invoke({}) == "ok"
-
-    # Test planning mode execution tool returns Planning mode error message
-    wrapped_planning = wrap_tool_for_planner(execution_tool, mode="planning")
-    assert wrapped_planning is not execution_tool
-    res_planning = await wrapped_planning.ainvoke({"name": "Acme Corp"})
-    assert "Permission Denied: Tool 'register_company' is an execution tool" in res_planning
-    assert "cannot be called during Planning mode" in res_planning
-    assert "[PLANNING MODE - FORBIDDEN TOOL]" in wrapped_planning.description
-
-    # Test progress tools (update_task_status) forbidden in planning mode
-    @tool
-    def status_tool(task_id: str, status: str) -> str:
-        """Update task status tool."""
-        return f"status {status}"
-    status_tool.name = "update_task_status"
-
-    wrapped_status_planning = wrap_tool_for_planner(status_tool, mode="planning")
-    assert wrapped_status_planning is not status_tool
-    res_status_planning = await wrapped_status_planning.ainvoke({"task_id": "t1", "status": "running"})
-    assert "Permission Denied: Tool 'update_task_status' tracks execution progress/results" in res_status_planning
-    assert "cannot be called during Planning mode" in res_status_planning
-
-    # Test finalize_plan tool forbidden in planning mode
-    @tool
-    def finalize_tool(final_report: str) -> str:
-        """Finalize plan tool."""
-        return "finalized"
-    finalize_tool.name = "finalize_plan"
-
-    wrapped_finalize_planning = wrap_tool_for_planner(finalize_tool, mode="planning")
-    assert wrapped_finalize_planning is not finalize_tool
-    res_finalize_planning = await wrapped_finalize_planning.ainvoke({"final_report": "done"})
-    assert "Permission Denied: Tool 'finalize_plan' is an execution tool" in res_finalize_planning
-    assert "cannot be called during Planning mode" in res_finalize_planning
-
-    # Test progress tools allowed in analyzing mode
-    wrapped_status_analyzing = wrap_tool_for_planner(status_tool, mode="analyzing")
-    assert wrapped_status_analyzing is status_tool
-
-    # Test analyzing mode execution tool returns Analyzing mode error message
-    wrapped_analyzing = wrap_tool_for_planner(execution_tool, mode="analyzing")
-    assert wrapped_analyzing is not execution_tool
-    res_analyzing = await wrapped_analyzing.ainvoke({"name": "Acme Corp"})
-    assert "Permission Denied: Tool 'register_company' is an execution tool" in res_analyzing
-    assert "cannot be called during Analyzing mode" in res_analyzing
-    assert "You are only allowed to inspect results, record insights" in res_analyzing
-    assert "[ANALYZING MODE - FORBIDDEN TOOL]" in wrapped_analyzing.description
+# Note: Tool mode permissions are now tested in test_planner_middleware.py
 
 
 @pytest.mark.asyncio
@@ -198,7 +126,12 @@ async def test_auto_cascade_and_dependency_enforcement(session):
     strategy_id = "strat-dep-test"
     effort_prefix = "LOOP_dep_test_1"
 
-    tools_list = company_planner_tools(session, strategy_id, effort_prefix)
+    tools_list = (
+        get_plan_creation_tools(session, strategy_id, effort_prefix)
+        + get_plan_evaluator_tools(session, strategy_id, effort_prefix)
+        + get_plan_status_updater_tools(session, strategy_id, effort_prefix)
+        + get_plan_monitoring_tools(session, strategy_id, effort_prefix)
+    )
     tool_map = {t.name: t for t in tools_list}
 
     # Setup Phase 1 (with 2 steps) and Phase 2 tasks & steps
@@ -262,7 +195,12 @@ async def test_planner_tools_schema_and_list_coercion(session):
         UpdatePlanContextInput,
     )
 
-    tools_list = company_planner_tools(session, "strat-schema-test", "LOOP_schema_test_1")
+    tools_list = (
+        get_plan_creation_tools(session, "strat-schema-test", "LOOP_schema_test_1")
+        + get_plan_evaluator_tools(session, "strat-schema-test", "LOOP_schema_test_1")
+        + get_plan_status_updater_tools(session, "strat-schema-test", "LOOP_schema_test_1")
+        + get_plan_monitoring_tools(session, "strat-schema-test", "LOOP_schema_test_1")
+    )
     tool_map = {t.name: t for t in tools_list}
 
     # 1. Verify args_schema is bound to tool decorators
@@ -273,7 +211,6 @@ async def test_planner_tools_schema_and_list_coercion(session):
         "update_task_status",
         "record_action_result",
         "add_knowledge_entry",
-        "register_artifact",
         "finalize_plan",
     ]
     for tool_name in tools_with_schemas:

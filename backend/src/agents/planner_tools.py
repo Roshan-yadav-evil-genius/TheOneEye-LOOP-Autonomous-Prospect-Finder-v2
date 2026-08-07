@@ -547,12 +547,4 @@ def get_plan_monitoring_tools(
     ]
 
 
-def company_planner_tools(
-    session: AsyncSession,
-    strategy_id: Optional[str],
-    effort_prefix: str,
-) -> List[BaseTool]:
-    """Factory returning the primary plan creation tool suite for Planner Agent."""
-    return get_plan_creation_tools(session, strategy_id, effort_prefix)
-
 

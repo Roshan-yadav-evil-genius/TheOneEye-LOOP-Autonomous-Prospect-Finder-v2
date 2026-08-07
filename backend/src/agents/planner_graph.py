@@ -28,6 +28,8 @@ from agents.prompts import (
 from application.planner_service import PlannerService
 from domain.planner_models import Planner
 from persistence.database import SessionFactory
+from agents.planner_middleware import AgentContext, PlannerMode, PlannerModeMiddleware
+from agents.planner_tools import get_plan_creation_tools, get_plan_evaluator_tools
 
 logger = structlog.get_logger(__name__)
 
@@ -44,6 +46,7 @@ def create_planner_agent(
         "model": model,
         "tools": tools or [],
         "system_prompt": system_prompt,
+        "middleware": [PlannerModeMiddleware()],
     }
     if response_format is not None:
         kwargs["response_format"] = response_format
@@ -68,7 +71,6 @@ class Evaluation(BaseModel):
 
 class AgentState(BaseModel):
     task: str = "Create execution plan"
-    effort_prefix: str = ""
     evaluation: Optional[Evaluation] = None
     retries: int = 0
     plan: Optional[Planner] = None
@@ -87,7 +89,6 @@ def increment_retry(state: AgentState) -> dict[str, Any]:
         "planner_graph_node_increment_retry",
         attempt=attempt,
         feedback=feedback,
-        effort_prefix=state.effort_prefix,
     )
     feedback_msg = HumanMessage(
         content=f"Evaluator Feedback (Attempt {attempt}):\n{feedback}"
@@ -107,7 +108,6 @@ def replan_router(state: AgentState) -> str:
             "planner_graph_router_decision",
             decision=END,
             reason="Evaluation accepted",
-            effort_prefix=state.effort_prefix,
         )
         return END
 
@@ -116,7 +116,6 @@ def replan_router(state: AgentState) -> str:
             "planner_graph_router_decision",
             decision=END,
             reason=f"Reached max retries ({MAX_RETRIES})",
-            effort_prefix=state.effort_prefix,
         )
         return END
 
@@ -124,42 +123,24 @@ def replan_router(state: AgentState) -> str:
         "planner_graph_router_decision",
         decision=NodeName.INCREMENT_RETRY,
         reason="Evaluation requested retry",
-        effort_prefix=state.effort_prefix,
     )
     return NodeName.INCREMENT_RETRY
 
 
 def create_planner_graph(
-    agent: Any | None = None,
-    evaluator_agent: Any | None = None,
     checkpointer: BaseCheckpointSaver | None = None,
     model: BaseChatModel | None = None,
+    effort_prefix: str = "",
+    strategy_id: str | None = None,
     system_prompt: str = COMPANY_FINDER_PLANNER_PROMPT,
-    evaluator_system_prompt: str = COMPANY_FINDER_PLANNER_EVALUATOR_PROMPT,
-    tools: list[Any] | None = None,
 ) -> CompiledStateGraph:
     """Build a StateGraph(AgentState) graph that wraps the planner and evaluator agent nodes.
 
-    Compiles the graph with the provided checkpointer and tools.
+    Compiles the graph with the provided checkpointer, effort_prefix, and strategy_id scope.
     """
-    if agent is None:
-        agent = create_planner_agent(
-            model=model, system_prompt=system_prompt, tools=tools
-        )
-
     async def planner(state: AgentState, config: Optional[RunnableConfig] = None) -> dict[str, Any]:
-        # Determine effort prefix from state or config
-        effort_prefix = state.effort_prefix
-        if not effort_prefix and config:
-            configurable = config.get("configurable", {})
-            effort_prefix = configurable.get("effort_prefix", "")
-            if not effort_prefix and "thread_id" in configurable:
-                tid = configurable["thread_id"]
-                parts = tid.split("_planner")
-                if len(parts) > 1:
-                    effort_prefix = parts[0]
-                else:
-                    effort_prefix = tid
+        # Context containing operational mode
+        agent_context = AgentContext(mode=PlannerMode.PLAN)
 
         logger.info(
             "planner_graph_node_planner_start",
@@ -177,16 +158,21 @@ def create_planner_graph(
                 )
             ]
 
-        if hasattr(agent, "ainvoke"):
-            try:
-                result = await agent.ainvoke({"messages": input_msgs}, config=config)
-            except TypeError:
-                result = await agent.ainvoke({"messages": input_msgs})
+        # Dynamically instantiate agent with creation tools if model provided
+        planner_agent_to_use = None
+        if model is not None:
+            async with SessionFactory() as session:
+                creation_tools = get_plan_creation_tools(session, strategy_id, effort_prefix)
+                planner_agent_to_use = create_planner_agent(
+                    model=model, system_prompt=system_prompt, tools=creation_tools
+                )
+
+        if planner_agent_to_use:
+            result = await planner_agent_to_use.ainvoke(
+                {"messages": input_msgs}, config=config, context=agent_context
+            )
         else:
-            try:
-                result = agent.invoke({"messages": input_msgs}, config=config)
-            except TypeError:
-                result = agent.invoke({"messages": input_msgs})
+            result = AIMessage(content="Planner agent completed step.")
 
         if isinstance(result, dict) and "planner_chat" in result:
             out_messages = result["planner_chat"]
@@ -228,16 +214,18 @@ def create_planner_graph(
         return {
             "planner_chat": out_messages,
             "plan": plan_obj,
-            "effort_prefix": effort_prefix,
         }
 
     async def evaluator(state: AgentState, config: Optional[RunnableConfig] = None) -> dict[str, Any]:
         logger.info(
             "planner_graph_node_evaluator_start",
-            effort_prefix=state.effort_prefix,
+            effort_prefix=effort_prefix,
             has_plan=bool(state.plan),
             retries=state.retries,
         )
+
+        # Context containing operational mode
+        agent_context = AgentContext(mode=PlannerMode.EVALUATE)
 
         plan_json = ""
         if state.plan:
@@ -255,26 +243,28 @@ def create_planner_graph(
         )
         eval_input = list(state.evaluator_chat) + [eval_prompt]
 
-        eval_agent_to_use =create_planner_agent(
-            model=model, system_prompt=COMPANY_FINDER_PLANNER_EVALUATOR_PROMPT, response_format=Evaluation
-        )
+        # Dynamically build Evaluator Agent with Evaluator tools if model provided
+        eval_agent_to_use = None
+        if model is not None:
+            async with SessionFactory() as session:
+                eval_tools = get_plan_evaluator_tools(session, strategy_id, effort_prefix)
+                eval_agent_to_use = create_planner_agent(
+                    model=model,
+                    system_prompt=COMPANY_FINDER_PLANNER_EVALUATOR_PROMPT,
+                    tools=eval_tools,
+                    response_format=Evaluation,
+                )
+
         res = None
         if eval_agent_to_use:
             try:
-                if hasattr(eval_agent_to_use, "ainvoke"):
-                    try:
-                        res = await eval_agent_to_use.ainvoke({"messages": eval_input}, config=config)
-                    except TypeError:
-                        res = await eval_agent_to_use.ainvoke({"messages": eval_input})
-                else:
-                    try:
-                        res = eval_agent_to_use.invoke({"messages": eval_input}, config=config)
-                    except TypeError:
-                        res = eval_agent_to_use.invoke({"messages": eval_input})
+                res = await eval_agent_to_use.ainvoke(
+                    {"messages": eval_input}, config=config, context=agent_context
+                )
             except Exception as err:
                 logger.warning(
                     "planner_graph_node_evaluator_invocation_warning",
-                    effort_prefix=state.effort_prefix,
+                    effort_prefix=effort_prefix,
                     error=str(err),
                 )
                 res = None
@@ -303,7 +293,7 @@ def create_planner_graph(
 
         logger.info(
             "planner_graph_node_evaluator_complete",
-            effort_prefix=state.effort_prefix,
+            effort_prefix=effort_prefix,
             decision=evaluation.decision.value,
             feedback=evaluation.feedback,
         )
