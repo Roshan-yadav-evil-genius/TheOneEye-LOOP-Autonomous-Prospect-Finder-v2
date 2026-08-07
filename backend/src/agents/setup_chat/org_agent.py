@@ -9,6 +9,8 @@ from agents.setup_chat.org_tools import get_all_tools
 from agents.setup_chat.prompts import render_setup_prompt
 
 
+from agents.setup_chat.common import ModeMiddleware
+
 def create_organization_setup_agent(checkpointer: Any) -> CompiledStateGraph:
     """Build the organization setup chat agent."""
     system_prompt = render_setup_prompt(form_type="organization")
@@ -20,9 +22,10 @@ def create_organization_setup_agent(checkpointer: Any) -> CompiledStateGraph:
         model=model,
         tools=tools,
         system_prompt=system_prompt,
-        middleware=[TodoListMiddleware()],
+        middleware=[ModeMiddleware(), TodoListMiddleware()],
         checkpointer=checkpointer,
     )
     
     return agent
+
 

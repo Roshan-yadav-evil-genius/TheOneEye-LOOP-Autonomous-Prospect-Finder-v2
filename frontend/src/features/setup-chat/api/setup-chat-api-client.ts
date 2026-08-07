@@ -17,7 +17,7 @@ export interface StateSnapshotRead {
 
 export interface ChatStreamRequest {
   message: string
-  mode: 'chat' | 'agent'
+  mode: 'ask' | 'act'
   retry?: boolean
   redo_last?: boolean
   thread_id?: string | null

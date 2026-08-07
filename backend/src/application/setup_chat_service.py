@@ -84,6 +84,10 @@ class SetupChatService:
                     input_data = {"messages": [("user", request.message)]}
                 
                 disconnected = False
+                emitted_tool_call_ids: set[str] = set()
+                emitted_tool_result_ids: set[str] = set()
+                tool_name_map: dict[str, str] = {}
+
                 async for event in agent.astream_events(
                     input_data,
                     config,
@@ -111,32 +115,59 @@ class SetupChatService:
                                 yield f"event: content\ndata: {json.dumps({'text': content})}\n\n"
                                 
                     elif kind == "on_chat_model_end":
+                        # Extracted message can either be wrapped in an LLMResult (generations)
+                        # or emitted directly as an AIMessage/AIMessageChunk in astream_events v2.
                         output = data.get("output", {})
-                        # output can be an LLMResult with generations, let's extract the message
+                        msg = None
                         if hasattr(output, "generations") and len(output.generations) > 0 and len(output.generations[0]) > 0:
                             msg = getattr(output.generations[0][0], "message", None)
-                            if msg:
-                                meta = {}
-                                if hasattr(msg, "usage_metadata") and msg.usage_metadata:
-                                    meta["usage_metadata"] = msg.usage_metadata
-                                if hasattr(msg, "response_metadata") and msg.response_metadata:
-                                    meta["response_metadata"] = msg.response_metadata
-                                if hasattr(msg, "id") and msg.id:
-                                    meta["id"] = msg.id
-                                if meta:
-                                    yield f"event: metadata\ndata: {json.dumps(meta)}\n\n"
+                        elif hasattr(output, "content") or hasattr(output, "tool_calls"):
+                            msg = output
+
+                        if msg:
+                            meta = {}
+                            if hasattr(msg, "usage_metadata") and msg.usage_metadata:
+                                meta["usage_metadata"] = msg.usage_metadata
+                            if hasattr(msg, "response_metadata") and msg.response_metadata:
+                                meta["response_metadata"] = msg.response_metadata
+                            if hasattr(msg, "id") and msg.id:
+                                meta["id"] = msg.id
+                            if meta:
+                                yield f"event: metadata\ndata: {json.dumps(meta)}\n\n"
+                            
+                            # Stream requested tool calls live as soon as the model finishes generating them.
+                            # This ensures the frontend renders the tool call card immediately even if ModeMiddleware
+                            # short-circuits the tool node before execution.
+                            tool_calls = getattr(msg, "tool_calls", None)
+                            if tool_calls and isinstance(tool_calls, list):
+                                for tc in tool_calls:
+                                    if isinstance(tc, dict):
+                                        tc_id = tc.get("id")
+                                        tc_name = tc.get("name")
+                                        tc_args = tc.get("args", {})
+                                        if tc_id and tc_name:
+                                            tool_name_map[tc_id] = tc_name
+                                            if tc_id not in emitted_tool_call_ids:
+                                                emitted_tool_call_ids.add(tc_id)
+                                                yield f"event: tool_call\ndata: {json.dumps({'id': tc_id, 'name': tc_name, 'args': tc_args})}\n\n"
                                 
                     elif kind == "on_tool_start":
+                        # Backup handler for tool calls if not already emitted by on_chat_model_end
                         name = event.get("name")
-                        if name and name.startswith(("get_", "set_")):
-                            tool_id = event.get("run_id")
-                            args = data.get("input", {})
-                            yield f"event: tool_call\ndata: {json.dumps({'id': tool_id, 'name': name, 'args': args})}\n\n"
+                        tool_id = event.get("run_id")
+                        if tool_id and name:
+                            tool_name_map[tool_id] = name
+                            if tool_id not in emitted_tool_call_ids:
+                                emitted_tool_call_ids.add(tool_id)
+                                args = data.get("input", {})
+                                yield f"event: tool_call\ndata: {json.dumps({'id': tool_id, 'name': name, 'args': args})}\n\n"
                             
                     elif kind == "on_tool_end":
+                        # Standard tool execution result stream
                         name = event.get("name")
-                        if name and name.startswith(("get_", "set_")):
-                            tool_id = event.get("run_id")
+                        tool_id = event.get("run_id")
+                        if tool_id and tool_id not in emitted_tool_result_ids:
+                            emitted_tool_result_ids.add(tool_id)
                             output = data.get("output", "")
                             if hasattr(output, "content"):
                                 output = output.content
@@ -146,7 +177,28 @@ class SetupChatService:
                                     output = json.dumps(output)
                                 except Exception:
                                     output = str(output)
-                            yield f"event: tool_result\ndata: {json.dumps({'id': tool_id, 'name': name, 'content': output})}\n\n"
+                            t_name = name or tool_name_map.get(tool_id, "tool")
+                            yield f"event: tool_result\ndata: {json.dumps({'id': tool_id, 'name': t_name, 'content': output})}\n\n"
+
+                    elif kind == "on_chain_end" and event.get("name") == "tools":
+                        # When ModeMiddleware blocks a tool (e.g. state modification tool in ASK mode),
+                        # it short-circuits execution and returns a ToolMessage directly.
+                        # Since the tool function itself is skipped, on_tool_end won't fire.
+                        # We intercept the ToolMessages returned by the 'tools' node here to stream the result live.
+                        output_dict = data.get("output", {})
+                        msgs = output_dict.get("messages", []) if isinstance(output_dict, dict) else []
+                        for msg in msgs:
+                            tool_id = getattr(msg, "tool_call_id", None)
+                            if tool_id and tool_id not in emitted_tool_result_ids:
+                                emitted_tool_result_ids.add(tool_id)
+                                content = getattr(msg, "content", "")
+                                if not isinstance(content, str):
+                                    try:
+                                        content = json.dumps(content)
+                                    except Exception:
+                                        content = str(content)
+                                t_name = getattr(msg, "name", None) or tool_name_map.get(tool_id, "tool")
+                                yield f"event: tool_result\ndata: {json.dumps({'id': tool_id, 'name': t_name, 'content': content})}\n\n"
 
                 if disconnected:
                     state = await agent.aget_state(config)

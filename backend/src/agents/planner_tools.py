@@ -201,16 +201,16 @@ class FinalizePlanInput(BaseModel):
 
 
 # ============================================================================
-# Planner Tools Factory
+# Planner Tools Factory & Granular Tool Groups
 # ============================================================================
 
 
-def company_planner_tools(
+def get_plan_creation_tools(
     session: AsyncSession,
     strategy_id: Optional[str],
     effort_prefix: str,
 ) -> List[BaseTool]:
-    """Factory returning the 8-tool Planner suite bound to an AsyncSession and effort_prefix."""
+    """Return tools for plan creation and context setup (Planner Agent)."""
     planner_service = PlannerService(session)
 
     async def _get_plan() -> Planner:
@@ -318,6 +318,86 @@ def company_planner_tools(
         )
         return f"Step added: {new_step.id}"
 
+    @tool(args_schema=AddKnowledgeEntryInput)
+    async def add_knowledge_entry(
+        category: Literal["findings", "decisions", "discovered_entities"],
+        detail: str,
+    ) -> str:
+        """Record strategic observations, architectural decisions, or discovered entities into the plan knowledge base."""
+        plan = await _get_plan()
+        if category == "findings":
+            plan.knowledge.findings.append(detail)
+        elif category == "decisions":
+            plan.knowledge.decisions.append(detail)
+        elif category == "discovered_entities":
+            plan.knowledge.discovered_entities.append(detail)
+        else:
+            return f"Error: Invalid category '{category}'."
+
+        await planner_service.save_plan(
+            effort_prefix, plan, strategy_id=strategy_id
+        )
+        return "Saved"
+
+    return [
+        get_plan_summary,
+        update_plan_context,
+        add_task,
+        add_step,
+        add_knowledge_entry,
+    ]
+
+
+def get_plan_evaluator_tools(
+    session: AsyncSession,
+    strategy_id: Optional[str],
+    effort_prefix: str,
+) -> List[BaseTool]:
+    """Return tools for plan evaluation and approval (Evaluator Agent)."""
+    planner_service = PlannerService(session)
+
+    async def _get_plan() -> Planner:
+        return await planner_service.get_or_create_plan(
+            effort_prefix=effort_prefix,
+            strategy_id=strategy_id,
+        )
+
+    @tool
+    async def get_plan_summary() -> Dict[str, Any]:
+        """Get structured overview of the current execution plan, phases, runtime progress, knowledge, and artifacts."""
+        plan = await _get_plan()
+        return plan.model_dump(mode="json")
+
+    @tool
+    async def mark_planning_as_complete() -> str:
+        """Mark the planning phase as complete and set the plan runtime status to READY for execution workers."""
+        plan = await _get_plan()
+        plan.runtime.status = PlannerStatus.READY
+        await planner_service.save_plan(
+            effort_prefix, plan, strategy_id=strategy_id
+        )
+        return "Plan status set to ready."
+
+    return [
+        mark_planning_as_complete,
+        get_plan_summary,
+    ]
+
+
+def get_plan_status_updater_tools(
+    session: AsyncSession,
+    strategy_id: Optional[str],
+    effort_prefix: str,
+) -> List[BaseTool]:
+    """Return tools for updating task status (Execution Workers)."""
+    planner_service = PlannerService(session)
+
+    async def _get_plan() -> Planner:
+        return await planner_service.get_or_create_plan(
+            effort_prefix=effort_prefix,
+            strategy_id=strategy_id,
+        )
+
     @tool(args_schema=UpdateTaskStatusInput)
     async def update_task_status(
         task_id: str,
@@ -363,6 +443,25 @@ def company_planner_tools(
             effort_prefix, plan, strategy_id=strategy_id
         )
         return "Updated"
+
+    return [
+        update_task_status,
+    ]
+
+
+def get_plan_monitoring_tools(
+    session: AsyncSession,
+    strategy_id: Optional[str],
+    effort_prefix: str,
+) -> List[BaseTool]:
+    """Return tools for progress monitoring and plan finalization."""
+    planner_service = PlannerService(session)
+
+    async def _get_plan() -> Planner:
+        return await planner_service.get_or_create_plan(
+            effort_prefix=effort_prefix,
+            strategy_id=strategy_id,
+        )
 
     @tool(args_schema=RecordActionResultInput)
     async def record_action_result(
@@ -422,48 +521,6 @@ def company_planner_tools(
         )
         return f"Saved: {action_id}"
 
-    @tool(args_schema=AddKnowledgeEntryInput)
-    async def add_knowledge_entry(
-        category: Literal["findings", "decisions", "discovered_entities"],
-        detail: str,
-    ) -> str:
-        """Record strategic observations, architectural decisions, or discovered entities into the plan knowledge base."""
-        plan = await _get_plan()
-        if category == "findings":
-            plan.knowledge.findings.append(detail)
-        elif category == "decisions":
-            plan.knowledge.decisions.append(detail)
-        elif category == "discovered_entities":
-            plan.knowledge.discovered_entities.append(detail)
-        else:
-            return f"Error: Invalid category '{category}'."
-
-        await planner_service.save_plan(
-            effort_prefix, plan, strategy_id=strategy_id
-        )
-        return "Saved"
-
-    @tool(args_schema=RegisterArtifactInput)
-    async def register_artifact(
-        name: str,
-        path_or_uri: Optional[str] = None,
-        content_summary: str = "",
-    ) -> str:
-        """Register a report, source file, JSON data dump, or output document produced during effort execution."""
-        plan = await _get_plan()
-        artifact_id = f"artifact-{len(plan.artifacts) + 1}"
-        art = Artifact(
-            id=artifact_id,
-            name=name,
-            path_or_uri=path_or_uri,
-            content_summary=content_summary,
-        )
-        plan.artifacts.append(art)
-        await planner_service.save_plan(
-            effort_prefix, plan, strategy_id=strategy_id
-        )
-        return f"Registered: {artifact_id}"
-
     @tool(args_schema=FinalizePlanInput)
     async def finalize_plan(
         final_report: str,
@@ -484,26 +541,18 @@ def company_planner_tools(
         )
         return "Finalized"
 
-    @tool
-    async def mark_planning_as_complete() -> str:
-        """Mark the planning phase as complete and set the plan runtime status to READY for execution workers."""
-        plan = await _get_plan()
-        plan.runtime.status = PlannerStatus.READY
-        await planner_service.save_plan(
-            effort_prefix, plan, strategy_id=strategy_id
-        )
-        return "Plan status set to ready."
-
     return [
-        get_plan_summary,
-        update_plan_context,
-        add_task,
-        add_step,
-        update_task_status,
         record_action_result,
-        add_knowledge_entry,
-        register_artifact,
-        mark_planning_as_complete,
         finalize_plan,
     ]
+
+
+def company_planner_tools(
+    session: AsyncSession,
+    strategy_id: Optional[str],
+    effort_prefix: str,
+) -> List[BaseTool]:
+    """Factory returning the primary plan creation tool suite for Planner Agent."""
+    return get_plan_creation_tools(session, strategy_id, effort_prefix)
+
 

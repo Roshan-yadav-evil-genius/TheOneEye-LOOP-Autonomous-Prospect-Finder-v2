@@ -366,7 +366,7 @@ class BrainMemoryRead(OrmModel):
 
 class ChatStreamRequest(BaseModel):
     message: str = Field(default="", min_length=0)
-    mode: Literal["chat", "agent"]
+    mode: Literal["ask", "act"]
     retry: bool = False
     redo_last: bool = False
     thread_id: str | None = None

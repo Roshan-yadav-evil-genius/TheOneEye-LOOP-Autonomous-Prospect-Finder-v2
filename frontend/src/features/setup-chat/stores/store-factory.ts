@@ -15,7 +15,7 @@ export type ChatUiMessage =
   | { id: string; messageId?: string; kind: 'tool_result'; name: string; content: string }
 
 export interface SetupChatStoreState {
-  mode: 'chat' | 'state' | 'agent' | 'history'
+  mode: 'ask' | 'state' | 'act' | 'history'
   messages: ChatUiMessage[]
   stateSnapshots: StateSnapshotRead[]
   loadingSnapshots: boolean
@@ -34,7 +34,7 @@ export interface SetupChatStoreState {
   namespacesMap: Record<string, string[]>
   loadingThreads: boolean
   
-  setMode: (mode: 'chat' | 'state' | 'agent' | 'history') => void
+  setMode: (mode: 'ask' | 'state' | 'act' | 'history') => void
   loadHistory: (entityId: string, threadId?: string | null, checkpoint_ns?: string | null) => Promise<void>
   loadStateHistory: (entityId: string, threadId?: string | null, checkpoint_ns?: string | null) => Promise<void>
   clearHistory: (entityId: string) => Promise<void>
@@ -62,22 +62,22 @@ export interface SetupChatApi {
 }
 
 export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat_mode'): UseBoundStore<StoreApi<SetupChatStoreState>> {
-  const getInitialMode = (): 'chat' | 'agent' => {
+  const getInitialMode = (): 'ask' | 'act' => {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         const saved = window.localStorage.getItem(storageKey)
-        if (saved === 'agent' || saved === 'chat') {
+        if (saved === 'act' || saved === 'ask') {
           return saved
         }
       }
     } catch {
       // Ignore storage errors
     }
-    return 'chat'
+    return 'ask'
   }
 
   return create<SetupChatStoreState>((set, get) => ({
-    mode: (getInitialMode() as 'chat' | 'state' | 'agent' | 'history') || 'chat',
+    mode: (getInitialMode() as 'ask' | 'state' | 'act' | 'history') || 'ask',
     messages: [],
     stateSnapshots: [],
     loadingSnapshots: false,
@@ -156,7 +156,7 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
     },
 
     selectThread: async (entityId, threadId, checkpoint_ns = null) => {
-      set({ activeThreadId: threadId, activeNamespace: checkpoint_ns, mode: 'chat' })
+      set({ activeThreadId: threadId, activeNamespace: checkpoint_ns, mode: 'ask' })
       await Promise.all([
         get().loadHistory(entityId, threadId, checkpoint_ns),
         get().loadStateHistory(entityId, threadId, checkpoint_ns),
@@ -172,7 +172,7 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
           activeThreadId: thread_id,
           activeNamespace: null,
           messages: [],
-          mode: 'chat',
+          mode: 'ask',
           incompleteTurn: false,
           canResume: false,
           lastUserMessage: null,
@@ -220,19 +220,20 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
         let lastUserMsg: string | null = null
         
         history.messages.forEach((msgDict: any, i: number) => {
-          const type = msgDict.type
+          const type = msgDict.type || msgDict.data?.type || msgDict.role
           const data = msgDict.data || {}
           const rawMessageId = msgDict.id || data.id
           
-          if (type === 'human') {
-            const content = typeof data.content === 'string' ? data.content : JSON.stringify(data.content)
+          if (type === 'human' || type === 'user') {
+            const rawContent = data.content !== undefined ? data.content : msgDict.content
+            const content = typeof rawContent === 'string' ? rawContent : (rawContent ? JSON.stringify(rawContent) : '')
             lastUserMsg = content
             const lastMsg = messages[messages.length - 1]
             if (lastMsg && lastMsg.kind === 'user' && lastMsg.content === content) {
               return
             }
             messages.push({ id: `hist-${i}`, messageId: rawMessageId, kind: 'user', content })
-          } else if (type === 'ai') {
+          } else if (type === 'ai' || type === 'assistant') {
             const aiMessageId = rawMessageId || `hist-${i}`
             const meta: any = { raw: msgDict }
             if (data.usage_metadata) meta.usage_metadata = data.usage_metadata
@@ -324,7 +325,7 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
 
       set({ messages: newMessages, streaming: true, error: null, lastUserMessage: message || null })
 
-      const modeArg = mode === 'history' ? 'chat' : mode
+      const modeArg: 'ask' | 'act' = mode === 'act' ? 'act' : 'ask'
       await get()._runStream(entityId, { message, mode: modeArg, thread_id: activeThreadId })
     },
     
@@ -335,7 +336,7 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
       const redo_last = !canResume
       const message = (redo_last && lastUserMessage) ? lastUserMessage : ''
       
-      const modeArg = mode === 'history' ? 'chat' : mode
+      const modeArg: 'ask' | 'act' = mode === 'act' ? 'act' : 'ask'
       await get()._runStream(entityId, { message, mode: modeArg, retry: true, redo_last, thread_id: activeThreadId })
     },
 

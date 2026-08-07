@@ -11,6 +11,9 @@ from agents.setup_chat.strategy_tools import get_strategy_tools
 from agents.setup_chat.prompts import render_setup_prompt
 
 
+from agents.setup_chat.common import ModeMiddleware
+
+
 def create_strategy_setup_agent(checkpointer: Any) -> CompiledStateGraph:
     """Build the strategy setup chat agent."""
     system_prompt = render_setup_prompt(form_type="strategy")
@@ -31,9 +34,10 @@ def create_strategy_setup_agent(checkpointer: Any) -> CompiledStateGraph:
         model=model,
         tools=tools,
         system_prompt=system_prompt,
-        middleware=[TodoListMiddleware()],
+        middleware=[ModeMiddleware(), TodoListMiddleware()],
         checkpointer=checkpointer,
     )
     
     return agent
+
 

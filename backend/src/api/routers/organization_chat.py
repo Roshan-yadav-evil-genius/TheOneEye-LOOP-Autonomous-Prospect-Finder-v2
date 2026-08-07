@@ -36,7 +36,7 @@ def chat_service(
     actual_thread_id = thread_id or build_org_setup_thread_id(organization_id)
     tool_context = SetupChatToolContext(
         organization_id=organization_id,
-        mode="chat",
+        mode="ask",
         service=loop_svc,
     )
     

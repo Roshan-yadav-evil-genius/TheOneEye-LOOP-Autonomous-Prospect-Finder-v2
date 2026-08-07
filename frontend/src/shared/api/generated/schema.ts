@@ -1223,7 +1223,7 @@ export interface components {
              * Mode
              * @enum {string}
              */
-            mode: "chat" | "agent";
+            mode: "ask" | "act";
             /**
              * Retry
              * @default false

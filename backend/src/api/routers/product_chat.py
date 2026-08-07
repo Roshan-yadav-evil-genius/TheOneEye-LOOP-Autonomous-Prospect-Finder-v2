@@ -41,7 +41,7 @@ async def chat_service(
     tool_context = SetupChatToolContext(
         organization_id=organization_id,
         product_id=product_id,
-        mode="chat",
+        mode="ask",
         service=loop_svc,
     )
     

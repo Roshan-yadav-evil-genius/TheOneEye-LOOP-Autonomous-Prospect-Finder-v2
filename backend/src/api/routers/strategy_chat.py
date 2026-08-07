@@ -51,7 +51,7 @@ async def chat_service(
         organization_id=organization_id,
         product_id=product_id,
         strategy_id=strategy_id,
-        mode="chat",
+        mode="ask",
         service=loop_svc,
     )
 

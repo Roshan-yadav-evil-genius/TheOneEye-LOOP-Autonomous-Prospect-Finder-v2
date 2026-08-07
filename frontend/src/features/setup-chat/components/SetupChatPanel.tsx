@@ -13,12 +13,12 @@ export interface SetupChatPanelProps {
   noInputRequired?: boolean
 }
 
-type TabMode = 'chat' | 'state' | 'agent' | 'history'
+type TabMode = 'ask' | 'state' | 'act' | 'history'
 
 const tabs: { mode: TabMode; icon: string; label: string }[] = [
-  { mode: 'chat', icon: '💬', label: 'Chat' },
+  { mode: 'ask', icon: '💬', label: 'Ask' },
   { mode: 'state', icon: '📊', label: 'State' },
-  { mode: 'agent', icon: '📝', label: 'Agent' },
+  { mode: 'act', icon: '📝', label: 'Act' },
   { mode: 'history', icon: '📜', label: 'History' },
 ]
 
