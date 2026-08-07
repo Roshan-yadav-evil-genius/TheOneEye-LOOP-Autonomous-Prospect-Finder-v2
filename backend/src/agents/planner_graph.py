@@ -35,13 +35,11 @@ logger = structlog.get_logger(__name__)
 
 
 def create_planner_agent(
-    model: BaseChatModel | None = None,
+    model: BaseChatModel,
     system_prompt: str = COMPANY_FINDER_PLANNER_PROMPT,
     tools: list[Any] | None = None,
     response_format: Any | None = None,
 ) -> Any:
-    if model is None:
-        return None
     kwargs: dict[str, Any] = {
         "model": model,
         "tools": tools or [],
@@ -128,11 +126,10 @@ def replan_router(state: AgentState) -> str:
 
 
 def create_planner_graph(
+    model: BaseChatModel,
     checkpointer: BaseCheckpointSaver | None = None,
-    model: BaseChatModel | None = None,
     effort_prefix: str = "",
     strategy_id: str | None = None,
-    system_prompt: str = COMPANY_FINDER_PLANNER_PROMPT,
 ) -> CompiledStateGraph:
     """Build a StateGraph(AgentState) graph that wraps the planner and evaluator agent nodes.
 
@@ -158,21 +155,16 @@ def create_planner_graph(
                 )
             ]
 
-        # Dynamically instantiate agent with creation tools if model provided
-        planner_agent_to_use = None
-        if model is not None:
-            async with SessionFactory() as session:
-                creation_tools = get_plan_creation_tools(session, strategy_id, effort_prefix)
-                planner_agent_to_use = create_planner_agent(
-                    model=model, system_prompt=system_prompt, tools=creation_tools
-                )
-
-        if planner_agent_to_use:
-            result = await planner_agent_to_use.ainvoke(
-                {"messages": input_msgs}, config=config, context=agent_context
+        # Dynamically instantiate agent with creation tools
+        async with SessionFactory() as session:
+            creation_tools = get_plan_creation_tools(session, strategy_id, effort_prefix)
+            planner_agent = create_planner_agent(
+                model=model, system_prompt=COMPANY_FINDER_PLANNER_PROMPT, tools=creation_tools
             )
-        else:
-            result = AIMessage(content="Planner agent completed step.")
+
+        result = await planner_agent.ainvoke(
+            {"messages": input_msgs}, config=config, context=agent_context
+        )
 
         if isinstance(result, dict) and "planner_chat" in result:
             out_messages = result["planner_chat"]
@@ -243,31 +235,28 @@ def create_planner_graph(
         )
         eval_input = list(state.evaluator_chat) + [eval_prompt]
 
-        # Dynamically build Evaluator Agent with Evaluator tools if model provided
-        eval_agent_to_use = None
-        if model is not None:
-            async with SessionFactory() as session:
-                eval_tools = get_plan_evaluator_tools(session, strategy_id, effort_prefix)
-                eval_agent_to_use = create_planner_agent(
-                    model=model,
-                    system_prompt=COMPANY_FINDER_PLANNER_EVALUATOR_PROMPT,
-                    tools=eval_tools,
-                    response_format=Evaluation,
-                )
+        # Dynamically build Evaluator Agent with Evaluator tools
+        async with SessionFactory() as session:
+            eval_tools = get_plan_evaluator_tools(session, strategy_id, effort_prefix)
+            eval_agent = create_planner_agent(
+                model=model,
+                system_prompt=COMPANY_FINDER_PLANNER_EVALUATOR_PROMPT,
+                tools=eval_tools,
+                response_format=Evaluation,
+            )
 
         res = None
-        if eval_agent_to_use:
-            try:
-                res = await eval_agent_to_use.ainvoke(
-                    {"messages": eval_input}, config=config, context=agent_context
-                )
-            except Exception as err:
-                logger.warning(
-                    "planner_graph_node_evaluator_invocation_warning",
-                    effort_prefix=effort_prefix,
-                    error=str(err),
-                )
-                res = None
+        try:
+            res = await eval_agent.ainvoke(
+                {"messages": eval_input}, config=config, context=agent_context
+            )
+        except Exception as err:
+            logger.warning(
+                "planner_graph_node_evaluator_invocation_warning",
+                effort_prefix=effort_prefix,
+                error=str(err),
+            )
+            res = None
 
         evaluation = None
         if isinstance(res, Evaluation):

@@ -93,32 +93,27 @@ def extract_planner_mode(request: Any) -> PlannerMode:
 class PlannerModeMiddleware(AgentMiddleware):
     """Enforces mode-specific read-only write permissions across 4 modes: PLAN, EVALUATE, EXECUTE, RECORD."""
 
+    # Set of default tool names that are universally allowed across all modes without restriction
+    DEFAULT_ALWAYS_ALLOWED_TOOLS: set[str] = {
+        "get_plan_summary",
+        "inspect_state",
+    }
+
     # Explicit whitelist of write tools permitted per mode.
-    # Any query/read tool (starting with get_, list_, read_, search_) is always permitted across all modes.
     ALLOWED_WRITES: dict[PlannerMode, set[str]] = {
         PlannerMode.PLAN: {
             "add_task",
             "add_step",
             "update_plan_context",
             "add_knowledge_entry",
-            "get_plan_summary",
         },
         PlannerMode.EVALUATE: {
             "mark_planning_as_complete",
-            "get_plan_summary",
-        },
-        PlannerMode.EXECUTE: {
-            "update_task_status",
-            "company_register",
-            "contact_register",
-            "browser_subagent_run",
-            "execute_action",
         },
         PlannerMode.RECORD: {
             "record_action_result",
             "update_task_status",
             "mark_plan_as_finished",
-            "get_plan_summary",
         },
     }
 
@@ -126,8 +121,12 @@ class PlannerModeMiddleware(AgentMiddleware):
         tool_name = request.tool_call["name"]
         mode = extract_planner_mode(request)
 
-        # Read / Inspection tools are universally permitted across all modes
-        if tool_name.startswith(("get_", "list_", "read_", "search_", "inspect_")):
+        # In EXECUTE mode, allow all tool calls without any regulation
+        if mode == PlannerMode.EXECUTE:
+            return None
+
+        # Default tools in DEFAULT_ALWAYS_ALLOWED_TOOLS are universally permitted across all modes
+        if tool_name in self.DEFAULT_ALWAYS_ALLOWED_TOOLS:
             return None
 
         # Resolve allowed write set for the current operational mode (defaults to PLAN)

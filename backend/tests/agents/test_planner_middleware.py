@@ -79,13 +79,11 @@ def test_planner_middleware_execute_mode_permissions():
     req_status.config = {"configurable": {"mode": "execute"}}
     assert mw._check_permission(req_status) is None
 
-    # Blocked in execute mode (plan creation tool)
+    # All tools (including plan creation tools) are allowed without restriction in execute mode
     req_add = MagicMock(spec=ToolCallRequest)
     req_add.tool_call = {"id": "8", "name": "add_task", "args": {}}
     req_add.config = {"configurable": {"mode": "execute"}}
-    res = mw._check_permission(req_add)
-    assert isinstance(res, ToolMessage)
-    assert res.status == "error"
+    assert mw._check_permission(req_add) is None
 
 
 def test_planner_middleware_record_mode_permissions():
@@ -104,3 +102,13 @@ def test_planner_middleware_record_mode_permissions():
     res = mw._check_permission(req_register)
     assert isinstance(res, ToolMessage)
     assert res.status == "error"
+
+
+def test_planner_middleware_default_always_allowed_tools():
+    mw = PlannerModeMiddleware()
+
+    # Tools in DEFAULT_ALWAYS_ALLOWED_TOOLS are allowed in all modes (e.g. evaluate mode)
+    req_default = MagicMock(spec=ToolCallRequest)
+    req_default.tool_call = {"id": "11", "name": "inspect_state", "args": {}}
+    req_default.config = {"configurable": {"mode": "evaluate"}}
+    assert mw._check_permission(req_default) is None
