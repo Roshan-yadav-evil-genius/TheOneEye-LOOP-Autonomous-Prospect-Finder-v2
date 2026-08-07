@@ -11,8 +11,10 @@ from application.loop_service import LoopService
 from application.setup_chat_service import SetupChatService
 from agents.setup_chat.product_agent import create_product_setup_agent
 from agents.setup_chat.common import SetupChatToolContext
-from contracts.domain import ChatStreamRequest, ChatHistoryRead, NewThreadResponse
+from contracts.domain import ChatStreamRequest, ChatHistoryRead, NewThreadResponse, StateSnapshotRead
+from application.chat_history_service import ThreadChatHistoryService
 from persistence.database import SessionFactory, get_session
+
 
 from agents.checkpoints import ThreadCheckpointStore
 
@@ -107,9 +109,22 @@ async def get_history(
     session: Session,
     request: Request,
     thread_id: str | None = None,
+    checkpoint_ns: str | None = None,
 ) -> ChatHistoryRead:
     service = await chat_service(session, request, product_id, thread_id=thread_id)
     return await service.get_history()
+
+
+@router.get("/products/{product_id}/chat/state-history", response_model=list[StateSnapshotRead])
+async def get_state_history(
+    product_id: str,
+    session: Session,
+    request: Request,
+    thread_id: str | None = None,
+    checkpoint_ns: str | None = None,
+) -> list[StateSnapshotRead]:
+    service = await chat_service(session, request, product_id, thread_id=thread_id)
+    return await ThreadChatHistoryService.get_state_history(service.thread_id, checkpoint_ns=checkpoint_ns)
 
 
 @router.delete("/products/{product_id}/chat", status_code=status.HTTP_204_NO_CONTENT)

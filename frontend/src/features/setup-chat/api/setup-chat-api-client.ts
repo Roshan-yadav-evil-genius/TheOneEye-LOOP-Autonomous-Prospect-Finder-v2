@@ -4,6 +4,17 @@ export interface ChatHistoryRead {
   can_resume: boolean
 }
 
+export interface StateSnapshotRead {
+  step_index: number
+  checkpoint_id?: string | null
+  checkpoint_ns?: string | null
+  parent_checkpoint_id?: string | null
+  values: Record<string, any>
+  next: string[]
+  metadata?: Record<string, any>
+}
+
+
 export interface ChatStreamRequest {
   message: string
   mode: 'chat' | 'agent'

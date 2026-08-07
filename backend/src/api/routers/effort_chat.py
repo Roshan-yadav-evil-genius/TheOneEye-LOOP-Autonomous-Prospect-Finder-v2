@@ -14,13 +14,16 @@ from agents.factory import (
 from agents.runtime import allocate_next_setup_thread_id
 from application.chat_history_service import ThreadChatHistoryService
 from application.planner_service import PlannerService
-from contracts.domain import ChatHistoryRead, ChatStreamRequest, NewThreadResponse
+from contracts.domain import ChatHistoryRead, ChatStreamRequest, NewThreadResponse, StateSnapshotRead
 from core.config import get_settings
 from persistence import models
 from persistence.database import SessionFactory, get_session
 
 router = APIRouter(prefix="/api/v1/efforts", tags=["effort-chat"])
 Session = Annotated[AsyncSession, Depends(get_session)]
+
+# ... (omitted middle for concise replacement)
+
 
 
 async def get_effort_info(session: AsyncSession, effort_prefix: str) -> tuple[str, str, str | None]:
@@ -196,6 +199,16 @@ async def get_history(
 ) -> ChatHistoryRead:
     target_thread_id = thread_id or f"{effort_prefix}_planner_1"
     return await ThreadChatHistoryService.get_history(target_thread_id, checkpoint_ns=checkpoint_ns)
+
+
+@router.get("/{effort_prefix}/chat/state-history", response_model=list[StateSnapshotRead])
+async def get_state_history(
+    effort_prefix: str,
+    thread_id: str | None = None,
+    checkpoint_ns: str | None = None,
+) -> list[StateSnapshotRead]:
+    target_thread_id = thread_id or f"{effort_prefix}_planner_1"
+    return await ThreadChatHistoryService.get_state_history(target_thread_id, checkpoint_ns=checkpoint_ns)
 
 
 @router.delete("/{effort_prefix}/chat", status_code=status.HTTP_204_NO_CONTENT)

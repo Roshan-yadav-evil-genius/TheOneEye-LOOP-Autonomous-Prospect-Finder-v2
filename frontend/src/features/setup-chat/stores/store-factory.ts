@@ -3,7 +3,8 @@ import { create, type StoreApi, type UseBoundStore } from 'zustand'
 import {
   type ChatStreamEvent,
   type ChatStreamRequest,
-  type ChatHistoryRead
+  type ChatHistoryRead,
+  type StateSnapshotRead
 } from '../api/setup-chat-api-client'
 
 export type ChatUiMessage =
@@ -14,8 +15,10 @@ export type ChatUiMessage =
   | { id: string; messageId?: string; kind: 'tool_result'; name: string; content: string }
 
 export interface SetupChatStoreState {
-  mode: 'chat' | 'agent' | 'history'
+  mode: 'chat' | 'state' | 'agent' | 'history'
   messages: ChatUiMessage[]
+  stateSnapshots: StateSnapshotRead[]
+  loadingSnapshots: boolean
   streaming: boolean
   error: string | null
   profileDirtyFromChat: boolean
@@ -31,8 +34,9 @@ export interface SetupChatStoreState {
   namespacesMap: Record<string, string[]>
   loadingThreads: boolean
   
-  setMode: (mode: 'chat' | 'agent' | 'history') => void
+  setMode: (mode: 'chat' | 'state' | 'agent' | 'history') => void
   loadHistory: (entityId: string, threadId?: string | null, checkpoint_ns?: string | null) => Promise<void>
+  loadStateHistory: (entityId: string, threadId?: string | null, checkpoint_ns?: string | null) => Promise<void>
   clearHistory: (entityId: string) => Promise<void>
   deleteMessage: (entityId: string, messageId: string) => Promise<void>
   send: (entityId: string, message: string) => Promise<void>
@@ -49,6 +53,7 @@ export interface SetupChatStoreState {
 
 export interface SetupChatApi {
   getHistory: (entityId: string, threadId?: string | null, checkpoint_ns?: string | null) => Promise<ChatHistoryRead>
+  getStateHistory?: (entityId: string, threadId?: string | null, checkpoint_ns?: string | null) => Promise<StateSnapshotRead[]>
   clearChat: (entityId: string, threadId?: string | null) => Promise<any>
   deleteMessage?: (entityId: string, messageId: string, threadId?: string | null) => Promise<any>
   streamChat: (entityId: string, request: ChatStreamRequest, onEvent: (event: ChatStreamEvent) => void) => Promise<void>
@@ -72,8 +77,10 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
   }
 
   return create<SetupChatStoreState>((set, get) => ({
-    mode: getInitialMode() as 'chat' | 'agent' | 'history',
+    mode: (getInitialMode() as 'chat' | 'state' | 'agent' | 'history') || 'chat',
     messages: [],
+    stateSnapshots: [],
+    loadingSnapshots: false,
     streaming: false,
     error: null,
     profileDirtyFromChat: false,
@@ -99,6 +106,8 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
 
     reset: () => set({ 
       messages: [], 
+      stateSnapshots: [],
+      loadingSnapshots: false,
       streaming: false, 
       error: null, 
       profileDirtyFromChat: false,
@@ -131,9 +140,27 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
       }
     },
 
+    loadStateHistory: async (entityId, threadId, checkpoint_ns) => {
+      if (!api.getStateHistory) return
+      try {
+        set({ loadingSnapshots: true, error: null })
+        const targetThreadId = threadId ?? get().activeThreadId
+        const targetNs = checkpoint_ns !== undefined ? checkpoint_ns : get().activeNamespace
+        const snapshots = await api.getStateHistory(entityId, targetThreadId, targetNs)
+        set({ stateSnapshots: snapshots || [] })
+      } catch (e: any) {
+        set({ error: e.message || 'Failed to load state history' })
+      } finally {
+        set({ loadingSnapshots: false })
+      }
+    },
+
     selectThread: async (entityId, threadId, checkpoint_ns = null) => {
       set({ activeThreadId: threadId, activeNamespace: checkpoint_ns, mode: 'chat' })
-      await get().loadHistory(entityId, threadId, checkpoint_ns)
+      await Promise.all([
+        get().loadHistory(entityId, threadId, checkpoint_ns),
+        get().loadStateHistory(entityId, threadId, checkpoint_ns),
+      ])
     },
 
     createNewThread: async (entityId) => {

@@ -3,13 +3,25 @@ import {
   type ChatHistoryRead,
   type ChatStreamRequest,
   type ChatStreamEvent,
+  type StateSnapshotRead,
   streamChatGeneric
 } from '../../setup-chat/api/setup-chat-api-client'
 
 export const strategyChatApi = {
-  getHistory: async (strategyId: string, threadId?: string | null) => {
-    const params = threadId ? `?thread_id=${encodeURIComponent(threadId)}` : ''
-    return (await apiClient.get<ChatHistoryRead>(`/api/v1/sales-strategies/${strategyId}/chat/history${params}`)).data
+  getHistory: async (strategyId: string, threadId?: string | null, checkpoint_ns?: string | null) => {
+    const searchParams = new URLSearchParams()
+    if (threadId) searchParams.set('thread_id', threadId)
+    if (checkpoint_ns) searchParams.set('checkpoint_ns', checkpoint_ns)
+    const queryString = searchParams.toString() ? `?${searchParams.toString()}` : ''
+    return (await apiClient.get<ChatHistoryRead>(`/api/v1/sales-strategies/${strategyId}/chat/history${queryString}`)).data
+  },
+
+  getStateHistory: async (strategyId: string, threadId?: string | null, checkpoint_ns?: string | null) => {
+    const searchParams = new URLSearchParams()
+    if (threadId) searchParams.set('thread_id', threadId)
+    if (checkpoint_ns) searchParams.set('checkpoint_ns', checkpoint_ns)
+    const queryString = searchParams.toString() ? `?${searchParams.toString()}` : ''
+    return (await apiClient.get<StateSnapshotRead[]>(`/api/v1/sales-strategies/${strategyId}/chat/state-history${queryString}`)).data
   },
 
   clearChat: async (strategyId: string, threadId?: string | null) => {

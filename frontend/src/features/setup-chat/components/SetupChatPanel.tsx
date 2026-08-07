@@ -1,6 +1,7 @@
 import { ChatMessageList } from './chat-message-list'
 import { ChatComposer } from './chat-composer'
 import { ThreadHistoryList } from './thread-history-list'
+import { StateSnapshotList } from './state-snapshot-list'
 import type { SetupChatStoreState } from '../stores/store-factory'
 
 export interface SetupChatPanelProps {
@@ -12,10 +13,11 @@ export interface SetupChatPanelProps {
   noInputRequired?: boolean
 }
 
-type TabMode = 'chat' | 'agent' | 'history'
+type TabMode = 'chat' | 'state' | 'agent' | 'history'
 
 const tabs: { mode: TabMode; icon: string; label: string }[] = [
   { mode: 'chat', icon: '💬', label: 'Chat' },
+  { mode: 'state', icon: '📊', label: 'State' },
   { mode: 'agent', icon: '📝', label: 'Agent' },
   { mode: 'history', icon: '📜', label: 'History' },
 ]
@@ -72,6 +74,9 @@ export function SetupChatPanel({ title: _title, threadId: _threadId, entityId, a
     if (mode === 'history' && store.mode !== 'history') {
       // Eagerly fetch threads when the tab is first opened
       void store.fetchThreads(entityId)
+    }
+    if (mode === 'state' && store.mode !== 'state') {
+      void store.loadStateHistory(entityId)
     }
     store.setMode(mode)
   }
@@ -161,6 +166,14 @@ export function SetupChatPanel({ title: _title, threadId: _threadId, entityId, a
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           <ThreadHistoryList entityId={entityId} store={store} />
         </div>
+      ) : store.mode === 'state' ? (
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          <StateSnapshotList
+            snapshots={store.stateSnapshots}
+            loading={store.loadingSnapshots}
+            onRefresh={() => void store.loadStateHistory(entityId)}
+          />
+        </div>
       ) : (
         <>
           {/* Message List (Scrollable) */}
@@ -188,3 +201,4 @@ export function SetupChatPanel({ title: _title, threadId: _threadId, entityId, a
     </div>
   )
 }
+

@@ -3,6 +3,7 @@ import {
   type ChatHistoryRead,
   type ChatStreamRequest,
   type ChatStreamEvent,
+  type StateSnapshotRead,
   streamChatGeneric,
 } from '../../setup-chat/api/setup-chat-api-client'
 import type { SetupChatApi } from '../../setup-chat/stores/store-factory'
@@ -16,6 +17,18 @@ export const effortChatApi: SetupChatApi = {
     return (
       await apiClient.get<ChatHistoryRead>(
         `/api/v1/efforts/${encodeURIComponent(effortPrefix)}/chat/history${queryString}`
+      )
+    ).data
+  },
+
+  getStateHistory: async (effortPrefix: string, threadId?: string | null, checkpoint_ns?: string | null) => {
+    const searchParams = new URLSearchParams()
+    if (threadId) searchParams.set('thread_id', threadId)
+    if (checkpoint_ns) searchParams.set('checkpoint_ns', checkpoint_ns)
+    const queryString = searchParams.toString() ? `?${searchParams.toString()}` : ''
+    return (
+      await apiClient.get<StateSnapshotRead[]>(
+        `/api/v1/efforts/${encodeURIComponent(effortPrefix)}/chat/state-history${queryString}`
       )
     ).data
   },
