@@ -3,7 +3,6 @@ from typing import Any, Literal
 from langchain_core.tools import BaseTool, StructuredTool, tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agents.brain import BrainMemoryService
 from application.loop_service import LoopService
 from contracts.domain import (
     BlacklistProspectRequest,
@@ -78,7 +77,13 @@ def sales_manager_tools(
         bundle = await service.bundle(strategy_id)
         return bundle.product.model_dump(mode="json")
 
-    return [get_org, get_product]
+    @tool
+    async def get_sales_strategy() -> dict[str, Any]:
+        """Read active sales strategy targeting rules, narratives, and target quotas."""
+        bundle = await service.bundle(strategy_id)
+        return bundle.sales_strategy.model_dump(mode="json")
+
+    return [get_org, get_product, get_sales_strategy]
 
 
 
@@ -175,65 +180,3 @@ def contact_finder_tools(
         register_contact,
         blacklist_prospect,
     ]
-
-
-def brain_tools(
-    session: AsyncSession, strategy_id: str, agent_type: str
-) -> list[BaseTool]:
-    memory = BrainMemoryService(session)
-
-    @tool
-    async def recall_memory(query: str, limit: int = 8) -> list[dict[str, Any]]:
-        """Retrieve strategy-and-role-isolated long-term memories."""
-        rows = await memory.recall(
-            strategy_id=strategy_id,
-            agent_type=agent_type,
-            query=query,
-            limit=limit,
-        )
-        return [
-            {
-                "id": row.id,
-                "category": row.category,
-                "content": row.content,
-                "evidence_urls": row.evidence_urls,
-            }
-            for row in rows
-        ]
-
-    @tool
-    async def manage_memory(
-        action: Literal["create", "update", "delete", "compact"],
-        category: Literal["actions", "failures", "decisions", "insights"],
-        content: str = "",
-        evidence_urls: list[str] | None = None,
-        memory_id: str | None = None,
-    ) -> dict[str, Any]:
-        """Create, update, delete, or compact isolated evidence-backed memory."""
-        if action == "compact":
-            removed = await memory.compact(
-                strategy_id=strategy_id, agent_type=agent_type
-            )
-            return {"action": "compact", "removed": removed}
-        if action == "delete":
-            if not memory_id:
-                raise ValueError("memory_id is required to delete memory.")
-            await memory.delete(memory_id)
-            return {"action": "delete", "memory_id": memory_id}
-        if action == "update":
-            if not memory_id:
-                raise ValueError("memory_id is required to update memory.")
-            row = await memory.update(
-                memory_id, content=content, evidence_urls=evidence_urls
-            )
-            return {"action": "update", "memory_id": row.id}
-        row = await memory.remember(
-            strategy_id=strategy_id,
-            agent_type=agent_type,
-            category=category,
-            content=content,
-            evidence_urls=evidence_urls,
-        )
-        return {"action": "create", "memory_id": row.id}
-
-    return [recall_memory, manage_memory]

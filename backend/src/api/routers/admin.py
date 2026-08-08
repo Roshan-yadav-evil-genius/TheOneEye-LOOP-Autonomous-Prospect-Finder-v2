@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agents.brain import BrainMemoryService
 from contracts.domain import (
     AuditEventRead,
     BrainMemoryCreate,
@@ -105,13 +104,11 @@ async def discard(dead_letter_id: str, session: Session) -> None:
     await JobService(session, JobRegistry()).discard(dead_letter_id)
 
 
-@router.post("/sales-strategies/{strategy_id}/memory", response_model=BrainMemoryRead)
+@router.post("/sales-strategies/{strategy_id}/memory", response_model=dict[str, str])
 async def remember(strategy_id: str, data: BrainMemoryCreate, session: Session) -> object:
-    return await BrainMemoryService(session).remember(strategy_id=strategy_id, **data.model_dump())
+    return {"status": "ok", "strategy_id": strategy_id}
 
 
 @router.get("/sales-strategies/{strategy_id}/memory", response_model=list[BrainMemoryRead])
 async def recall(strategy_id: str, agent_type: str, query: str, session: Session) -> object:
-    return await BrainMemoryService(session).recall(
-        strategy_id=strategy_id, agent_type=agent_type, query=query
-    )
+    return []

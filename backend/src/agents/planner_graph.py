@@ -12,7 +12,7 @@ from enum import StrEnum
 from typing import Annotated, Any, Optional
 
 import structlog
-from langchain.agents.factory import create_agent
+from deepagents import create_deep_agent
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, AnyMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
@@ -21,6 +21,7 @@ from langgraph.graph import END, StateGraph, add_messages
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel
 
+from agents.loop_agent import create_loop_agent
 from agents.prompts import (
     COMPANY_FINDER_PLANNER_EVALUATOR_PROMPT,
     COMPANY_FINDER_PLANNER_PROMPT,
@@ -28,27 +29,10 @@ from agents.prompts import (
 from application.planner_service import PlannerService
 from domain.planner_models import Planner
 from persistence.database import SessionFactory
-from agents.planner_middleware import AgentContext, PlannerMode, PlannerModeMiddleware
+from agents.planner_middleware import AgentContext, PlannerMode
 from agents.planner_tools import get_plan_creation_tools, get_plan_evaluator_tools
 
 logger = structlog.get_logger(__name__)
-
-
-def create_planner_agent(
-    model: BaseChatModel,
-    system_prompt: str = COMPANY_FINDER_PLANNER_PROMPT,
-    tools: list[Any] | None = None,
-    response_format: Any | None = None,
-) -> Any:
-    kwargs: dict[str, Any] = {
-        "model": model,
-        "tools": tools or [],
-        "system_prompt": system_prompt,
-        "middleware": [PlannerModeMiddleware()],
-    }
-    if response_format is not None:
-        kwargs["response_format"] = response_format
-    return create_agent(**kwargs)
 
 
 class Decision(StrEnum):
@@ -155,17 +139,22 @@ def create_planner_graph(
                 )
             ]
 
-        # Dynamically instantiate agent with creation tools
+        # Dynamically instantiate agent with creation tools and 3 subagents via create_loop_agent
         async with SessionFactory() as session:
             creation_tools = get_plan_creation_tools(session, strategy_id, effort_prefix)
-            planner_agent = create_planner_agent(
-                model=model, system_prompt=COMPANY_FINDER_PLANNER_PROMPT, tools=creation_tools
+            planner_agent = create_loop_agent(
+                model=model,
+                system_prompt=COMPANY_FINDER_PLANNER_PROMPT,
+                tools=creation_tools,
+                session=session,
+                strategy_id=strategy_id,
+                effort_prefix=effort_prefix,
+                checkpointer=checkpointer,
             )
 
         result = await planner_agent.ainvoke(
             {"messages": input_msgs}, config=config, context=agent_context
         )
-
         if isinstance(result, dict) and "planner_chat" in result:
             out_messages = result["planner_chat"]
         elif isinstance(result, dict) and "messages" in result:
@@ -238,7 +227,7 @@ def create_planner_graph(
         # Dynamically build Evaluator Agent with Evaluator tools
         async with SessionFactory() as session:
             eval_tools = get_plan_evaluator_tools(session, strategy_id, effort_prefix)
-            eval_agent = create_planner_agent(
+            eval_agent = create_loop_agent(
                 model=model,
                 system_prompt=COMPANY_FINDER_PLANNER_EVALUATOR_PROMPT,
                 tools=eval_tools,

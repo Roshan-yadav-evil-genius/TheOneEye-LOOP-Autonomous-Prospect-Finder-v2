@@ -5,7 +5,6 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agents.brain import BrainMemoryService
 from agents.cancel import is_cancel_requested, run_cancellable
 from agents.factory import (
     company_finder_agent_scope,
@@ -210,11 +209,7 @@ class CompanyFinderEffort:
             )
         )
         await self.session.commit()
-        memory = await BrainMemoryService(self.session).recall(
-            strategy_id=strategy_id,
-            agent_type="company_finder",
-            query=strategy.name,
-        )
+        memory: list[Any] = []
         prompt = json.dumps(
             {
                 "sales_strategy_bundle": bundle.model_dump(mode="json"),

@@ -12,6 +12,7 @@ from agents.factory import (
     contact_finder_agent_scope,
 )
 from agents.runtime import allocate_next_setup_thread_id
+from agents.planner_graph import stream_planner_graph
 from application.chat_history_service import ThreadChatHistoryService
 from application.planner_service import PlannerService
 from contracts.domain import ChatHistoryRead, ChatStreamRequest, NewThreadResponse, StateSnapshotRead

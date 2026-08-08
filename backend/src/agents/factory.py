@@ -23,7 +23,6 @@ from agents.stack_builders import (
     build_contact_finder_stack,
 )
 from agents.tools import (
-    brain_tools,
     company_finder_tools,
     contact_finder_tools,
     sales_manager_tools,
@@ -193,7 +192,7 @@ async def company_finder_agent_scope(
             loop_context=loop_context,
             company_tools=company_tools_list,
             browser_tools=await _browser_tools(browser_session),
-            brain_tools=brain_tools(session, strategy_id, effective_role_suffix),
+            brain_tools=[],
             checkpointer=checkpointer,
             sales_manager_tools=sm_tools,
             model=model,
@@ -273,7 +272,7 @@ async def contact_finder_agent_scope(
                 session, strategy_id, company_id, parent_thread
             ),
             browser_tools=await _browser_tools(browser_session),
-            brain_tools=brain_tools(session, strategy_id, "contact_finder"),
+            brain_tools=[],
             checkpointer=checkpointer,
             model=model,
             contact_middlewares=orchestrator_middlewares(),
