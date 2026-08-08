@@ -126,7 +126,7 @@ class PlannerModeMiddleware(AgentMiddleware):
         """Check if a direct Python tool call is permitted in the current operational mode."""
         if mode == PlannerMode.EXECUTE:
             return True
-        if tool_name in self.DEFAULT_ALWAYS_ALLOWED_TOOLS:
+        if tool_name in self.DEFAULT_ALWAYS_ALLOWED_TOOLS or tool_name in self.ALWAYS_ALLOWED_SUBAGENTS:
             return True
         allowed_writes = self.ALLOWED_WRITES.get(mode, self.ALLOWED_WRITES[PlannerMode.PLAN])
         return tool_name in allowed_writes

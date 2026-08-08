@@ -159,12 +159,8 @@ def create_planner_graph(
 
         from core.config import get_settings
 
-        exec_config = {
-            **(config or {}),
-            "recursion_limit": get_settings().agent_recursion_limit,
-        }
         result = await planner_agent.ainvoke(
-            {"messages": input_msgs}, config=exec_config, context=agent_context
+            {"messages": input_msgs}, config=config, context=agent_context
         )
         if isinstance(result, dict) and "planner_chat" in result:
             out_messages = result["planner_chat"]
@@ -254,12 +250,8 @@ def create_planner_graph(
 
         res = None
         try:
-            exec_config = {
-                **(config or {}),
-                "recursion_limit": get_settings().agent_recursion_limit,
-            }
             res = await eval_agent.ainvoke(
-                {"messages": eval_input}, config=exec_config, context=agent_context
+                {"messages": eval_input}, config=config, context=agent_context
             )
         except Exception as err:
             logger.warning(
@@ -268,7 +260,7 @@ def create_planner_graph(
                 error=str(err),
             )
             res = None
-
+        print(res)
         evaluation = None
         if isinstance(res, Evaluation):
             evaluation = res
