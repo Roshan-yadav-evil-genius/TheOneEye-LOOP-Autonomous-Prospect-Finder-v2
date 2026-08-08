@@ -21,6 +21,7 @@ from langgraph.graph import END, StateGraph, add_messages
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel
 
+from agents.filesystem_backend import default_filesystem_backend
 from agents.loop_agent import create_loop_agent
 from agents.prompts import (
     COMPANY_FINDER_PLANNER_EVALUATOR_PROMPT,
@@ -135,7 +136,7 @@ def create_planner_graph(
         if not input_msgs:
             input_msgs = [
                 HumanMessage(
-                    content="Create a detailed execution plan for identifying and selecting target companies based on the defined sales strategy."
+                    content="Create a detailed execution plan for identifying and selecting one companies based on the defined sales strategy."
                 )
             ]
 
@@ -144,12 +145,14 @@ def create_planner_graph(
             creation_tools = get_plan_creation_tools(session, strategy_id, effort_prefix)
             planner_agent = create_loop_agent(
                 model=model,
-                system_prompt=COMPANY_FINDER_PLANNER_PROMPT,
                 tools=creation_tools,
+                system_prompt=COMPANY_FINDER_PLANNER_PROMPT,
                 session=session,
                 strategy_id=strategy_id,
                 effort_prefix=effort_prefix,
                 checkpointer=checkpointer,
+                context_schema=AgentContext,
+                backend=default_filesystem_backend(),
             )
 
         result = await planner_agent.ainvoke(
@@ -231,7 +234,9 @@ def create_planner_graph(
                 model=model,
                 system_prompt=COMPANY_FINDER_PLANNER_EVALUATOR_PROMPT,
                 tools=eval_tools,
+                context_schema=AgentContext,
                 response_format=Evaluation,
+                backend=default_filesystem_backend(),
             )
 
         res = None

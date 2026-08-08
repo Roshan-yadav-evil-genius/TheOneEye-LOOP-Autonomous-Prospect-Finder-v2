@@ -21,20 +21,8 @@ def test_company_prompt_placeholders_filled() -> None:
 
 def test_company_planner_prompt_placeholders_filled() -> None:
     from agents.prompts import COMPANY_FINDER_PLANNER_PROMPT
-    bundle = {
-        "sales_strategy": {
-            "sales_strategy_form": {
-                "overview": {"target_companies_narrative": "Find logistics SaaS"},
-                "priority_industries": {"primary": ["Logistics"]},
-            }
-        },
-        "product": {"icp_form": {"icp": {"industries": {"primary": ["Software"]}}}},
-    }
-    rendered = render_prompt(COMPANY_FINDER_PLANNER_PROMPT, company_finder_prompt_values(bundle))
-    assert "{{sales_objective}}" not in rendered
-    assert "Company Planner Agent" in rendered
-    assert "Find logistics SaaS" in rendered
-    assert "Logistics" in rendered
+    assert "Company Planner Agent" in COMPANY_FINDER_PLANNER_PROMPT
+    assert "sales_manager" in COMPANY_FINDER_PLANNER_PROMPT
 
 
 def test_build_company_finder_stack_prompt_switching() -> None:
@@ -85,7 +73,6 @@ def test_build_company_finder_stack_prompt_switching() -> None:
     )
     assert stack_planner.company_finder.config.name == "Company Planner"
     assert "Company Planner Agent" in stack_planner.company_finder.config.responsibility
-    assert "Build SaaS pipeline" in stack_planner.company_finder.config.responsibility
 
 
 

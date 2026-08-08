@@ -109,6 +109,31 @@ def test_planner_middleware_default_always_allowed_tools():
 
     # Tools in DEFAULT_ALWAYS_ALLOWED_TOOLS are allowed in all modes (e.g. evaluate mode)
     req_default = MagicMock(spec=ToolCallRequest)
-    req_default.tool_call = {"id": "11", "name": "inspect_state", "args": {}}
+    req_default.tool_call = {"id": "11", "name": "get_plan_summary", "args": {}}
     req_default.config = {"configurable": {"mode": "evaluate"}}
     assert mw._check_permission(req_default) is None
+
+
+def test_planner_middleware_subagent_type_permissions():
+    mw = PlannerModeMiddleware()
+
+    # Task tool with sales_manager is allowed in PLAN mode
+    req_sm = MagicMock(spec=ToolCallRequest)
+    req_sm.tool_call = {"id": "12", "name": "task", "args": {"subagent_type": "sales_manager"}}
+    req_sm.config = {"configurable": {"mode": "plan"}}
+    assert mw._check_permission(req_sm) is None
+
+    # Task tool with brain_agent is allowed in PLAN mode
+    req_brain = MagicMock(spec=ToolCallRequest)
+    req_brain.tool_call = {"id": "13", "name": "task", "args": {"subagent_type": "brain_agent"}}
+    req_brain.config = {"configurable": {"mode": "plan"}}
+    assert mw._check_permission(req_brain) is None
+
+    # Task tool with browser_agent is blocked in PLAN mode
+    req_browser = MagicMock(spec=ToolCallRequest)
+    req_browser.tool_call = {"id": "14", "name": "task", "args": {"subagent_type": "browser_agent"}}
+    req_browser.config = {"configurable": {"mode": "plan"}}
+    res = mw._check_permission(req_browser)
+    assert isinstance(res, ToolMessage)
+    assert res.status == "error"
+    assert "Access Denied" in res.content

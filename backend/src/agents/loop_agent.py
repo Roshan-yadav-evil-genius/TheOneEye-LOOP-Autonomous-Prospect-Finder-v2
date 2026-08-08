@@ -6,14 +6,15 @@ from typing import Any
 
 from deepagents import create_deep_agent
 from langchain_core.language_models import BaseChatModel
-
+from langchain.agents import create_agent
+from agents.filesystem_backend import default_filesystem_backend
 from agents.planner_middleware import PlannerModeMiddleware
 from agents.prompts import (
     BRAIN_AGENT_PROMPT,
     BROWSER_AGENT_PROMPT,
-    COMPANY_FINDER_PLANNER_PROMPT,
     SALES_MANAGER_PROMPT,
 )
+from deepagents.middleware.subagents import SubAgentMiddleware
 
 
 def create_loop_agent(
@@ -25,6 +26,7 @@ def create_loop_agent(
     name: str = "Company Planner Agent",
     session: Any | None = None,
     strategy_id: str | None = None,
+    context_schema=None,
     effort_prefix: str = "",
     store: Any = None,
     checkpointer: Any = None,
@@ -33,20 +35,16 @@ def create_loop_agent(
     """Create a LOOP DeepAgent configured with tools and subagents (Brain Agent, Sales Manager, Browser Agent)."""
     effective_tools = list(tools or [])
     effective_subagents = list(subagents or [])
+    effective_backend = backend or default_filesystem_backend()
 
     if session is not None and strategy_id and not effective_subagents:
         from agents.brain import long_term_memory_tools
-        from agents.tools import company_finder_tools, sales_manager_tools
-
-        # 1. Strategy retrieval tools for dynamic strategy querying (no hardcoded strategy in code)
-        strat_tools = company_finder_tools(session, strategy_id, thread_id=effort_prefix)
-        for st in strat_tools:
-            if getattr(st, "name", "") in ("get_sales_strategy", "get_sales_strategy_bundle"):
-                if st not in effective_tools:
-                    effective_tools.append(st)
+        from agents.tools import sales_manager_tools
 
         # 2. Subagent: Brain Agent (dictionary definition)
-        bm_tools = long_term_memory_tools(namespace=(strategy_id, "company_finder_planner"))
+        bm_tools = long_term_memory_tools(
+            namespace=(strategy_id, "company_finder_planner")
+        )
         brain_subagent = {
             "name": "brain_agent",
             "description": "Used to recall past campaign insights, decisions, failures, or persist facts into long-term memory.",
@@ -76,18 +74,25 @@ def create_loop_agent(
 
         effective_subagents = [brain_subagent, sales_manager_subagent, browser_subagent]
 
+    middleware_list = [PlannerModeMiddleware()]
+    if effective_subagents:
+        middleware_list.append(
+            SubAgentMiddleware(
+                backend=effective_backend,
+                subagents=effective_subagents,
+            )
+        )
+
     kwargs: dict[str, Any] = {
         "model": model,
         "tools": effective_tools,
         "system_prompt": system_prompt,
-        "middleware": (PlannerModeMiddleware(),),
-        "subagents": effective_subagents,
+        "response_format": response_format,
+        "context_schema": context_schema,
+        "checkpointer": checkpointer,
+        "store": store,
         "name": name,
-        "store":store,
-        "backend":backend,
-        "checkpointer":checkpointer
+        "middleware": middleware_list,
     }
-    if response_format is not None:
-        kwargs["response_format"] = response_format
-    return create_deep_agent(**kwargs)
 
+    return create_agent(**kwargs)

@@ -93,10 +93,15 @@ def extract_planner_mode(request: Any) -> PlannerMode:
 class PlannerModeMiddleware(AgentMiddleware):
     """Enforces mode-specific read-only write permissions across 4 modes: PLAN, EVALUATE, EXECUTE, RECORD."""
 
-    # Set of default tool names that are universally allowed across all modes without restriction
+    # Set of default direct tool names universally allowed across all modes without restriction
     DEFAULT_ALWAYS_ALLOWED_TOOLS: set[str] = {
         "get_plan_summary",
-        "inspect_state",
+    }
+
+    # Set of subagent types universally allowed during planning/evaluation phases
+    ALWAYS_ALLOWED_SUBAGENTS: set[str] = {
+        "sales_manager",
+        "brain_agent",
     }
 
     # Explicit whitelist of write tools permitted per mode.
@@ -117,6 +122,23 @@ class PlannerModeMiddleware(AgentMiddleware):
         },
     }
 
+    def is_tool_allowed(self, tool_name: str, mode: PlannerMode) -> bool:
+        """Check if a direct Python tool call is permitted in the current operational mode."""
+        if mode == PlannerMode.EXECUTE:
+            return True
+        if tool_name in self.DEFAULT_ALWAYS_ALLOWED_TOOLS:
+            return True
+        allowed_writes = self.ALLOWED_WRITES.get(mode, self.ALLOWED_WRITES[PlannerMode.PLAN])
+        return tool_name in allowed_writes
+
+    def is_subagent_allowed(self, subagent_type: str | None, mode: PlannerMode) -> bool:
+        """Check if a subagent delegation via the `task` tool is permitted in the current operational mode."""
+        if mode == PlannerMode.EXECUTE:
+            return True
+        if not subagent_type:
+            return False
+        return subagent_type in self.ALWAYS_ALLOWED_SUBAGENTS
+
     def _check_permission(self, request: ToolCallRequest) -> ToolMessage | None:
         tool_name = request.tool_call["name"]
         mode = extract_planner_mode(request)
@@ -125,15 +147,29 @@ class PlannerModeMiddleware(AgentMiddleware):
         if mode == PlannerMode.EXECUTE:
             return None
 
-        # Default tools in DEFAULT_ALWAYS_ALLOWED_TOOLS are universally permitted across all modes
-        if tool_name in self.DEFAULT_ALWAYS_ALLOWED_TOOLS:
+        # 1. Delegation via `task` tool: passed directly to subagent check
+        if tool_name == "task":
+            args = request.tool_call.get("args", {})
+            subagent_type = args.get("subagent_type") if isinstance(args, dict) else None
+            if not self.is_subagent_allowed(subagent_type, mode):
+                logger.info(
+                    "planner_middleware_subagent_blocked",
+                    subagent_type=subagent_type,
+                    mode=mode.value,
+                )
+                return ToolMessage(
+                    content=(
+                        f"Access Denied: Subagent '{subagent_type}' is restricted in '{mode.value}' mode. "
+                        f"In '{mode.value}' mode, you may only consult planning subagents ('sales_manager', 'brain_agent')."
+                    ),
+                    tool_call_id=request.tool_call["id"],
+                    name=tool_name,
+                    status="error",
+                )
             return None
 
-        # Resolve allowed write set for the current operational mode (defaults to PLAN)
-        allowed_set = self.ALLOWED_WRITES.get(mode, self.ALLOWED_WRITES[PlannerMode.PLAN])
-
-        # If a write tool is not explicitly allowed in the current mode, intercept and deny execution
-        if tool_name not in allowed_set:
+        # 2. Direct tool invocation check
+        if not self.is_tool_allowed(tool_name, mode):
             logger.info(
                 "planner_middleware_tool_blocked",
                 tool_name=tool_name,
