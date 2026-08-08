@@ -113,6 +113,7 @@ def replan_router(state: AgentState) -> str:
 def create_planner_graph(
     model: BaseChatModel,
     checkpointer: BaseCheckpointSaver | None = None,
+    store: Any = None,
     effort_prefix: str = "",
     strategy_id: str | None = None,
 ) -> CompiledStateGraph:
@@ -151,12 +152,19 @@ def create_planner_graph(
                 strategy_id=strategy_id,
                 effort_prefix=effort_prefix,
                 checkpointer=checkpointer,
+                store=store,
                 context_schema=AgentContext,
                 backend=default_filesystem_backend(),
             )
 
+        from core.config import get_settings
+
+        exec_config = {
+            **(config or {}),
+            "recursion_limit": get_settings().agent_recursion_limit,
+        }
         result = await planner_agent.ainvoke(
-            {"messages": input_msgs}, config=config, context=agent_context
+            {"messages": input_msgs}, config=exec_config, context=agent_context
         )
         if isinstance(result, dict) and "planner_chat" in result:
             out_messages = result["planner_chat"]
@@ -234,6 +242,11 @@ def create_planner_graph(
                 model=model,
                 system_prompt=COMPANY_FINDER_PLANNER_EVALUATOR_PROMPT,
                 tools=eval_tools,
+                session=session,
+                strategy_id=strategy_id,
+                effort_prefix=effort_prefix,
+                checkpointer=checkpointer,
+                store=store,
                 context_schema=AgentContext,
                 response_format=Evaluation,
                 backend=default_filesystem_backend(),
@@ -241,8 +254,12 @@ def create_planner_graph(
 
         res = None
         try:
+            exec_config = {
+                **(config or {}),
+                "recursion_limit": get_settings().agent_recursion_limit,
+            }
             res = await eval_agent.ainvoke(
-                {"messages": eval_input}, config=config, context=agent_context
+                {"messages": eval_input}, config=exec_config, context=agent_context
             )
         except Exception as err:
             logger.warning(
@@ -312,11 +329,14 @@ async def stream_planner_graph(
     version: str = "v2",
 ) -> AsyncIterator[dict[str, Any]]:
     """Invoke the compiled planner graph through stream, passing the planner thread ID."""
+    from core.config import get_settings
+
     logger.info("planner_graph_stream_start", thread_id=thread_id)
     config = {
+        "recursion_limit": get_settings().agent_recursion_limit,
         "configurable": {
             "thread_id": thread_id,
-        }
+        },
     }
     if messages is None:
         input_data = {}

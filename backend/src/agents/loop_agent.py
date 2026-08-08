@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from deepagents import create_deep_agent
+from deepagents import CompiledSubAgent
+
 from langchain_core.language_models import BaseChatModel
 from langchain.agents import create_agent
 from agents.filesystem_backend import default_filesystem_backend
@@ -14,6 +15,7 @@ from agents.prompts import (
     BROWSER_AGENT_PROMPT,
     SALES_MANAGER_PROMPT,
 )
+from langgraph.store.base import BaseStore
 from deepagents.middleware.subagents import SubAgentMiddleware
 
 
@@ -28,7 +30,7 @@ def create_loop_agent(
     strategy_id: str | None = None,
     context_schema=None,
     effort_prefix: str = "",
-    store: Any = None,
+    store: BaseStore = None,
     checkpointer: Any = None,
     backend: Any = None,
 ) -> Any:
@@ -43,7 +45,8 @@ def create_loop_agent(
 
         # 2. Subagent: Brain Agent (dictionary definition)
         bm_tools = long_term_memory_tools(
-            namespace=(strategy_id, "company_finder_planner")
+            namespace=(strategy_id, "company_finder_planner"),
+            store=store,
         )
         brain_subagent = {
             "name": "brain_agent",

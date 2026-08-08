@@ -6,7 +6,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agents.checkpoint_runtime import checkpoint_scope
+from agents.checkpoint_runtime import checkpoint_and_store_scope, checkpoint_scope
 from agents.filesystem_backend import (
     default_filesystem_backend,
     default_filesystem_permissions,
@@ -161,13 +161,14 @@ async def company_finder_agent_scope(
         strategy_id=strategy_id,
         browser_mcp_url=get_settings().browser_mcp_url,
     )
-    async with checkpoint_scope() as checkpointer, _browser_client().session(
+    async with checkpoint_and_store_scope() as (checkpointer, mem_store), _browser_client().session(
         "playwright"
     ) as browser_session:
         log.info("company_finder_scope.stack_build", strategy_id=strategy_id, parent_thread=parent_thread)
         if is_planner:
             planner_graph = create_planner_graph(
                 checkpointer=checkpointer,
+                store=mem_store,
                 model=model,
                 effort_prefix=effort_prefix,
                 strategy_id=strategy_id,
