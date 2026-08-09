@@ -27,6 +27,35 @@ Session = Annotated[AsyncSession, Depends(get_session)]
 
 
 
+def _extract_event_agent_meta(event: dict[str, Any]) -> tuple[str, str | None]:
+    """Extract human-readable agent name and checkpoint_ns from LangGraph event metadata."""
+    metadata = event.get("metadata", {})
+    ns = metadata.get("checkpoint_ns") or metadata.get("langgraph_checkpoint_ns")
+    node = metadata.get("langgraph_node") or event.get("name")
+
+    agent_name = "Planner Agent"
+    if ns:
+        ns_lower = str(ns).lower()
+        if "evaluator" in ns_lower:
+            agent_name = "Evaluator Agent"
+        elif "sales_manager" in ns_lower:
+            agent_name = "Sales Manager"
+        elif "brain_agent" in ns_lower:
+            agent_name = "Brain Agent"
+        elif "browser_agent" in ns_lower:
+            agent_name = "Browser Agent"
+    elif node:
+        node_lower = str(node).lower()
+        if "evaluator" in node_lower:
+            agent_name = "Evaluator Agent"
+        elif "sales_manager" in node_lower:
+            agent_name = "Sales Manager"
+        elif "brain_agent" in node_lower:
+            agent_name = "Brain Agent"
+
+    return agent_name, ns
+
+
 async def get_effort_info(session: AsyncSession, effort_prefix: str) -> tuple[str, str, str | None]:
     """Retrieve strategy_id, role, and company_id for an effort_prefix."""
     run = await session.scalar(
@@ -160,7 +189,7 @@ async def stream_chat(
                     disconnected = False
                     emitted_tool_call_ids: set[str] = set()
                     emitted_tool_result_ids: set[str] = set()
-                    tool_name_map: dict[str, str] = {}
+                    tool_agent_map: dict[str, tuple[str, str, str | None]] = {}
 
                     async for event in events:
                         if await request.is_disconnected():
@@ -168,6 +197,7 @@ async def stream_chat(
                             break
                         kind = event.get("event")
                         evt_data = event.get("data", {})
+                        agent_name, ns = _extract_event_agent_meta(event)
 
                         if kind == "on_chat_model_stream":
                             chunk = evt_data.get("chunk")
@@ -193,7 +223,7 @@ async def stream_chat(
                                                 break
 
                                 if reasoning:
-                                    yield f"event: reasoning\ndata: {json.dumps({'text': reasoning})}\n\n"
+                                    yield f"event: reasoning\ndata: {json.dumps({'text': reasoning, 'agent': agent_name, 'checkpoint_ns': ns})}\n\n"
 
                                 content = getattr(chunk, "content", "")
                                 if content:
@@ -207,7 +237,7 @@ async def stream_chat(
                                         content = "".join(text_parts)
 
                                     if isinstance(content, str) and content:
-                                        yield f"event: content\ndata: {json.dumps({'text': content})}\n\n"
+                                        yield f"event: content\ndata: {json.dumps({'text': content, 'agent': agent_name, 'checkpoint_ns': ns})}\n\n"
 
                         elif kind == "on_chat_model_end":
                             output = evt_data.get("output", {})
@@ -225,32 +255,21 @@ async def stream_chat(
                                     meta["response_metadata"] = msg.response_metadata
                                 if hasattr(msg, "id") and msg.id:
                                     meta["id"] = msg.id
-                                if meta:
-                                    yield f"event: metadata\ndata: {json.dumps(meta)}\n\n"
-
-                                tool_calls = getattr(msg, "tool_calls", None)
-                                if tool_calls and isinstance(tool_calls, list):
-                                    for tc in tool_calls:
-                                        if isinstance(tc, dict):
-                                            tc_id = tc.get("id")
-                                            tc_name = tc.get("name")
-                                            tc_args = tc.get("args", {})
-                                            if tc_id and tc_name:
-                                                tool_name_map[tc_id] = tc_name
-                                                if tc_id not in emitted_tool_call_ids:
-                                                    emitted_tool_call_ids.add(tc_id)
-                                                    yield f"event: tool_call\ndata: {json.dumps({'id': tc_id, 'name': tc_name, 'args': tc_args})}\n\n"
+                                meta["agent"] = agent_name
+                                if ns:
+                                    meta["checkpoint_ns"] = ns
+                                yield f"event: metadata\ndata: {json.dumps(meta)}\n\n"
 
                         elif kind == "on_tool_start":
                             name = event.get("name")
                             if name and not name.startswith("_"):
                                 tool_id = event.get("run_id")
                                 if tool_id:
-                                    tool_name_map[tool_id] = name
+                                    tool_agent_map[tool_id] = (name, agent_name, ns)
                                     if tool_id not in emitted_tool_call_ids:
                                         emitted_tool_call_ids.add(tool_id)
                                         args = evt_data.get("input", {})
-                                        yield f"event: tool_call\ndata: {json.dumps({'id': tool_id, 'name': name, 'args': args})}\n\n"
+                                        yield f"event: tool_call\ndata: {json.dumps({'id': tool_id, 'name': name, 'args': args, 'agent': agent_name, 'checkpoint_ns': ns})}\n\n"
 
                         elif kind == "on_tool_end":
                             name = event.get("name")
@@ -267,8 +286,12 @@ async def stream_chat(
                                             output = json.dumps(output)
                                         except Exception:
                                             output = str(output)
-                                    t_name = name or tool_name_map.get(tool_id, "tool")
-                                    yield f"event: tool_result\ndata: {json.dumps({'id': t_name and t_name != 'tool' and tool_id or tool_id, 'name': t_name, 'content': output})}\n\n"
+
+                                    stored = tool_agent_map.get(tool_id, (name, agent_name, ns))
+                                    t_name = stored[0] or name or "tool"
+                                    t_agent = stored[1]
+                                    t_ns = stored[2]
+                                    yield f"event: tool_result\ndata: {json.dumps({'id': tool_id, 'name': t_name, 'content': output, 'agent': t_agent, 'checkpoint_ns': t_ns})}\n\n"
 
                         elif kind == "on_chain_end" and event.get("name") == "tools":
                             output_dict = evt_data.get("output", {})
@@ -283,8 +306,8 @@ async def stream_chat(
                                             content = json.dumps(content)
                                         except Exception:
                                             content = str(content)
-                                    t_name = getattr(msg, "name", None) or tool_name_map.get(tool_id, "tool")
-                                    yield f"event: tool_result\ndata: {json.dumps({'id': tool_id, 'name': t_name, 'content': content})}\n\n"
+                                    stored = tool_agent_map.get(tool_id, (getattr(msg, "name", "tool"), agent_name, ns))
+                                    yield f"event: tool_result\ndata: {json.dumps({'id': tool_id, 'name': stored[0], 'content': content, 'agent': stored[1], 'checkpoint_ns': stored[2]})}\n\n"
 
                     if disconnected:
                         yield f"event: incomplete\ndata: {json.dumps({'can_resume': False})}\n\n"

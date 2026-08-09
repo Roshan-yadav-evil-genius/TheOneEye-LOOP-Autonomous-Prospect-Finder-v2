@@ -24,11 +24,11 @@ export interface ChatStreamRequest {
 }
 
 export type ChatStreamEvent = 
-  | { kind: 'reasoning'; text: string }
-  | { kind: 'content'; text: string }
-  | { kind: 'metadata'; metadata: Record<string, any> }
-  | { kind: 'tool_call'; id: string; name: string; args: unknown }
-  | { kind: 'tool_result'; id: string; name: string; content: string }
+  | { kind: 'reasoning'; text: string; agent?: string; checkpoint_ns?: string }
+  | { kind: 'content'; text: string; agent?: string; checkpoint_ns?: string }
+  | { kind: 'metadata'; metadata: Record<string, any>; agent?: string; checkpoint_ns?: string }
+  | { kind: 'tool_call'; id: string; name: string; args: unknown; agent?: string; checkpoint_ns?: string }
+  | { kind: 'tool_result'; id: string; name: string; content: string; agent?: string; checkpoint_ns?: string }
   | { kind: 'done'; thread_id: string }
   | { kind: 'incomplete'; can_resume: boolean }
   | { kind: 'error'; message: string; can_resume?: boolean }
@@ -88,19 +88,19 @@ export const streamChatGeneric = async (
           const parsed = JSON.parse(eventData)
           switch (eventType) {
             case 'reasoning':
-              onEvent({ kind: 'reasoning', text: parsed.text })
+              onEvent({ kind: 'reasoning', text: parsed.text, agent: parsed.agent, checkpoint_ns: parsed.checkpoint_ns })
               break
             case 'content':
-              onEvent({ kind: 'content', text: parsed.text })
+              onEvent({ kind: 'content', text: parsed.text, agent: parsed.agent, checkpoint_ns: parsed.checkpoint_ns })
               break
             case 'metadata':
-              onEvent({ kind: 'metadata', metadata: parsed })
+              onEvent({ kind: 'metadata', metadata: parsed, agent: parsed.agent, checkpoint_ns: parsed.checkpoint_ns })
               break
             case 'tool_call':
-              onEvent({ kind: 'tool_call', id: parsed.id, name: parsed.name, args: parsed.args })
+              onEvent({ kind: 'tool_call', id: parsed.id, name: parsed.name, args: parsed.args, agent: parsed.agent, checkpoint_ns: parsed.checkpoint_ns })
               break
             case 'tool_result':
-              onEvent({ kind: 'tool_result', id: parsed.id, name: parsed.name, content: parsed.content })
+              onEvent({ kind: 'tool_result', id: parsed.id, name: parsed.name, content: parsed.content, agent: parsed.agent, checkpoint_ns: parsed.checkpoint_ns })
               break
             case 'done':
               onEvent({ kind: 'done', thread_id: parsed.thread_id })

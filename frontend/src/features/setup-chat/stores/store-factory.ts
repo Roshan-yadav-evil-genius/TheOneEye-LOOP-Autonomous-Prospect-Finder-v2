@@ -9,10 +9,10 @@ import {
 
 export type ChatUiMessage =
   | { id: string; messageId?: string; kind: 'user'; content: string }
-  | { id: string; messageId?: string; aiMessageId?: string; kind: 'assistant'; content: string; metadata?: Record<string, any> }
-  | { id: string; messageId?: string; aiMessageId?: string; kind: 'reasoning'; text: string; metadata?: Record<string, any> }
-  | { id: string; messageId?: string; aiMessageId?: string; kind: 'tool_call'; name: string; args: unknown; metadata?: Record<string, any> }
-  | { id: string; messageId?: string; kind: 'tool_result'; name: string; content: string }
+  | { id: string; messageId?: string; aiMessageId?: string; kind: 'assistant'; content: string; agent?: string; checkpoint_ns?: string; metadata?: Record<string, any> }
+  | { id: string; messageId?: string; aiMessageId?: string; kind: 'reasoning'; text: string; agent?: string; checkpoint_ns?: string; metadata?: Record<string, any> }
+  | { id: string; messageId?: string; aiMessageId?: string; kind: 'tool_call'; name: string; args: unknown; agent?: string; checkpoint_ns?: string; metadata?: Record<string, any> }
+  | { id: string; messageId?: string; kind: 'tool_result'; name: string; content: string; agent?: string; checkpoint_ns?: string }
 
 export interface SetupChatStoreState {
   mode: 'ask' | 'state' | 'act' | 'history'
@@ -393,7 +393,7 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
                   if (existing && existing.kind === 'reasoning') {
                     return msgs.map(m => m.id === activeReasoningId && m.kind === 'reasoning' ? { ...m, text: m.text + event.text } : m)
                   }
-                  return [...msgs, { id: activeReasoningId, aiMessageId: activeAiTurnId, kind: 'reasoning', text: event.text }]
+                  return [...msgs, { id: activeReasoningId, aiMessageId: activeAiTurnId, kind: 'reasoning', text: event.text, agent: event.agent, checkpoint_ns: event.checkpoint_ns }]
                 })
                 break
               case 'content':
@@ -402,7 +402,7 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
                   if (existing && existing.kind === 'assistant') {
                     return msgs.map(m => m.id === activeAssistantMsgId && m.kind === 'assistant' ? { ...m, content: m.content + event.text } : m)
                   }
-                  return [...msgs, { id: activeAssistantMsgId, aiMessageId: activeAiTurnId, kind: 'assistant', content: event.text }]
+                  return [...msgs, { id: activeAssistantMsgId, aiMessageId: activeAiTurnId, kind: 'assistant', content: event.text, agent: event.agent, checkpoint_ns: event.checkpoint_ns }]
                 })
                 break
               case 'metadata':
@@ -413,7 +413,7 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
               case 'tool_call':
                 appendOrUpdate((msgs) => [
                   ...msgs,
-                  { id: `tc-${event.id}`, aiMessageId: activeAiTurnId, kind: 'tool_call', name: event.name, args: event.args }
+                  { id: `tc-${event.id}`, aiMessageId: activeAiTurnId, kind: 'tool_call', name: event.name, args: event.args, agent: event.agent, checkpoint_ns: event.checkpoint_ns }
                 ])
                 activeReasoningId = `rsn-${Date.now()}`
                 activeAssistantMsgId = `ast-${Date.now()}`
@@ -421,7 +421,7 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
               case 'tool_result':
                 appendOrUpdate((msgs) => [
                   ...msgs,
-                  { id: `tr-${event.id}`, kind: 'tool_result', name: event.name, content: event.content }
+                  { id: `tr-${event.id}`, kind: 'tool_result', name: event.name, content: event.content, agent: event.agent, checkpoint_ns: event.checkpoint_ns }
                 ])
                 if (event.name.startsWith('set_')) {
                   set({ profileDirtyFromChat: true })

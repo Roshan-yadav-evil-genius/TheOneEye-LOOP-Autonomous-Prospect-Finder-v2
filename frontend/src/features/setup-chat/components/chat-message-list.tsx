@@ -358,7 +358,7 @@ export function ChatMessageList({
             return (
               <div key={group.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
                 <div style={{ width: '100%', maxWidth: '85%' }}>
-                   <ToolResultCard name={msg.name} content={msg.content} rules={rules} />
+                   <ToolResultCard name={msg.name} content={msg.content} agent={(msg as any).agent} rules={rules} />
                 </div>
               </div>
             )
@@ -392,8 +392,8 @@ export function ChatMessageList({
                     {msg.kind === 'assistant' && msg.content && (
                       <AssistantMessageBubble content={msg.content} messageId={targetAiId} onDelete={onDeleteMessage} />
                     )}
-                    {msg.kind === 'reasoning' && <ReasoningCard text={msg.text} />}
-                    {msg.kind === 'tool_call' && <ToolCallCard name={msg.name} args={msg.args} rules={rules} />}
+                    {msg.kind === 'reasoning' && <ReasoningCard text={msg.text} agent={(msg as any).agent} />}
+                    {msg.kind === 'tool_call' && <ToolCallCard name={msg.name} args={msg.args} agent={(msg as any).agent} rules={rules} />}
                   </div>
                 ))}
                 

@@ -4,11 +4,24 @@ import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { sharedMarkdownComponents, sharedRemarkPlugins } from './shared-markdown-components'
 
-export function ToolResultCard({ name, content, rules }: { name: string; content: string; rules?: ToolCustomizationRuleRead[] }) {
+function getAgentBadgeStyle(agent?: string) {
+  const agentLower = (agent || '').toLowerCase()
+  if (agentLower.includes('evaluator')) {
+    return { background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.3)' }
+  }
+  if (agentLower.includes('sales') || agentLower.includes('brain')) {
+    return { background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)' }
+  }
+  return { background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.3)' }
+}
+
+export function ToolResultCard({ name, content, agent, rules }: { name: string; content: string; agent?: string; rules?: ToolCustomizationRuleRead[] }) {
   const [showMarkdown, setShowMarkdown] = useState(false)
   const matchedRule = rules?.find(r => name.startsWith(r.tool_name_prefix))
   
   const backgroundColor = matchedRule?.response_color || 'var(--color-bg-elevated)'
+  const badgeStyle = getAgentBadgeStyle(agent)
+  const agentLabel = agent || 'Planner Agent'
   
   // Try to parse content as JSON for better highlighting, fallback to string
   let parsedContent: unknown = content
@@ -37,14 +50,24 @@ export function ToolResultCard({ name, content, rules }: { name: string; content
             <span hidden style={{ fontSize: '1.2em' }}>⚙️</span>
           </>
         ) : <span style={{ fontSize: '1.2em' }}>⚙️</span>}
-        Result: {name}
+        <span>Result: {name}</span>
+        <span style={{
+          marginLeft: 'auto',
+          marginRight: '8px',
+          fontSize: '0.72rem',
+          fontWeight: 600,
+          padding: '2px 8px',
+          borderRadius: '12px',
+          ...badgeStyle
+        }}>
+          {agentLabel}
+        </span>
         <button 
           onClick={(e) => {
             e.preventDefault()
             setShowMarkdown(!showMarkdown)
           }}
           style={{
-            marginLeft: 'auto',
             background: 'var(--color-bg-subtle)',
             border: '1px solid var(--color-border-default)',
             color: 'var(--color-text-secondary)',
