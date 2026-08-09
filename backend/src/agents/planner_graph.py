@@ -100,24 +100,17 @@ def increment_retry(state: AgentState) -> dict[str, Any]:
         else "Please refine and complete the execution plan."
     )
     logger.info(
-        "planner_graph_node_increment_retry_start",
+        "executing_node",
         node_name=NodeName.INCREMENT_RETRY,
         attempt=attempt,
-        feedback=feedback,
     )
     feedback_msg = HumanMessage(
         content=f"Evaluator Feedback (Attempt {attempt}):\n{feedback}"
     )
-    res = {
+    return {
         "retries": attempt,
         "planner_chat": [feedback_msg],
     }
-    logger.info(
-        "planner_graph_node_increment_retry_complete",
-        node_name=NodeName.INCREMENT_RETRY,
-        returning=res,
-    )
-    return res
 
 
 MAX_RETRIES = 1
@@ -126,7 +119,7 @@ MAX_RETRIES = 1
 def replan_router(state: AgentState) -> str:
     if state.evaluation and state.evaluation.decision == Decision.ACCEPT:
         logger.info(
-            "planner_graph_router_decision",
+            "router_decision",
             decision=END,
             reason="Evaluation accepted",
         )
@@ -134,14 +127,14 @@ def replan_router(state: AgentState) -> str:
 
     if state.retries >= MAX_RETRIES:
         logger.info(
-            "planner_graph_router_decision",
+            "router_decision",
             decision=END,
             reason=f"Reached max retries ({MAX_RETRIES})",
         )
         return END
 
     logger.info(
-        "planner_graph_router_decision",
+        "router_decision",
         decision=NodeName.INCREMENT_RETRY,
         reason="Evaluation requested retry",
     )
@@ -197,11 +190,9 @@ def create_planner_graph(
     # 2. State Transformation Nodes
     def prep_planner(state: AgentState) -> dict[str, Any]:
         task = "Create a detailed execution plan for identifying and selecting one companies based on the defined sales strategy."
-        # task = "Consult with the Sales Manager to understand the strategy and let me know if I’ve forgotten any details."
         logger.info(
-            "planner_graph_node_prep_planner_start",
+            "executing_node",
             node_name=NodeName.PREP_PLANNER,
-            state=state
         )
         input_msgs = (
             state.planner_chat
@@ -210,21 +201,14 @@ def create_planner_graph(
         )
         if not input_msgs:
             input_msgs = [HumanMessage(content=task)]
-        res = {"messages": input_msgs, "task": task}
-        logger.info(
-            "planner_graph_node_prep_planner_complete",
-            node_name=NodeName.PREP_PLANNER,
-            res=res,
-        )
-        return res
+        return {"messages": input_msgs, "task": task}
 
     async def sync_planner_output(
         state: AgentState, config: Optional[RunnableConfig] = None
     ) -> dict[str, Any]:
         logger.info(
-            "planner_graph_node_sync_planner_output_start",
+            "executing_node",
             node_name=NodeName.SYNC_PLANNER_OUTPUT,
-            state=state
         )
         plan_obj = None
         if effort_prefix:
@@ -244,24 +228,16 @@ def create_planner_graph(
             if hasattr(state, "messages") and state.messages
             else []
         )
-        res = {
+        return {
             "planner_chat": new_planner_msgs,
             "plan": plan_obj,
             "messages": [],
         }
-        logger.info(
-            "planner_graph_node_sync_planner_output_complete",
-            node_name=NodeName.SYNC_PLANNER_OUTPUT,
-            res=res,
-        )
-        return res
 
     def prep_evaluator(state: AgentState) -> dict[str, Any]:
         logger.info(
-            "planner_graph_node_prep_evaluator_start",
+            "executing_node",
             node_name=NodeName.PREP_EVALUATOR,
-            effort_prefix=effort_prefix,
-            has_plan=bool(state.plan),
         )
         plan_json = ""
         if state.plan:
@@ -277,35 +253,23 @@ def create_planner_graph(
         eval_prompt = HumanMessage(
             content=f"Evaluate the following execution plan for task: {state.task}\n\nPlan:\n{plan_json}"
         )
-        res = {"messages": _ensure_message_ids([eval_prompt])}
-        logger.info(
-            "planner_graph_node_prep_evaluator_complete",
-            node_name=NodeName.PREP_EVALUATOR,
-            res=res,
-        )
-        return res
+        return {"messages": _ensure_message_ids([eval_prompt])}
 
 
     def parse_evaluator_output(state: AgentState) -> dict[str, Any]:
         logger.info(
-            "parse_evaluator_output",
+            "executing_node",
             node_name=NodeName.PARSE_EVALUATOR_OUTPUT,
         )
         evaluation = state.structured_response
         if evaluation is None:
             evaluation = Evaluation(feedback="Plan evaluation complete.", decision=Decision.ACCEPT)
 
-        res = {
+        return {
             "evaluator_chat": state.messages,
             "evaluation": evaluation,
             "messages": [],
         }
-        logger.info(
-            "planner_graph_node_parse_evaluator_output_complete",
-            node_name=NodeName.PARSE_EVALUATOR_OUTPUT,
-            res=res,
-        )
-        return res
 
 
     # 3. Build StateGraph Pipeline

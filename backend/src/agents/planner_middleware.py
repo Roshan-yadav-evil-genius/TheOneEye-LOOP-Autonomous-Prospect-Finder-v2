@@ -207,10 +207,6 @@ class PlannerModeMiddleware(AgentMiddleware):
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], Any],
     ) -> ToolMessage | Command:
-        print("========================================[Tool Call]========================================")
-        print(request.tool_call)
-        print("========================================[Tool Call]========================================")
-
         err = self._check_permission(request)
         if err is not None:
             return err
