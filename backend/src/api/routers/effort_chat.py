@@ -130,53 +130,161 @@ async def stream_chat(
                         can_resume = bool(getattr(state, "next", None))
                     except Exception:
                         can_resume = False
+
+                    if not can_resume:
+                        try:
+                            store = ThreadCheckpointStore()
+                            ns_list = await store.list_namespaces(thread_id)
+                            for ns in ns_list:
+                                if not ns:
+                                    continue
+                                ns_st = await graph.aget_state({"configurable": {"thread_id": thread_id, "checkpoint_ns": ns}})
+                                if ns_st and bool(getattr(ns_st, "next", None)):
+                                    can_resume = True
+                                    break
+                        except Exception:
+                            pass
+
                     if not can_resume:
                         if data.redo_last and data.message:
                             chat_key = "planner_chat" if is_planner else "messages"
                             last_msg = data.message
                             await ThreadChatHistoryService.delete_message(thread_id, last_msg)
 
-                input_data: Any = None if data.retry and can_resume else ({
+                input_data: Any = None if (data.retry and can_resume) else ({
                     "planner_chat": [data.message]
                 } if is_planner and data.message else ([{"role": "user", "content": data.message}] if data.message else {}))
 
                 try:
-                    events = stream_planner_graph(graph, input_data, thread_id) if is_planner else graph.astream_events(input_data, config=config, version="v2")
+                    events = stream_planner_graph(graph, input_data, thread_id) if is_planner else graph.astream_events(input_data, config=config, version="v2", subgraphs=True)
                     disconnected = False
+                    emitted_tool_call_ids: set[str] = set()
+                    emitted_tool_result_ids: set[str] = set()
+                    tool_name_map: dict[str, str] = {}
+
                     async for event in events:
                         if await request.is_disconnected():
                             disconnected = True
                             break
                         kind = event.get("event")
                         evt_data = event.get("data", {})
+
                         if kind == "on_chat_model_stream":
                             chunk = evt_data.get("chunk")
                             if chunk:
+                                reasoning = None
+                                if hasattr(chunk, "additional_kwargs") and chunk.additional_kwargs:
+                                    reasoning = (
+                                        chunk.additional_kwargs.get("reasoning_content")
+                                        or chunk.additional_kwargs.get("reasoning")
+                                        or chunk.additional_kwargs.get("thinking")
+                                        or chunk.additional_kwargs.get("thought")
+                                    )
+                                if not reasoning:
+                                    reasoning = (
+                                        getattr(chunk, "reasoning_content", None)
+                                        or getattr(chunk, "thinking", None)
+                                    )
+                                if not reasoning and isinstance(getattr(chunk, "content", None), list):
+                                    for block in chunk.content:
+                                        if isinstance(block, dict) and block.get("type") in ("reasoning", "thinking"):
+                                            reasoning = block.get("reasoning") or block.get("thinking") or block.get("text")
+                                            if reasoning:
+                                                break
+
+                                if reasoning:
+                                    yield f"event: reasoning\ndata: {json.dumps({'text': reasoning})}\n\n"
+
                                 content = getattr(chunk, "content", "")
-                                if isinstance(content, str) and content:
-                                    yield f"event: message\ndata: {json.dumps({'content': content})}\n\n"
+                                if content:
+                                    if isinstance(content, list):
+                                        text_parts = []
+                                        for block in content:
+                                            if isinstance(block, str):
+                                                text_parts.append(block)
+                                            elif isinstance(block, dict) and block.get("type") in ("text", "content"):
+                                                text_parts.append(block.get("text") or block.get("content") or "")
+                                        content = "".join(text_parts)
+
+                                    if isinstance(content, str) and content:
+                                        yield f"event: content\ndata: {json.dumps({'text': content})}\n\n"
+
+                        elif kind == "on_chat_model_end":
+                            output = evt_data.get("output", {})
+                            msg = None
+                            if hasattr(output, "generations") and len(output.generations) > 0 and len(output.generations[0]) > 0:
+                                msg = getattr(output.generations[0][0], "message", None)
+                            elif hasattr(output, "content") or hasattr(output, "tool_calls"):
+                                msg = output
+
+                            if msg:
+                                meta = {}
+                                if hasattr(msg, "usage_metadata") and msg.usage_metadata:
+                                    meta["usage_metadata"] = msg.usage_metadata
+                                if hasattr(msg, "response_metadata") and msg.response_metadata:
+                                    meta["response_metadata"] = msg.response_metadata
+                                if hasattr(msg, "id") and msg.id:
+                                    meta["id"] = msg.id
+                                if meta:
+                                    yield f"event: metadata\ndata: {json.dumps(meta)}\n\n"
+
+                                tool_calls = getattr(msg, "tool_calls", None)
+                                if tool_calls and isinstance(tool_calls, list):
+                                    for tc in tool_calls:
+                                        if isinstance(tc, dict):
+                                            tc_id = tc.get("id")
+                                            tc_name = tc.get("name")
+                                            tc_args = tc.get("args", {})
+                                            if tc_id and tc_name:
+                                                tool_name_map[tc_id] = tc_name
+                                                if tc_id not in emitted_tool_call_ids:
+                                                    emitted_tool_call_ids.add(tc_id)
+                                                    yield f"event: tool_call\ndata: {json.dumps({'id': tc_id, 'name': tc_name, 'args': tc_args})}\n\n"
 
                         elif kind == "on_tool_start":
                             name = event.get("name")
                             if name and not name.startswith("_"):
                                 tool_id = event.get("run_id")
-                                args = evt_data.get("input", {})
-                                yield f"event: tool_call\ndata: {json.dumps({'id': tool_id, 'name': name, 'args': args})}\n\n"
+                                if tool_id:
+                                    tool_name_map[tool_id] = name
+                                    if tool_id not in emitted_tool_call_ids:
+                                        emitted_tool_call_ids.add(tool_id)
+                                        args = evt_data.get("input", {})
+                                        yield f"event: tool_call\ndata: {json.dumps({'id': tool_id, 'name': name, 'args': args})}\n\n"
 
                         elif kind == "on_tool_end":
                             name = event.get("name")
                             if name and not name.startswith("_"):
                                 tool_id = event.get("run_id")
-                                output = evt_data.get("output", "")
-                                if hasattr(output, "content"):
-                                    output = output.content
+                                if tool_id and tool_id not in emitted_tool_result_ids:
+                                    emitted_tool_result_ids.add(tool_id)
+                                    output = evt_data.get("output", "")
+                                    if hasattr(output, "content"):
+                                        output = output.content
 
-                                if not isinstance(output, str):
-                                    try:
-                                        output = json.dumps(output)
-                                    except Exception:
-                                        output = str(output)
-                                yield f"event: tool_result\ndata: {json.dumps({'id': tool_id, 'name': name, 'content': output})}\n\n"
+                                    if not isinstance(output, str):
+                                        try:
+                                            output = json.dumps(output)
+                                        except Exception:
+                                            output = str(output)
+                                    t_name = name or tool_name_map.get(tool_id, "tool")
+                                    yield f"event: tool_result\ndata: {json.dumps({'id': t_name and t_name != 'tool' and tool_id or tool_id, 'name': t_name, 'content': output})}\n\n"
+
+                        elif kind == "on_chain_end" and event.get("name") == "tools":
+                            output_dict = evt_data.get("output", {})
+                            msgs = output_dict.get("messages", []) if isinstance(output_dict, dict) else []
+                            for msg in msgs:
+                                tool_id = getattr(msg, "tool_call_id", None)
+                                if tool_id and tool_id not in emitted_tool_result_ids:
+                                    emitted_tool_result_ids.add(tool_id)
+                                    content = getattr(msg, "content", "")
+                                    if not isinstance(content, str):
+                                        try:
+                                            content = json.dumps(content)
+                                        except Exception:
+                                            content = str(content)
+                                    t_name = getattr(msg, "name", None) or tool_name_map.get(tool_id, "tool")
+                                    yield f"event: tool_result\ndata: {json.dumps({'id': tool_id, 'name': t_name, 'content': content})}\n\n"
 
                     if disconnected:
                         yield f"event: incomplete\ndata: {json.dumps({'can_resume': False})}\n\n"
@@ -184,6 +292,7 @@ async def stream_chat(
                         yield f"event: done\ndata: {json.dumps({'thread_id': thread_id})}\n\n"
                 except Exception as e:
                     yield f"event: error\ndata: {json.dumps({'message': str(e), 'can_resume': False})}\n\n"
+
 
     return StreamingResponse(
         _stream_with_session(),

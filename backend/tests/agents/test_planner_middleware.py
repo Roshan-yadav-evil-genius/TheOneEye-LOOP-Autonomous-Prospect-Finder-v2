@@ -137,3 +137,18 @@ def test_planner_middleware_subagent_type_permissions():
     assert isinstance(res, ToolMessage)
     assert res.status == "error"
     assert "Access Denied" in res.content
+
+
+def test_planner_middleware_evaluation_structured_output_tool():
+    mw = PlannerModeMiddleware()
+
+    req_eval = MagicMock(spec=ToolCallRequest)
+    req_eval.tool_call = {"id": "15", "name": "Evaluation", "args": {"feedback": "Good", "decision": "accept"}}
+    req_eval.config = {"configurable": {"mode": "evaluate"}}
+    assert mw._check_permission(req_eval) is None
+
+    req_eval_plan = MagicMock(spec=ToolCallRequest)
+    req_eval_plan.tool_call = {"id": "16", "name": "return_Evaluation", "args": {"feedback": "Good", "decision": "accept"}}
+    req_eval_plan.config = {"configurable": {"mode": "plan"}}
+    assert mw._check_permission(req_eval_plan) is None
+

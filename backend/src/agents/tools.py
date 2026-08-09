@@ -60,30 +60,49 @@ def company_finder_tools(
     return [get_sales_strategy_bundle, get_sales_strategy, register_company]
 
 
-def sales_manager_tools(
-    session: AsyncSession, strategy_id: str
-) -> list[BaseTool]:
-    service = LoopService(session)
+from contextlib import asynccontextmanager
+from typing import AsyncIterator, Optional
+from persistence.database import SessionFactory
 
+
+@asynccontextmanager
+async def _get_db_session(provided_session: Optional[AsyncSession]) -> AsyncIterator[AsyncSession]:
+    if provided_session is not None:
+        yield provided_session
+    else:
+        async with SessionFactory() as db_session:
+            yield db_session
+
+
+def sales_manager_tools(
+    session: Optional[AsyncSession], strategy_id: str
+) -> list[BaseTool]:
     @tool
     async def get_org() -> dict[str, Any]:
         """Read the organization overview, mission, business model, and deal constraints."""
-        bundle = await service.bundle(strategy_id)
-        return bundle.organization.model_dump(mode="json")
+        async with _get_db_session(session) as db_session:
+            service = LoopService(db_session)
+            bundle = await service.bundle(strategy_id)
+            return bundle.organization.model_dump(mode="json")
 
     @tool
     async def get_product() -> dict[str, Any]:
         """Read product details, value proposition, pricing, and ICP forms."""
-        bundle = await service.bundle(strategy_id)
-        return bundle.product.model_dump(mode="json")
+        async with _get_db_session(session) as db_session:
+            service = LoopService(db_session)
+            bundle = await service.bundle(strategy_id)
+            return bundle.product.model_dump(mode="json")
 
     @tool
     async def get_sales_strategy() -> dict[str, Any]:
         """Read active sales strategy targeting rules, narratives, and target quotas."""
-        bundle = await service.bundle(strategy_id)
-        return bundle.sales_strategy.model_dump(mode="json")
+        async with _get_db_session(session) as db_session:
+            service = LoopService(db_session)
+            bundle = await service.bundle(strategy_id)
+            return bundle.sales_strategy.model_dump(mode="json")
 
     return [get_org, get_product, get_sales_strategy]
+
 
 
 

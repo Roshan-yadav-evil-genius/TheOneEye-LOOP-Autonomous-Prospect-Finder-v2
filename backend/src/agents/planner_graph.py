@@ -11,10 +11,17 @@ from collections.abc import AsyncIterator
 from enum import StrEnum
 from typing import Annotated, Any, Optional
 
+import uuid
 import structlog
 from deepagents import create_deep_agent
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, AnyMessage, BaseMessage, HumanMessage
+from langchain_core.messages import (
+    AIMessage,
+    AnyMessage,
+    BaseMessage,
+    HumanMessage,
+    convert_to_messages,
+)
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, StateGraph, add_messages
@@ -36,14 +43,36 @@ from agents.planner_tools import get_plan_creation_tools, get_plan_evaluator_too
 logger = structlog.get_logger(__name__)
 
 
+def _ensure_message_ids(msgs: list[Any]) -> list[Any]:
+    """Ensure all messages in the list are valid BaseMessages with unique IDs for add_messages reducer deduplication."""
+    if not msgs:
+        return []
+    converted = convert_to_messages(msgs)
+    result = []
+    for msg in converted:
+        if not getattr(msg, "id", None):
+            try:
+                msg.id = str(uuid.uuid4())
+            except Exception:
+                pass
+        result.append(msg)
+    return result
+
+
+
+
 class Decision(StrEnum):
     ACCEPT = "accept"
     RETRY = "retry"
 
 
 class NodeName(StrEnum):
+    PREP_PLANNER = "prep_planner"
     PLANNER = "planner"
+    SYNC_PLANNER_OUTPUT = "sync_planner_output"
+    PREP_EVALUATOR = "prep_evaluator"
     EVALUATOR = "evaluator"
+    PARSE_EVALUATOR_OUTPUT = "parse_evaluator_output"
     INCREMENT_RETRY = "increment_retry"
 
 
@@ -53,12 +82,14 @@ class Evaluation(BaseModel):
 
 
 class AgentState(BaseModel):
-    task: str = "Create execution plan"
+    task: str = None
     evaluation: Optional[Evaluation] = None
     retries: int = 0
     plan: Optional[Planner] = None
-    planner_chat: Annotated[list[AnyMessage], add_messages] = []
-    evaluator_chat: Annotated[list[AnyMessage], add_messages] = []
+    planner_chat: list[AnyMessage] = []
+    evaluator_chat: list[AnyMessage] = []
+    messages: list[AnyMessage] = []
+    structured_response:Any=None
 
 
 def increment_retry(state: AgentState) -> dict[str, Any]:
@@ -69,17 +100,24 @@ def increment_retry(state: AgentState) -> dict[str, Any]:
         else "Please refine and complete the execution plan."
     )
     logger.info(
-        "planner_graph_node_increment_retry",
+        "planner_graph_node_increment_retry_start",
+        node_name=NodeName.INCREMENT_RETRY,
         attempt=attempt,
         feedback=feedback,
     )
     feedback_msg = HumanMessage(
         content=f"Evaluator Feedback (Attempt {attempt}):\n{feedback}"
     )
-    return {
+    res = {
         "retries": attempt,
         "planner_chat": [feedback_msg],
     }
+    logger.info(
+        "planner_graph_node_increment_retry_complete",
+        node_name=NodeName.INCREMENT_RETRY,
+        returning=res,
+    )
+    return res
 
 
 MAX_RETRIES = 1
@@ -116,69 +154,78 @@ def create_planner_graph(
     store: Any = None,
     effort_prefix: str = "",
     strategy_id: str | None = None,
+    session: Any | None = None,
 ) -> CompiledStateGraph:
-    """Build a StateGraph(AgentState) graph that wraps the planner and evaluator agent nodes.
+    """Build a StateGraph(AgentState) graph using native subgraph nodes and isolated state channels.
 
-    Compiles the graph with the provided checkpointer, effort_prefix, and strategy_id scope.
+    Compiles planner and evaluator subgraphs directly into the parent StateGraph.
+    Checkpoints are natively tracked across hierarchical namespaces for seamless continuation.
     """
-    async def planner(state: AgentState, config: Optional[RunnableConfig] = None) -> dict[str, Any]:
-        # Context containing operational mode
-        agent_context = AgentContext(mode=PlannerMode.PLAN)
+    # 1. Instantiate Planner & Evaluator Subgraph Agents
+    creation_tools = get_plan_creation_tools(session, strategy_id, effort_prefix)
+    planner_subgraph = create_loop_agent(
+        name="Planner Agent",
+        model=model,
+        tools=creation_tools,
+        system_prompt=COMPANY_FINDER_PLANNER_PROMPT,
+        session=session,
+        strategy_id=strategy_id,
+        effort_prefix=effort_prefix,
+        checkpointer=checkpointer,
+        store=store,
+        context_schema=AgentContext,
+        backend=default_filesystem_backend(),
+    )
 
+    eval_tools = get_plan_evaluator_tools(session, strategy_id, effort_prefix)
+    evaluator_subgraph = create_loop_agent(
+        name="Evaluator Agent",
+        model=model,
+        system_prompt=COMPANY_FINDER_PLANNER_EVALUATOR_PROMPT,
+        tools=eval_tools,
+        session=session,
+        strategy_id=strategy_id,
+        effort_prefix=effort_prefix,
+        checkpointer=checkpointer,
+        store=store,
+        context_schema=AgentContext,
+        response_format=Evaluation,
+        backend=default_filesystem_backend(),
+    )
+
+
+    # 2. State Transformation Nodes
+    def prep_planner(state: AgentState) -> dict[str, Any]:
+        task = "Create a detailed execution plan for identifying and selecting one companies based on the defined sales strategy."
+        # task = "Consult with the Sales Manager to understand the strategy and let me know if I’ve forgotten any details."
         logger.info(
-            "planner_graph_node_planner_start",
-            effort_prefix=effort_prefix,
-            retries=state.retries,
-            task=state.task,
-            chat_history_length=len(state.planner_chat),
+            "planner_graph_node_prep_planner_start",
+            node_name=NodeName.PREP_PLANNER,
+            state=state
         )
-
-        input_msgs = state.planner_chat if state.planner_chat else (getattr(state, "messages", None) or [])
+        input_msgs = (
+            state.planner_chat
+            if state.planner_chat
+            else (getattr(state, "messages", None) or [])
+        )
         if not input_msgs:
-            input_msgs = [
-                HumanMessage(
-                    content="Create a detailed execution plan for identifying and selecting one companies based on the defined sales strategy."
-                )
-            ]
-
-        # Dynamically instantiate agent with creation tools and 3 subagents via create_loop_agent
-        async with SessionFactory() as session:
-            creation_tools = get_plan_creation_tools(session, strategy_id, effort_prefix)
-            planner_agent = create_loop_agent(
-                model=model,
-                tools=creation_tools,
-                system_prompt=COMPANY_FINDER_PLANNER_PROMPT,
-                session=session,
-                strategy_id=strategy_id,
-                effort_prefix=effort_prefix,
-                checkpointer=checkpointer,
-                store=store,
-                context_schema=AgentContext,
-                backend=default_filesystem_backend(),
-            )
-
-        from core.config import get_settings
-
-        result = await planner_agent.ainvoke(
-            {"messages": input_msgs}, config=config, context=agent_context
+            input_msgs = [HumanMessage(content=task)]
+        res = {"messages": input_msgs, "task": task}
+        logger.info(
+            "planner_graph_node_prep_planner_complete",
+            node_name=NodeName.PREP_PLANNER,
+            res=res,
         )
-        if isinstance(result, dict) and "planner_chat" in result:
-            out_messages = result["planner_chat"]
-        elif isinstance(result, dict) and "messages" in result:
-            out_messages = result["messages"]
-        elif isinstance(result, BaseMessage):
-            out_messages = [result]
-        elif isinstance(result, list):
-            out_messages = result
-        else:
-            out_messages = [AIMessage(content=str(result))]
+        return res
 
-        if isinstance(out_messages, list):
-            new_msgs = [m for m in out_messages if m not in input_msgs]
-            if new_msgs:
-                out_messages = new_msgs
-
-        # Fetch plan from DB for this effort
+    async def sync_planner_output(
+        state: AgentState, config: Optional[RunnableConfig] = None
+    ) -> dict[str, Any]:
+        logger.info(
+            "planner_graph_node_sync_planner_output_start",
+            node_name=NodeName.SYNC_PLANNER_OUTPUT,
+            state=state
+        )
         plan_obj = None
         if effort_prefix:
             try:
@@ -187,34 +234,35 @@ def create_planner_graph(
                     plan_obj = await svc.get_plan(effort_prefix)
             except Exception as err:
                 logger.warning(
-                    "planner_graph_node_planner_db_fetch_warning",
+                    "planner_graph_sync_db_warning",
                     effort_prefix=effort_prefix,
                     error=str(err),
                 )
 
-        logger.info(
-            "planner_graph_node_planner_complete",
-            effort_prefix=effort_prefix,
-            messages_generated=len(out_messages),
-            plan_retrieved=bool(plan_obj),
+        new_planner_msgs = (
+            list(state.messages)
+            if hasattr(state, "messages") and state.messages
+            else []
         )
-
-        return {
-            "planner_chat": out_messages,
+        res = {
+            "planner_chat": new_planner_msgs,
             "plan": plan_obj,
+            "messages": [],
         }
-
-    async def evaluator(state: AgentState, config: Optional[RunnableConfig] = None) -> dict[str, Any]:
         logger.info(
-            "planner_graph_node_evaluator_start",
+            "planner_graph_node_sync_planner_output_complete",
+            node_name=NodeName.SYNC_PLANNER_OUTPUT,
+            res=res,
+        )
+        return res
+
+    def prep_evaluator(state: AgentState) -> dict[str, Any]:
+        logger.info(
+            "planner_graph_node_prep_evaluator_start",
+            node_name=NodeName.PREP_EVALUATOR,
             effort_prefix=effort_prefix,
             has_plan=bool(state.plan),
-            retries=state.retries,
         )
-
-        # Context containing operational mode
-        agent_context = AgentContext(mode=PlannerMode.EVALUATE)
-
         plan_json = ""
         if state.plan:
             if hasattr(state.plan, "model_dump_json"):
@@ -229,88 +277,68 @@ def create_planner_graph(
         eval_prompt = HumanMessage(
             content=f"Evaluate the following execution plan for task: {state.task}\n\nPlan:\n{plan_json}"
         )
-        eval_input = list(state.evaluator_chat) + [eval_prompt]
-
-        # Dynamically build Evaluator Agent with Evaluator tools
-        async with SessionFactory() as session:
-            eval_tools = get_plan_evaluator_tools(session, strategy_id, effort_prefix)
-            eval_agent = create_loop_agent(
-                model=model,
-                system_prompt=COMPANY_FINDER_PLANNER_EVALUATOR_PROMPT,
-                tools=eval_tools,
-                session=session,
-                strategy_id=strategy_id,
-                effort_prefix=effort_prefix,
-                checkpointer=checkpointer,
-                store=store,
-                context_schema=AgentContext,
-                response_format=Evaluation,
-                backend=default_filesystem_backend(),
-            )
-
-        res = None
-        try:
-            res = await eval_agent.ainvoke(
-                {"messages": eval_input}, config=config, context=agent_context
-            )
-        except Exception as err:
-            logger.warning(
-                "planner_graph_node_evaluator_invocation_warning",
-                effort_prefix=effort_prefix,
-                error=str(err),
-            )
-            res = None
-        print(res)
-        evaluation = None
-        if isinstance(res, Evaluation):
-            evaluation = res
-        elif isinstance(res, dict):
-            evaluation = res.get("structured_response")
-            if isinstance(evaluation, dict):
-                evaluation = Evaluation(**evaluation)
-            if not evaluation and "messages" in res and res["messages"]:
-                last_msg = res["messages"][-1]
-                content = getattr(last_msg, "content", str(last_msg))
-                evaluation = Evaluation(feedback=content, decision=Decision.ACCEPT)
-
-        if not evaluation:
-            evaluation = Evaluation(
-                feedback="Execution plan successfully reviewed and accepted.",
-                decision=Decision.ACCEPT,
-            )
-
-        eval_reply = AIMessage(
-            content=f"Evaluation complete. Decision: {evaluation.decision.value}. Feedback: {evaluation.feedback}"
-        )
-
+        res = {"messages": _ensure_message_ids([eval_prompt])}
         logger.info(
-            "planner_graph_node_evaluator_complete",
-            effort_prefix=effort_prefix,
-            decision=evaluation.decision.value,
-            feedback=evaluation.feedback,
+            "planner_graph_node_prep_evaluator_complete",
+            node_name=NodeName.PREP_EVALUATOR,
+            res=res,
         )
+        return res
 
-        return {
-            "evaluator_chat": [eval_prompt, eval_reply],
+
+    def parse_evaluator_output(state: AgentState) -> dict[str, Any]:
+        logger.info(
+            "parse_evaluator_output",
+            node_name=NodeName.PARSE_EVALUATOR_OUTPUT,
+        )
+        evaluation = state.structured_response
+        if evaluation is None:
+            evaluation = Evaluation(feedback="Plan evaluation complete.", decision=Decision.ACCEPT)
+
+        res = {
+            "evaluator_chat": state.messages,
             "evaluation": evaluation,
+            "messages": [],
         }
+        logger.info(
+            "planner_graph_node_parse_evaluator_output_complete",
+            node_name=NodeName.PARSE_EVALUATOR_OUTPUT,
+            res=res,
+        )
+        return res
 
+
+    # 3. Build StateGraph Pipeline
     builder = StateGraph(AgentState)
 
-    builder.add_node(NodeName.PLANNER, planner)
-    builder.add_node(NodeName.EVALUATOR, evaluator)
+    builder.add_node(NodeName.PREP_PLANNER, prep_planner)
+    builder.add_node(NodeName.PLANNER, planner_subgraph)
+    builder.add_node(NodeName.SYNC_PLANNER_OUTPUT, sync_planner_output)
+
+    builder.add_node(NodeName.PREP_EVALUATOR, prep_evaluator)
+    builder.add_node(NodeName.EVALUATOR, evaluator_subgraph)
+    builder.add_node(NodeName.PARSE_EVALUATOR_OUTPUT, parse_evaluator_output)
+
     builder.add_node(NodeName.INCREMENT_RETRY, increment_retry)
-    builder.set_entry_point(NodeName.PLANNER)
-    builder.add_edge(NodeName.PLANNER, NodeName.EVALUATOR)
+
+    # 4. Configure Edges
+    builder.set_entry_point(NodeName.PREP_PLANNER)
+    builder.add_edge(NodeName.PREP_PLANNER, NodeName.PLANNER)
+    builder.add_edge(NodeName.PLANNER, NodeName.SYNC_PLANNER_OUTPUT)
+    builder.add_edge(NodeName.SYNC_PLANNER_OUTPUT, NodeName.PREP_EVALUATOR)
+    builder.add_edge(NodeName.PREP_EVALUATOR, NodeName.EVALUATOR)
+    builder.add_edge(NodeName.EVALUATOR, NodeName.PARSE_EVALUATOR_OUTPUT)
+
     builder.add_conditional_edges(
-        NodeName.EVALUATOR,
+        NodeName.PARSE_EVALUATOR_OUTPUT,
         replan_router,
         {
             NodeName.INCREMENT_RETRY: NodeName.INCREMENT_RETRY,
             END: END,
         },
     )
-    builder.add_edge(NodeName.INCREMENT_RETRY, NodeName.PLANNER)
+    builder.add_edge(NodeName.INCREMENT_RETRY, NodeName.PREP_PLANNER)
+
     return builder.compile(checkpointer=checkpointer)
 
 
@@ -335,9 +363,10 @@ async def stream_planner_graph(
     elif isinstance(messages, dict):
         input_data = messages
     else:
-        input_data = {"planner_chat": messages}
+        input_data = {"planner_chat": _ensure_message_ids(messages)}
 
-    async for event in graph.astream_events(input_data, config=config, version=version):
+
+    async for event in graph.astream_events(input_data, config=config, version=version, subgraphs=True):
         yield event
-    logger.info("planner_graph_stream_complete", thread_id=thread_id)
 
+    logger.info("planner_graph_stream_complete", thread_id=thread_id)

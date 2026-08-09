@@ -39,7 +39,7 @@ def create_loop_agent(
     effective_subagents = list(subagents or [])
     effective_backend = backend or default_filesystem_backend()
 
-    if session is not None and strategy_id and not effective_subagents:
+    if strategy_id and not effective_subagents:
         from agents.brain import long_term_memory_tools
         from agents.tools import sales_manager_tools
 
@@ -99,3 +99,4 @@ def create_loop_agent(
     }
 
     return create_agent(**kwargs)
+

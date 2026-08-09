@@ -172,7 +172,9 @@ async def company_finder_agent_scope(
                 model=model,
                 effort_prefix=effort_prefix,
                 strategy_id=strategy_id,
+                session=session,
             )
+
             try:
                 log.info(
                     "company_finder_scope.planner_ready",

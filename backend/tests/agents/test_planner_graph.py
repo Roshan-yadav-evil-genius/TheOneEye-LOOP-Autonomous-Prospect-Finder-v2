@@ -1,7 +1,7 @@
 import pytest
 from langchain_core.language_models import FakeListChatModel
 from langgraph.checkpoint.memory import MemorySaver
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.tools import tool
 
 from agents.planner_graph import create_planner_graph, stream_planner_graph
@@ -11,9 +11,25 @@ class MockChatModel(FakeListChatModel):
     def bind_tools(self, tools, **kwargs):
         return self
 
+    def with_structured_output(self, schema, **kwargs):
+        from agents.planner_graph import Decision, Evaluation
+
+        eval_obj = Evaluation(feedback="Good plan", decision=Decision.ACCEPT)
+
+        class StructuredMock:
+            async def ainvoke(self, *args, **kwargs):
+                return {"structured_response": eval_obj, "messages": [AIMessage(content="Approved")]}
+
+            def invoke(self, *args, **kwargs):
+                return {"structured_response": eval_obj, "messages": [AIMessage(content="Approved")]}
+
+        return StructuredMock()
+
+
 
 def create_mock_model():
     return MockChatModel(responses=["Planner agent completed step."])
+
 
 
 @pytest.mark.asyncio
@@ -26,9 +42,10 @@ async def test_create_planner_graph_and_checkpoint():
     config = {"configurable": {"thread_id": thread_id}}
 
     result = await graph.ainvoke(
-        {"planner_chat": [{"role": "user", "content": "Hi!"}]},
+        {"planner_chat": [HumanMessage(content="Hi!")]},
         config=config,
     )
+
 
     assert "planner_chat" in result
 
@@ -99,9 +116,10 @@ async def test_planner_graph_evaluator_and_db_plan():
     config = {"configurable": {"thread_id": thread_id, "effort_prefix": effort_prefix}}
 
     result = await graph.ainvoke(
-        {"planner_chat": [{"role": "user", "content": "Build execution plan"}]},
+        {"planner_chat": [HumanMessage(content="Build execution plan")]},
         config=config,
     )
+
 
     assert "plan" in result
     assert result["plan"] is not None

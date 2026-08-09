@@ -96,6 +96,8 @@ class PlannerModeMiddleware(AgentMiddleware):
     # Set of default direct tool names universally allowed across all modes without restriction
     DEFAULT_ALWAYS_ALLOWED_TOOLS: set[str] = {
         "get_plan_summary",
+        "Evaluation",
+        "return_Evaluation",
     }
 
     # Set of subagent types universally allowed during planning/evaluation phases
@@ -128,8 +130,11 @@ class PlannerModeMiddleware(AgentMiddleware):
             return True
         if tool_name in self.DEFAULT_ALWAYS_ALLOWED_TOOLS or tool_name in self.ALWAYS_ALLOWED_SUBAGENTS:
             return True
+        if tool_name.startswith("return_") or tool_name.endswith("Evaluation") or tool_name.endswith("_response"):
+            return True
         allowed_writes = self.ALLOWED_WRITES.get(mode, self.ALLOWED_WRITES[PlannerMode.PLAN])
         return tool_name in allowed_writes
+
 
     def is_subagent_allowed(self, subagent_type: str | None, mode: PlannerMode) -> bool:
         """Check if a subagent delegation via the `task` tool is permitted in the current operational mode."""
@@ -202,6 +207,10 @@ class PlannerModeMiddleware(AgentMiddleware):
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], Any],
     ) -> ToolMessage | Command:
+        print("========================================[Tool Call]========================================")
+        print(request.tool_call)
+        print("========================================[Tool Call]========================================")
+
         err = self._check_permission(request)
         if err is not None:
             return err

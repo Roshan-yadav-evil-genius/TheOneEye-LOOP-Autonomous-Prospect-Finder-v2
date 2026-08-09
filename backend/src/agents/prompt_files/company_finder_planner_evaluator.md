@@ -18,24 +18,29 @@ Before rendering a final `decision` ("accept" or "retry"), you MUST consult suba
 
 Evaluate the submitted plan against these 5 mandatory criteria:
 
-### 1. Self-Contained Task Integrity (No Ambiguity)
+### 1. Current Plan Status & Context Awareness
+- Did the Planner Agent check the current status of the plan via `get_plan_summary()` before creating or modifying tasks?
+- Does the proposed plan respect and build upon existing completed/pending tasks rather than re-creating duplicate structures?
+
+### 2. Self-Contained Task Integrity (No Ambiguity)
 - Are all task descriptions fully detailed with explicit ICP parameters, target regions, headcount limits, and exclusion rules?
 - Downstream execution workers (`Company Finder` / `Contact Finder`) **cannot** access `sales_manager` or `brain_agent`. Does the plan contain every detail necessary to run independently without needing any outside resources?
 
-### 2. Functional Phase & Task Naming & Complexity Splitting
+### 3. Functional Phase & Task Naming & Complexity Splitting
 - Are operational phases and tasks named according to their specific functional goal (e.g. *"Candidate Discovery & Web Research"*, *"ICP Verification & Exclusion Audit"*, *"Authoritative Database Registration"*)?
 - Has task complexity been appropriately split based on past campaign experience?
 
-### 3. Strict Tool Allocation Boundaries
+### 4. Strict Tool Allocation Boundaries
 - Are task `tools` arrays strictly limited to downstream execution worker capabilities (`browser_agent`, `manage_memory`, `register_company`)?
 - **ABSOLUTE PROHIBITION:** `sales_manager` and `brain_agent` MUST NOT be listed in any task's `tools` array.
 
-### 4. Zero Outreach Boundary
+### 5. Zero Outreach Boundary
 - Does the plan contain **ZERO** email messaging, LinkedIn outreach, cold calling, or cadence building tasks?
 - Does the plan strictly terminate upon candidate identification and database registration?
 
-### 5. Real Tool Execution Verification
+### 6. Real Tool Execution Verification
 - Has the Planner actually invoked database planning tools (`update_plan_context`, `add_task`, `add_step`, `mark_planning_as_complete`) to persist the plan in state (rather than just returning markdown chat text)?
+
 
 ---
 

@@ -81,9 +81,30 @@ class ThreadChatHistoryService:
                     except Exception:
                         model = FakeListChatModel(responses=[""])
 
-                    agent = create_deep_agent(model, checkpointer=checkpointer)
-                    state = await agent.aget_state(config)
+                    if "_planner" in thread_id:
+                        from agents.planner_graph import create_planner_graph
+                        graph_to_check = create_planner_graph(model, checkpointer=checkpointer)
+                    else:
+                        graph_to_check = create_deep_agent(model, checkpointer=checkpointer)
+
+                    state = await graph_to_check.aget_state(config)
                     can_resume = bool(state.next) if state else False
+
+                    if not can_resume:
+                        try:
+                            from agents.checkpoints import ThreadCheckpointStore
+                            store = ThreadCheckpointStore(conn_string)
+                            ns_list = await store.list_namespaces(thread_id)
+                            for ns in ns_list:
+                                if not ns:
+                                    continue
+                                ns_config = {"configurable": {"thread_id": thread_id, "checkpoint_ns": ns}}
+                                ns_tuple = await checkpointer.aget_tuple(ns_config)
+                                if ns_tuple and (bool(ns_tuple.pending_writes) or bool(getattr(ns_tuple, "next", None))):
+                                    can_resume = True
+                                    break
+                        except Exception:
+                            pass
 
                     if state and state.values:
                         raw_messages = state.values.get("planner_chat") or state.values.get("messages") or []

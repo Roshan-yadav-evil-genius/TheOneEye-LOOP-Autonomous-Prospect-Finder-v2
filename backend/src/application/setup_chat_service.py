@@ -91,8 +91,10 @@ class SetupChatService:
                 async for event in agent.astream_events(
                     input_data,
                     config,
-                    version="v2"
+                    version="v2",
+                    subgraphs=True
                 ):
+
                     if fastapi_request and await fastapi_request.is_disconnected():
                         disconnected = True
                         break
@@ -103,16 +105,43 @@ class SetupChatService:
                     if kind == "on_chat_model_stream":
                         chunk = data.get("chunk")
                         if chunk:
-                            if hasattr(chunk, "additional_kwargs") and "reasoning_content" in chunk.additional_kwargs:
-                                reasoning = chunk.additional_kwargs["reasoning_content"]
-                                if reasoning:
-                                    yield f"event: reasoning\ndata: {json.dumps({'text': reasoning})}\n\n"
-                            
-                            content = chunk.content
+                            reasoning = None
+                            if hasattr(chunk, "additional_kwargs") and chunk.additional_kwargs:
+                                reasoning = (
+                                    chunk.additional_kwargs.get("reasoning_content")
+                                    or chunk.additional_kwargs.get("reasoning")
+                                    or chunk.additional_kwargs.get("thinking")
+                                    or chunk.additional_kwargs.get("thought")
+                                )
+                            if not reasoning:
+                                reasoning = (
+                                    getattr(chunk, "reasoning_content", None)
+                                    or getattr(chunk, "thinking", None)
+                                )
+                            if not reasoning and isinstance(getattr(chunk, "content", None), list):
+                                for block in chunk.content:
+                                    if isinstance(block, dict) and block.get("type") in ("reasoning", "thinking"):
+                                        reasoning = block.get("reasoning") or block.get("thinking") or block.get("text")
+                                        if reasoning:
+                                            break
+
+                            if reasoning:
+                                yield f"event: reasoning\ndata: {json.dumps({'text': reasoning})}\n\n"
+
+                            content = getattr(chunk, "content", "")
                             if content:
                                 if isinstance(content, list):
-                                    content = json.dumps(content)
-                                yield f"event: content\ndata: {json.dumps({'text': content})}\n\n"
+                                    text_parts = []
+                                    for block in content:
+                                        if isinstance(block, str):
+                                            text_parts.append(block)
+                                        elif isinstance(block, dict) and block.get("type") in ("text", "content"):
+                                            text_parts.append(block.get("text") or block.get("content") or "")
+                                    content = "".join(text_parts)
+
+                                if isinstance(content, str) and content:
+                                    yield f"event: content\ndata: {json.dumps({'text': content})}\n\n"
+
                                 
                     elif kind == "on_chat_model_end":
                         # Extracted message can either be wrapped in an LLMResult (generations)
