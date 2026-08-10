@@ -112,7 +112,7 @@ class PlannerModeMiddleware(AgentMiddleware):
             "add_task",
             "add_step",
             "update_plan_context",
-            "add_knowledge_entry",
+            # "add_knowledge_entry",
         },
         PlannerMode.EVALUATE: {
             "mark_planning_as_complete",

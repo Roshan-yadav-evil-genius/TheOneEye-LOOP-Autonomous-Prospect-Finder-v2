@@ -113,7 +113,7 @@ def increment_retry(state: AgentState) -> dict[str, Any]:
     }
 
 
-MAX_RETRIES = 1
+MAX_RETRIES = 2
 
 
 def replan_router(state: AgentState) -> str:

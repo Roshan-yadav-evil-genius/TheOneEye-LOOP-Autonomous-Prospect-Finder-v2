@@ -82,8 +82,8 @@ class ThreadCheckpointStore:
             await pool.open()
             async with pool.connection() as connection:
                 rows = await connection.execute(
-                    "SELECT DISTINCT checkpoint_ns FROM checkpoints "
-                    "WHERE thread_id = %s ORDER BY checkpoint_ns",
+                    "SELECT checkpoint_ns FROM checkpoints "
+                    "WHERE thread_id = %s GROUP BY checkpoint_ns ORDER BY MIN(checkpoint_id) ASC",
                     (thread_id,),
                 )
                 return [cast(dict[str, Any], row)["checkpoint_ns"] async for row in rows]
