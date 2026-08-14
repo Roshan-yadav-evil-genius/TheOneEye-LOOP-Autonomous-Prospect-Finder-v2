@@ -23,9 +23,8 @@ from agents.stack_builders import (
     build_contact_finder_stack,
 )
 from agents.tools import (
-    company_finder_tools,
     contact_finder_tools,
-    sales_manager_tools,
+    get_register_company_tool,
 )
 from application.loop_service import LoopService
 from browser.policy import (
@@ -187,7 +186,7 @@ async def company_finder_agent_scope(
                 log.info("company_finder_scope.closed", strategy_id=strategy_id, parent_thread=parent_thread)
             return
 
-        company_tools_list = company_finder_tools(session, strategy_id, parent_thread)
+        company_tools_list = get_register_company_tool(session, strategy_id, parent_thread)
         sm_tools = None
 
         stack = build_company_finder_stack(

@@ -565,6 +565,7 @@ def get_plan_creation_tools(
         update_task,
         add_step,
         update_step,
+        add_knowledge_entry,
     ]
 
 

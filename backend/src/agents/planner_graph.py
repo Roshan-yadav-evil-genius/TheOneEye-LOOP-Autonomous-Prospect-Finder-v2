@@ -39,6 +39,7 @@ from domain.planner_models import Planner
 from persistence.database import SessionFactory
 from agents.planner_middleware import AgentContext, PlannerMode
 from agents.planner_tools import get_plan_creation_tools, get_plan_evaluator_tools
+from agents.tools import get_register_company_tool
 
 logger = structlog.get_logger(__name__)
 
@@ -139,11 +140,12 @@ def create_planner_graph(
     Checkpoints are natively tracked across hierarchical namespaces for seamless continuation.
     """
     # 1. Instantiate Planner & Evaluator Subgraph Agents
+    reg_tools = get_register_company_tool(session, strategy_id, effort_prefix)
     creation_tools = get_plan_creation_tools(session, strategy_id, effort_prefix)
     planner_subgraph = create_loop_agent(
         name="Planner Agent",
         model=model,
-        tools=creation_tools,
+        tools=creation_tools + reg_tools,
         system_prompt=get_planner_prompt(),
         session=session,
         strategy_id=strategy_id,
@@ -158,7 +160,7 @@ def create_planner_graph(
         name="Evaluator Agent",
         model=model,
         system_prompt=get_evaluator_prompt(),
-        tools=eval_tools + creation_tools,
+        tools=eval_tools + creation_tools + reg_tools,
         session=session,
         strategy_id=strategy_id,
         checkpointer=checkpointer,

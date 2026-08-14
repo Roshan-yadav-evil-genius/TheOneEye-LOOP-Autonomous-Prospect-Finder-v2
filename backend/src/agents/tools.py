@@ -30,21 +30,10 @@ def _sanitize_sales_strategy_dict(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
-def company_finder_tools(
+def get_register_company_tool(
     session: AsyncSession, strategy_id: str, thread_id: str
 ) -> list[BaseTool]:
     service = LoopService(session)
-
-    @tool
-    async def get_sales_strategy_bundle() -> dict[str, Any]:
-        """Read the immutable organization, product, and strategy context."""
-        return (await service.bundle(strategy_id)).model_dump(mode="json")
-
-    @tool
-    async def get_sales_strategy() -> dict[str, Any]:
-        """Read the active sales strategy targeting rules, narratives, and targets."""
-        bundle = await service.bundle(strategy_id)
-        return _sanitize_sales_strategy_dict(bundle.sales_strategy.model_dump(mode="json"))
 
     @tool
     async def register_company(
@@ -71,7 +60,7 @@ def company_finder_tools(
         )
         return result.model_dump(mode="json")
 
-    return [get_sales_strategy_bundle, get_sales_strategy, register_company]
+    return [register_company]
 
 
 from contextlib import asynccontextmanager
