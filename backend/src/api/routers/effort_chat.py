@@ -174,15 +174,12 @@ async def stream_chat(
                         except Exception:
                             pass
 
-                    if not can_resume:
-                        if data.redo_last and data.message:
-                            chat_key = "planner_chat" if is_planner else "messages"
-                            last_msg = data.message
-                            await ThreadChatHistoryService.delete_message(thread_id, last_msg)
-
-                input_data: Any = None if (data.retry and can_resume) else ({
-                    "planner_chat": [data.message]
-                } if is_planner and data.message else ([{"role": "user", "content": data.message}] if data.message else {}))
+                if data.retry and can_resume:
+                    input_data = None
+                elif is_planner:
+                    input_data = {"planner_chat": [data.message]} if data.message else {}
+                else:
+                    input_data = [{"role": "user", "content": data.message}] if data.message else {}
 
                 try:
                     events = stream_planner_graph(graph, input_data, thread_id) if is_planner else graph.astream_events(input_data, config=config, version="v2", subgraphs=True)

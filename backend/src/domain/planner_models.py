@@ -4,6 +4,7 @@ Provides structured, validated, self-documenting, and serialized models
 for autonomous agent workflows.
 """
 
+import json
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -277,6 +278,19 @@ class Planner(BaseModel):
         default=None,
         description="Comprehensive final report generated upon workflow completion"
     )
+
+    def get_plan(self, indent: Optional[int] = 2) -> str:
+        """Serializes the core execution plan structure (goal, objective, success_criteria, constraints, phases)
+        as a formatted JSON string.
+        """
+        payload = {
+            "goal": self.goal,
+            "objective": self.objective,
+            "success_criteria": self.success_criteria,
+            "constraints": self.constraints,
+            "phases": [p.model_dump(mode="json") for p in self.phases] if self.phases else [],
+        }
+        return json.dumps(payload, indent=indent)
 
 
 def auto_cascade_statuses(plan: Planner) -> None:

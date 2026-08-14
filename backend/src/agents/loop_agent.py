@@ -8,6 +8,8 @@ from deepagents import CompiledSubAgent
 
 from langchain_core.language_models import BaseChatModel
 from langchain.agents import create_agent
+from langchain.agents.middleware import SummarizationMiddleware
+from langchain_ollama import ChatOllama
 from agents.filesystem_backend import default_filesystem_backend
 from agents.planner_middleware import PlannerModeMiddleware
 from agents.prompts import (
@@ -15,8 +17,15 @@ from agents.prompts import (
     BROWSER_AGENT_PROMPT,
     SALES_MANAGER_PROMPT,
 )
+from langchain_core.messages.utils import count_tokens_approximately
+from langchain.messages import AIMessage
 from langgraph.store.base import BaseStore
 from deepagents.middleware.subagents import SubAgentMiddleware
+from langchain_core.messages import BaseMessage
+import structlog
+from core.config import Settings, get_settings
+
+logger = structlog.get_logger(__name__)
 
 
 def create_loop_agent(
@@ -29,7 +38,6 @@ def create_loop_agent(
     session: Any | None = None,
     strategy_id: str | None = None,
     context_schema=None,
-    effort_prefix: str = "",
     store: BaseStore = None,
     checkpointer: Any = None,
     backend: Any = None,
@@ -76,8 +84,42 @@ def create_loop_agent(
         }
 
         effective_subagents = [brain_subagent, sales_manager_subagent, browser_subagent]
+    config = get_settings()
 
-    middleware_list = [PlannerModeMiddleware()]
+    def token_calculator(messages: list[BaseMessage]) -> int:
+        token = 0
+        pred_token_count = count_tokens_approximately(messages)
+        logger.info(f"Token count prediction: {pred_token_count}")
+
+        token_calc = ChatOllama(
+            model=config.model_name,
+            base_url=config.model_base_url,
+            num_ctx=256000,
+            num_predict=1
+        )
+        for attempt in range(3):
+            logger.info(f"Token Calculation Attempt: {attempt}")
+            try:
+                res = token_calc.invoke(messages)
+                if hasattr(res, "usage_metadata") and res.usage_metadata:
+                    token = res.usage_metadata.get("input_tokens", 0)
+                break
+            except Exception as exc:
+                logger.warning("token_calculation_failed", error=str(exc))
+                token = sum(len(str(getattr(m, "content", ""))) // 4 for m in messages)
+
+        logger.info("tokens_calculated", input_tokens=token)
+        return token
+
+
+    middleware_list = [
+        PlannerModeMiddleware(),
+        SummarizationMiddleware(
+            model=model,
+            token_counter=token_calculator,
+            trigger=("fraction", 0.1),
+        ),
+    ]
     if effective_subagents:
         middleware_list.append(
             SubAgentMiddleware(
@@ -99,4 +141,3 @@ def create_loop_agent(
     }
 
     return create_agent(**kwargs)
-

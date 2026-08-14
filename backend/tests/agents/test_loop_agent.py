@@ -222,11 +222,11 @@ async def test_planner_tools_schema_and_list_coercion(session):
         phase_id="phase-1",
         title="Test Task",
         dependencies="phase-1-task-1",
-        tools="web_search",
+        tools="browser_agent",
         completion_criteria="single_criterion",
     )
     assert input_single_str.dependencies == ["phase-1-task-1"]
-    assert input_single_str.tools == ["web_search"]
+    assert input_single_str.tools == ["browser_agent"]
     assert input_single_str.completion_criteria == ["single_criterion"]
 
     # 3. Test list coercion: None -> List[str] ([])

@@ -109,7 +109,7 @@ def test_planner_middleware_default_always_allowed_tools():
 
     # Tools in DEFAULT_ALWAYS_ALLOWED_TOOLS are allowed in all modes (e.g. evaluate mode)
     req_default = MagicMock(spec=ToolCallRequest)
-    req_default.tool_call = {"id": "11", "name": "get_plan_summary", "args": {}}
+    req_default.tool_call = {"id": "11", "name": "Evaluation", "args": {}}
     req_default.config = {"configurable": {"mode": "evaluate"}}
     assert mw._check_permission(req_default) is None
 

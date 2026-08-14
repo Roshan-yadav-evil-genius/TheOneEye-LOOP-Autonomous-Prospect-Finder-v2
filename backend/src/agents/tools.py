@@ -16,6 +16,20 @@ from contracts.domain import (
 
 
 
+def _sanitize_sales_strategy_dict(data: dict[str, Any]) -> dict[str, Any]:
+    for key in (
+        "run_targets",
+        "target_companies",
+        "contacts_per_company_default",
+        "company_finder_attempt",
+        "companies_count",
+    ):
+        data.pop(key, None)
+    if "sales_strategy_form" in data and isinstance(data["sales_strategy_form"], dict):
+        data["sales_strategy_form"].pop("run_targets", None)
+    return data
+
+
 def company_finder_tools(
     session: AsyncSession, strategy_id: str, thread_id: str
 ) -> list[BaseTool]:
@@ -30,7 +44,7 @@ def company_finder_tools(
     async def get_sales_strategy() -> dict[str, Any]:
         """Read the active sales strategy targeting rules, narratives, and targets."""
         bundle = await service.bundle(strategy_id)
-        return bundle.sales_strategy.model_dump(mode="json")
+        return _sanitize_sales_strategy_dict(bundle.sales_strategy.model_dump(mode="json"))
 
     @tool
     async def register_company(
@@ -99,7 +113,7 @@ def sales_manager_tools(
         async with _get_db_session(session) as db_session:
             service = LoopService(db_session)
             bundle = await service.bundle(strategy_id)
-            return bundle.sales_strategy.model_dump(mode="json")
+            return _sanitize_sales_strategy_dict(bundle.sales_strategy.model_dump(mode="json"))
 
     return [get_org, get_product, get_sales_strategy]
 

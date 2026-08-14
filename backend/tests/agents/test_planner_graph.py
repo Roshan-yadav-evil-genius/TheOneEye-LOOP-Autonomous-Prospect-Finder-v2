@@ -8,6 +8,8 @@ from agents.planner_graph import create_planner_graph, stream_planner_graph
 
 
 class MockChatModel(FakeListChatModel):
+    profile: dict = {"max_input_tokens": 128000}
+
     def bind_tools(self, tools, **kwargs):
         return self
 
@@ -64,7 +66,7 @@ async def test_stream_planner_graph():
     events = []
     async for event in stream_planner_graph(
         graph,
-        messages=[{"role": "user", "content": "Generate strategy"}],
+        input_data={"planner_chat": [HumanMessage(content="Generate strategy")]},
         thread_id=thread_id,
     ):
         events.append(event)
@@ -139,7 +141,7 @@ async def test_stream_planner_graph_empty_messages():
     events = []
     async for event in stream_planner_graph(
         graph,
-        messages=None,
+        input_data={},
         thread_id=thread_id,
     ):
         events.append(event)

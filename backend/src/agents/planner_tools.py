@@ -102,7 +102,7 @@ class AddTaskInput(BaseModel):
     )
     tools: List[str] = Field(
         default_factory=list,
-        description="List of tool names required to execute this task. Example: ['web_search', 'register_company']",
+        description="List of tool names required to execute this task.",
     )
     completion_criteria: List[str] = Field(
         default_factory=list,
@@ -131,6 +131,76 @@ class AddStepInput(BaseModel):
     description: str = Field(
         default="",
         description="Detailed summary of operational actions to perform in this step.",
+    )
+
+
+class UpdatePhaseInput(BaseModel):
+    phase_id: str = Field(
+        ...,
+        description="Target phase ID to update/edit. Example: 'phase-1'",
+    )
+    title: Optional[str] = Field(
+        default=None,
+        description="Updated title of the planning phase. Example: 'Phase 1: Initial Discovery'",
+    )
+    objective: Optional[str] = Field(
+        default=None,
+        description="Updated overarching goal and target outcome for this phase.",
+    )
+
+
+class UpdateTaskInput(BaseModel):
+    task_id: str = Field(
+        ...,
+        description="Target task ID to update/edit. Example: 'phase-1-task-1'",
+    )
+    title: Optional[str] = Field(
+        default=None,
+        description="Updated short, actionable title for the task.",
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="Updated in-depth summary of task requirements and self-contained execution scope.",
+    )
+    dependencies: Optional[List[str]] = Field(
+        default=None,
+        description="Updated list of prerequisite task IDs.",
+    )
+    tools: Optional[List[str]] = Field(
+        default=None,
+        description="Updated list of tool names required to execute this task.",
+    )
+    completion_criteria: Optional[List[str]] = Field(
+        default=None,
+        description="Updated list of verifiable completion criteria strings.",
+    )
+    expected_output: Optional[str] = Field(
+        default=None,
+        description="Updated definition of expected primary deliverable.",
+    )
+
+    @field_validator("dependencies", "tools", "completion_criteria", mode="before")
+    @classmethod
+    def coerce_list_fields(cls, v: Any) -> List[str]:
+        return _coerce_to_list(v)
+
+
+class UpdateStepInput(BaseModel):
+    task_id: str = Field(
+        ...,
+        description="Target task ID containing the step. Example: 'phase-1-task-1'",
+    )
+    step_id: str = Field(
+        ...,
+        description="Target step ID to update/edit. Example: 'phase-1-task-1-step-1'",
+    )
+    title: Optional[str] = Field(
+        default=None,
+        description="Updated short title describing the step objective.",
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="Updated summary of operational actions to perform in this step.",
     )
 
 
@@ -349,6 +419,117 @@ def get_plan_creation_tools(
                 )
                 return f"Step added: {new_step.id}"
 
+    @tool(args_schema=UpdatePhaseInput)
+    async def update_phase(
+        phase_id: str,
+        title: Optional[str] = None,
+        objective: Optional[str] = None,
+    ) -> str:
+        """Update/edit an existing phase's title or objective."""
+        async with db_lock:
+            async with _get_db_session(session) as db_session:
+                planner_service = PlannerService(db_session)
+                plan = await planner_service.get_or_create_plan(
+                    effort_prefix=effort_prefix,
+                    strategy_id=strategy_id,
+                )
+                phase = next((p for p in plan.phases if p.id == phase_id), None)
+                if not phase:
+                    return f"Error: Phase '{phase_id}' not found."
+
+                if title is not None:
+                    phase.title = title
+                if objective is not None:
+                    phase.objective = objective
+
+                await planner_service.save_plan(
+                    effort_prefix, plan, strategy_id=strategy_id
+                )
+                return f"Phase '{phase_id}' updated."
+
+    @tool(args_schema=UpdateTaskInput)
+    async def update_task(
+        task_id: str,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        dependencies: Optional[List[str]] = None,
+        tools: Optional[List[str]] = None,
+        completion_criteria: Optional[List[str]] = None,
+        expected_output: Optional[str] = None,
+    ) -> str:
+        """Update/edit an existing task's title, description, dependencies, tools, completion criteria, or expected output."""
+        async with db_lock:
+            async with _get_db_session(session) as db_session:
+                planner_service = PlannerService(db_session)
+                plan = await planner_service.get_or_create_plan(
+                    effort_prefix=effort_prefix,
+                    strategy_id=strategy_id,
+                )
+                target_task = None
+                for phase in plan.phases:
+                    for task in phase.tasks:
+                        if task.id == task_id:
+                            target_task = task
+                            break
+
+                if not target_task:
+                    return f"Error: Task '{task_id}' not found."
+
+                if title is not None:
+                    target_task.title = title
+                if description is not None:
+                    target_task.description = description
+                if dependencies is not None:
+                    target_task.dependencies = dependencies
+                if tools is not None:
+                    target_task.tools = tools
+                if completion_criteria is not None:
+                    target_task.completion_criteria = completion_criteria
+                if expected_output is not None:
+                    target_task.expected_output = expected_output
+
+                await planner_service.save_plan(
+                    effort_prefix, plan, strategy_id=strategy_id
+                )
+                return f"Task '{task_id}' updated."
+
+    @tool(args_schema=UpdateStepInput)
+    async def update_step(
+        task_id: str,
+        step_id: str,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> str:
+        """Update/edit an existing step's title or description within a task."""
+        async with db_lock:
+            async with _get_db_session(session) as db_session:
+                planner_service = PlannerService(db_session)
+                plan = await planner_service.get_or_create_plan(
+                    effort_prefix=effort_prefix,
+                    strategy_id=strategy_id,
+                )
+                target_step = None
+                for phase in plan.phases:
+                    for task in phase.tasks:
+                        if task.id == task_id:
+                            for step in task.steps:
+                                if step.id == step_id:
+                                    target_step = step
+                                    break
+
+                if not target_step:
+                    return f"Error: Step '{step_id}' in Task '{task_id}' not found."
+
+                if title is not None:
+                    target_step.title = title
+                if description is not None:
+                    target_step.description = description
+
+                await planner_service.save_plan(
+                    effort_prefix, plan, strategy_id=strategy_id
+                )
+                return f"Step '{step_id}' updated."
+
     @tool(args_schema=AddKnowledgeEntryInput)
     async def add_knowledge_entry(
         category: Literal["findings", "decisions", "discovered_entities"],
@@ -379,9 +560,11 @@ def get_plan_creation_tools(
     return [
         get_plan_summary,
         update_plan_context,
+        update_phase,
         add_task,
+        update_task,
         add_step,
-        add_knowledge_entry,
+        update_step,
     ]
 
 
