@@ -132,7 +132,10 @@ Do not require every available tool or subagent to be used.
 
 Only require appropriate resources to be used where they improve execution.
 
----
+### 🚫 PROHIBITION ON PLANNING REFERENCES IN PLAN CONTENT:
+* `sales_manager` and `brain_agent` are queried by the Planner *during planning* to gather strategy context and past learnings.
+* However, the generated plan itself (task titles, task descriptions, step descriptions, and `tools` arrays) MUST NOT contain any references to `sales_manager`, `brain_agent`, `Planner`, or planning tools.
+* If any task or step contains references to `sales_manager`, `brain_agent`, `Planner`, or planning tools, you MUST flag it to be removed and reject the plan (`decision: "retry"`).
 
 ## 5. Evaluate Hierarchical Correctness
 
