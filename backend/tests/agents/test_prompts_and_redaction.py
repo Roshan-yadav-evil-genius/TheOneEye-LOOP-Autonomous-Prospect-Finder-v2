@@ -25,7 +25,7 @@ def test_company_planner_prompt_placeholders_filled() -> None:
     assert "sales_manager" in COMPANY_FINDER_PLANNER_PROMPT
 
 
-def test_build_company_finder_stack_prompt_switching() -> None:
+def test_build_company_finder_stack() -> None:
     from agents.stack_builders import build_company_finder_stack
     from agents.runtime import LoopAgentToolContext
 
@@ -45,7 +45,6 @@ def test_build_company_finder_stack_prompt_switching() -> None:
         "product": {"icp_form": {}},
     }
 
-    # Standard mode
     stack_standard = build_company_finder_stack(
         effort_prefix="LOOP_o_p_s_1",
         loop_context=ctx,
@@ -54,25 +53,9 @@ def test_build_company_finder_stack_prompt_switching() -> None:
         brain_tools=[_DummyTool("recall_memory")],
         checkpointer=None,
         strategy_bundle=bundle,
-        is_planner=False,
     )
     assert stack_standard.company_finder.config.name == "Company Finder"
-    assert "Company Planner Agent" not in stack_standard.company_finder.config.responsibility
     assert "Build SaaS pipeline" in stack_standard.company_finder.config.responsibility
-
-    # Planner mode
-    stack_planner = build_company_finder_stack(
-        effort_prefix="LOOP_o_p_s_1",
-        loop_context=ctx,
-        company_tools=[_DummyTool("register_company")],
-        browser_tools=[_DummyTool("navigate")],
-        brain_tools=[_DummyTool("recall_memory")],
-        checkpointer=None,
-        strategy_bundle=bundle,
-        is_planner=True,
-    )
-    assert stack_planner.company_finder.config.name == "Company Planner"
-    assert "Company Planner Agent" in stack_planner.company_finder.config.responsibility
 
 
 

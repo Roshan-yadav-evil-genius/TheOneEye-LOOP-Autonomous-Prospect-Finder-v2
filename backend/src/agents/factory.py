@@ -103,33 +103,74 @@ def _child_subagent(
 
 
 @asynccontextmanager
+async def planner_graph_agent_scope(
+    session: AsyncSession,
+    strategy_id: str,
+    effort_prefix: str,
+) -> AsyncIterator[tuple[Any, dict[str, Any], ParentSubagentStateStore]]:
+    """Build Planner StateGraph workflow agent scope.
+
+    Operates strictly on strategy DB data and LLM subagents without acquiring Playwright browser sessions.
+    """
+    parent_thread = build_role_thread_id(
+        effort_prefix=effort_prefix, role_suffix="planner"
+    )
+    log.info(
+        "planner_graph_scope.build_start",
+        strategy_id=strategy_id,
+        effort_prefix=effort_prefix,
+        parent_thread=parent_thread,
+    )
+    model = resolve_chat_model()
+    store = ParentSubagentStateStore(session)
+    initial = await store.load(parent_thread)
+    store.bind(parent_thread, initial)
+
+    async with checkpoint_and_store_scope() as (checkpointer, mem_store):
+        planner_graph = create_planner_graph(
+            checkpointer=checkpointer,
+            store=mem_store,
+            model=model,
+            effort_prefix=effort_prefix,
+            strategy_id=strategy_id,
+            session=session,
+        )
+        try:
+            log.info(
+                "planner_graph_scope.ready",
+                strategy_id=strategy_id,
+                parent_thread=parent_thread,
+            )
+            yield planner_graph, _config(parent_thread), store
+        finally:
+            await store.flush()
+            log.info("planner_graph_scope.closed", strategy_id=strategy_id, parent_thread=parent_thread)
+
+
+@asynccontextmanager
 async def company_finder_agent_scope(
     session: AsyncSession,
     strategy_id: str,
     effort_prefix: str,
     *,
     lease_owner: str | None = None,
-    is_planner: bool = False,
-    role_suffix: str | None = None,
 ) -> AsyncIterator[tuple[Any, dict[str, Any], ParentSubagentStateStore]]:
-    """Build Company Finder / Planner via stack builders with Browser and Brain compiled subagents.
+    """Build Company Finder execution agent stack with Browser and Brain compiled subagents.
 
     ``lease_owner`` documents exclusive ownership of the shared operator MCP session.
     The caller must hold a BrowserPool lease before entering this scope.
     """
     _ = lease_owner  # exclusive lock is enforced by BrowserPool; retained for API clarity
-    effective_role_suffix = role_suffix or ("planner" if is_planner else "company_finder")
+    parent_thread = build_role_thread_id(
+        effort_prefix=effort_prefix, role_suffix="company_finder"
+    )
     log.info(
         "company_finder_scope.build_start",
         strategy_id=strategy_id,
         effort_prefix=effort_prefix,
-        is_planner=is_planner,
-        role_suffix=effective_role_suffix,
+        parent_thread=parent_thread,
     )
     model = resolve_chat_model()
-    parent_thread = build_role_thread_id(
-        effort_prefix=effort_prefix, role_suffix=effective_role_suffix
-    )
     store = ParentSubagentStateStore(session)
     initial = await store.load(parent_thread)
     store.bind(parent_thread, initial)
@@ -164,30 +205,7 @@ async def company_finder_agent_scope(
         "playwright"
     ) as browser_session:
         log.info("company_finder_scope.stack_build", strategy_id=strategy_id, parent_thread=parent_thread)
-        if is_planner:
-            planner_graph = create_planner_graph(
-                checkpointer=checkpointer,
-                store=mem_store,
-                model=model,
-                effort_prefix=effort_prefix,
-                strategy_id=strategy_id,
-                session=session,
-            )
-
-            try:
-                log.info(
-                    "company_finder_scope.planner_ready",
-                    strategy_id=strategy_id,
-                    parent_thread=parent_thread,
-                )
-                yield planner_graph, _config(parent_thread), store
-            finally:
-                await store.flush()
-                log.info("company_finder_scope.closed", strategy_id=strategy_id, parent_thread=parent_thread)
-            return
-
         company_tools_list = get_register_company_tool(session, strategy_id, parent_thread)
-        sm_tools = None
 
         stack = build_company_finder_stack(
             effort_prefix=effort_prefix,
@@ -196,7 +214,6 @@ async def company_finder_agent_scope(
             browser_tools=await _browser_tools(browser_session),
             brain_tools=[],
             checkpointer=checkpointer,
-            sales_manager_tools=sm_tools,
             model=model,
             company_middlewares=orchestrator_middlewares(),
             browser_middlewares=browser_middlewares(),
@@ -204,8 +221,6 @@ async def company_finder_agent_scope(
             backend=default_filesystem_backend(),
             permissions=default_filesystem_permissions(),
             strategy_bundle=bundle,
-            is_planner=is_planner,
-            role_suffix=effective_role_suffix,
         )
         try:
             log.info(

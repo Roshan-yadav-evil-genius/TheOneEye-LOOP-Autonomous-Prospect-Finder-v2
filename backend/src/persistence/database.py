@@ -5,6 +5,8 @@ from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
+from sqlalchemy.pool import NullPool
+
 from core.config import get_settings
 
 
@@ -22,7 +24,7 @@ db_path = database_url.removeprefix("sqlite+aiosqlite:///")
 if db_path and db_path != ":memory:":
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
-engine = create_async_engine(database_url, future=True)
+engine = create_async_engine(database_url, future=True, poolclass=NullPool)
 
 
 @event.listens_for(engine.sync_engine, "connect")

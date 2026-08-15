@@ -70,11 +70,10 @@ def _passthrough_wrap(_name: str, _description: str, child: Any, _role_suffix: s
 
 
 def _render_company_responsibility(
-    bundle: dict[str, Any] | None, is_planner: bool = False
+    bundle: dict[str, Any] | None
 ) -> str:
     values = company_finder_prompt_values(bundle or {})
-    prompt_template = COMPANY_FINDER_PLANNER_PROMPT if is_planner else COMPANY_FINDER_PROMPT
-    return render_prompt(prompt_template, values)
+    return render_prompt(COMPANY_FINDER_PROMPT, values)
 
 
 def _render_contact_responsibility(
@@ -92,10 +91,6 @@ def _render_brain_responsibility() -> str:
     return render_prompt(BRAIN_AGENT_PROMPT, brain_prompt_values())
 
 
-def _render_sales_manager_responsibility() -> str:
-    return render_prompt(SALES_MANAGER_PROMPT, sales_manager_prompt_values())
-
-
 def _tool_names(tools: Sequence[BaseTool]) -> set[str]:
     return {getattr(t, "name", str(t)) for t in tools}
 
@@ -108,7 +103,6 @@ def build_company_finder_stack(
     browser_tools: Sequence[BaseTool],
     brain_tools: Sequence[BaseTool],
     checkpointer: BaseCheckpointSaver,
-    sales_manager_tools: Sequence[BaseTool] | None = None,
     store: BaseStore | None = None,
     model: BaseLanguageModel | None = None,
     company_middlewares: Sequence[AgentMiddleware] | None = None,
@@ -117,15 +111,12 @@ def build_company_finder_stack(
     backend: BackendProtocol | Any | None = None,
     permissions: list[FilesystemPermission] | None = None,
     strategy_bundle: dict[str, Any] | None = None,
-    is_planner: bool = False,
-    role_suffix: str | None = None,
 ) -> CompanyFinderStack:
-    """Compose Browser + Brain + Sales Manager under Company Finder/Planner with registration authority checks."""
+    """Compose Browser + Brain under Company Finder with registration authority checks."""
     validate_registration_authority("browser_agent", _tool_names(browser_tools))
     validate_registration_authority("company_finder", _tool_names(company_tools))
     wrap = wrap_subagent or _passthrough_wrap
-    effective_role_suffix = role_suffix or ("planner" if is_planner else "company_finder")
-    company_responsibility = _render_company_responsibility(strategy_bundle, is_planner=is_planner)
+    company_responsibility = _render_company_responsibility(strategy_bundle)
     browser_responsibility = _render_browser_responsibility()
     brain_responsibility = _render_brain_responsibility()
 
@@ -149,58 +140,16 @@ def build_company_finder_stack(
         )
     )
 
-    subagents = []
-    sales_manager_agent = None
-    if is_planner and sales_manager_tools is not None:
-        sales_manager_responsibility = _render_sales_manager_responsibility()
-        sales_manager_agent = create_deep_agent_with_brain(
-            LoopDeepAgentConfig(
-                name="Sales Manager",
-                responsibility=sales_manager_responsibility,
-                tools=sales_manager_tools,
-                middlewares=company_middlewares or [],
-                store=store,
-                checkpointer=checkpointer,
-                effort_prefix=effort_prefix,
-                role_suffix="sales_manager",
-                loop_context=loop_context,
-                model=model,
-                backend=backend,
-                permissions=permissions,
-                brain_tools=brain_tools,
-                brain_responsibility=brain_responsibility,
-                wrap_subagent=wrap,
-            )
-        )
-        subagents.append(
-            wrap(
-                "sales_manager",
-                "Consult for organization domain background, product offerings, value propositions, and ICP guidance.",
-                sales_manager_agent,
-                "sales_manager",
-            )
-        )
-
-    if not is_planner:
-        subagents.append(
-            wrap(
-                "browser_agent",
-                "Perform allowlisted browser research and return evidence.",
-                browser,
-                "browser_agent",
-            )
-        )
-
     company_finder = create_deep_agent_with_brain(
         LoopDeepAgentConfig(
-            name="Company Planner" if is_planner else "Company Finder",
+            name="Company Finder",
             responsibility=company_responsibility,
             tools=company_tools,
             middlewares=company_middlewares or [],
             store=store,
             checkpointer=checkpointer,
             effort_prefix=effort_prefix,
-            role_suffix=effective_role_suffix,
+            role_suffix="company_finder",
             loop_context=loop_context,
             model=model,
             backend=backend,
@@ -208,13 +157,19 @@ def build_company_finder_stack(
             brain_tools=brain_tools,
             brain_responsibility=brain_responsibility,
             wrap_subagent=wrap,
-            subagents=subagents,
+            subagents=[
+                wrap(
+                    "browser_agent",
+                    "Perform allowlisted browser research and return evidence.",
+                    browser,
+                    "browser_agent",
+                ),
+            ],
         )
     )
     return CompanyFinderStack(
         company_finder=company_finder,
         browser=browser,
-        sales_manager=sales_manager_agent,
         effort_prefix=effort_prefix,
     )
 

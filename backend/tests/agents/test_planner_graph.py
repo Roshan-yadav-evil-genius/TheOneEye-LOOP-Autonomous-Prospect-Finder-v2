@@ -133,6 +133,9 @@ async def test_planner_graph_evaluator_and_db_plan():
 
 @pytest.mark.asyncio
 async def test_stream_planner_graph_empty_messages():
+    from persistence.database import create_schema
+    await create_schema()
+
     checkpointer = MemorySaver()
     mock_model = create_mock_model()
     graph = create_planner_graph(model=mock_model, checkpointer=checkpointer, effort_prefix="LOOP_789")

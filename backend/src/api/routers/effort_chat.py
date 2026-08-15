@@ -10,6 +10,7 @@ from agents.checkpoints import ThreadCheckpointStore
 from agents.factory import (
     company_finder_agent_scope,
     contact_finder_agent_scope,
+    planner_graph_agent_scope,
 )
 from agents.runtime import allocate_next_setup_thread_id
 from agents.planner_graph import stream_planner_graph
@@ -132,13 +133,17 @@ async def stream_chat(
             thread_id = data.thread_id or f"{effort_prefix}_planner_1"
             is_planner = data.is_planner or "_planner" in thread_id
 
-            if role in ("company_finder", "company-finder", "company_planner", "planner"):
+            if is_planner or role in ("company_planner", "planner"):
+                scope_cm = planner_graph_agent_scope(
+                    session,
+                    strategy_id,
+                    effort_prefix,
+                )
+            elif role in ("company_finder", "company-finder"):
                 scope_cm = company_finder_agent_scope(
                     session,
                     strategy_id,
                     effort_prefix,
-                    is_planner=is_planner,
-                    role_suffix="planner" if is_planner else "company_finder",
                 )
             else:
                 scope_cm = contact_finder_agent_scope(
