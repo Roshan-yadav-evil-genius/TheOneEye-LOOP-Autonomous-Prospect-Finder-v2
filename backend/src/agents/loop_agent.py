@@ -89,7 +89,6 @@ def create_loop_agent(
     def token_calculator(messages: list[BaseMessage]) -> int:
         token = 0
         pred_token_count = count_tokens_approximately(messages)
-        logger.info(f"Token count prediction: {pred_token_count}")
 
         token_calc = ChatOllama(
             model=config.model_name,
@@ -98,7 +97,7 @@ def create_loop_agent(
             num_predict=1
         )
         for attempt in range(3):
-            logger.info(f"Token Calculation Attempt: {attempt}")
+            logger.info(f"Token Calculation Attempt: {attempt}, Predicted Count:{pred_token_count}")
             try:
                 res = token_calc.invoke(messages)
                 if hasattr(res, "usage_metadata") and res.usage_metadata:

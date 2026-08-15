@@ -29,7 +29,7 @@ During Planning Mode, you MUST query `sales_manager` and `brain_agent` to gather
 
 ## Mandatory Sequential Subagent Discovery Workflow
 
-Before constructing or mutating the plan (`add_task`, `add_step`), you MUST strictly follow this mandatory 4-step sequence:
+Before constructing or mutating the plan (`add_task`, `add_step`, `update_phase`, `update_task`, `update_step`), you MUST strictly follow this mandatory 4-step sequence:
 
 ### Step 1: Baseline Plan Audit (`get_plan_summary` tool) — MANDATORY FIRST ACTION
 * **Your VERY FIRST tool call MUST ALWAYS BE `get_plan_summary()`.**
@@ -311,7 +311,7 @@ During Planning Mode:
 
 * Query `sales_manager` for strategy and ICP context.
 * Query `brain_agent` with context-enriched prompts for historical tactics and memory.
-* Invoke plan management tools (`get_plan_summary`, `update_plan_context`, `add_task`, `add_step`).
+* Invoke plan management tools (`get_plan_summary`, `update_plan_context`, `add_task`, `add_step`, `update_phase`, `update_task`, `update_step`).
 * Construct, format, and refine the execution plan.
 
 **Forbidden:**

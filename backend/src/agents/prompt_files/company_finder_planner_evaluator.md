@@ -39,7 +39,7 @@ Evaluate the submitted plan against these 5 mandatory criteria:
 - Does the plan strictly terminate upon candidate identification and database registration?
 
 ### 6. Real Tool Execution Verification
-- Has the Planner actually invoked database planning tools (`update_plan_context`, `add_task`, `add_step`, `mark_planning_as_complete`) to persist the plan in state (rather than just returning markdown chat text)?
+- Has the Planner actually invoked database planning tools (`update_plan_context`, `add_task`, `add_step`, `update_phase`, `update_task`, `update_step`) to persist the plan in state (rather than just returning markdown chat text)?
 
 
 ---

@@ -29,11 +29,20 @@ def test_planner_middleware_plan_mode_permissions():
     req_read.config = {"configurable": {"mode": "plan"}}
     assert mw._check_permission(req_read) is None
 
-    # Allowed write tool in plan mode
-    req_add_task = MagicMock(spec=ToolCallRequest)
-    req_add_task.tool_call = {"id": "2", "name": "add_task", "args": {}}
-    req_add_task.config = {"configurable": {"mode": "plan"}}
-    assert mw._check_permission(req_add_task) is None
+    # Allowed write tools in plan mode
+    for tool_name in ["add_task", "add_step", "update_plan_context", "update_phase", "update_task", "update_step"]:
+        req_tool = MagicMock(spec=ToolCallRequest)
+        req_tool.tool_call = {"id": "2", "name": tool_name, "args": {}}
+        req_tool.config = {"configurable": {"mode": "plan"}}
+        assert mw._check_permission(req_tool) is None, f"{tool_name} should be allowed in plan mode"
+
+    # add_knowledge_entry is not allowed in plan mode
+    req_ke = MagicMock(spec=ToolCallRequest)
+    req_ke.tool_call = {"id": "2b", "name": "add_knowledge_entry", "args": {}}
+    req_ke.config = {"configurable": {"mode": "plan"}}
+    res_ke = mw._check_permission(req_ke)
+    assert isinstance(res_ke, ToolMessage)
+    assert res_ke.status == "error"
 
     # Blocked write tool in plan mode (base execution tool)
     req_exec = MagicMock(spec=ToolCallRequest)

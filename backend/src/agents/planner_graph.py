@@ -178,11 +178,13 @@ def create_planner_graph(
         )
 
     async def run_evaluator_node(state: AgentState, config: Optional[RunnableConfig] = None) -> dict:
-        return await evaluator_subgraph.ainvoke(
+        result=await evaluator_subgraph.ainvoke(
             state,
             context=AgentContext(mode=PlannerMode.EVALUATE),
             config=config,
         )
+        print(result)
+        return result
 
     # 2. State Transformation Nodes
     def prep_planner(state: AgentState) -> AgentState:

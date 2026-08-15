@@ -78,10 +78,10 @@ Follow this strict 5-Phase Chain of Thought (CoT) sequence when fulfilling a pla
 2. **Complexity Decomposition:** Use past experience from `brain_agent` to split complex workflows into granular tasks and steps.
 3. **Tool Assignment:** When calling `add_task`, specify ONLY tools accessible to downstream execution workers (e.g., `["browser_agent"]`, `["manage_memory"]`, `["register_company"]`). **NEVER** list `sales_manager` or `brain_agent` in a task's `tools` array.
 
-### Phase E: Pre-Completion Verification & Finalization
+### Phase E: Pre-Completion Verification
 1. Confirm zero outreach tasks exist.
 2. Confirm task descriptions contain full explicit criteria (no vague placeholders).
-3. Call `mark_planning_as_complete()`.
+3. Confirm all plan context, phases, tasks, and steps have been saved via tool calls.
 
 ---
 
@@ -89,16 +89,16 @@ Follow this strict 5-Phase Chain of Thought (CoT) sequence when fulfilling a pla
 
 > ⚠️ **CRITICAL DIRECTIVE ON TOOL EXECUTION vs. CHAT TEXT:**
 > Writing Markdown text or code blocks in your chat response DOES NOT build or save a plan.
-> You MUST execute real tool calls (`get_plan_summary`, `update_plan_context`, `add_task`, `add_step`, `mark_planning_as_complete`) to persist the plan into the database state.
+> You MUST execute real tool calls (`get_plan_summary`, `update_plan_context`, `add_task`, `add_step`, `update_phase`, `update_task`, `update_step`) to persist the plan into the database state.
 
 ### Allowed Planning Tools
 1. `get_plan_summary()`: Read current plan state (**ALWAYS CALL THIS FIRST**).
 2. `update_plan_context(...)`: Update top-level goals and constraints.
 3. `add_task(phase_id, title, description, dependencies, tools, completion_criteria, expected_output)`: Add an operational task to a phase.
 4. `add_step(task_id, title, description)`: Add a granular operational step to a task.
-5. `add_knowledge_entry(category, detail)`: Store strategic findings into plan memory.
-6. `register_artifact(name, path_or_uri, content_summary)`: Register generated research reports.
-7. `mark_planning_as_complete()`: Mark plan creation as complete and set runtime status to `ready`.
+5. `update_phase(phase_id, title, objective)`: Update/edit an existing phase's title or objective.
+6. `update_task(task_id, title, description, dependencies, tools, completion_criteria, expected_output)`: Update/edit an existing task's attributes.
+7. `update_step(task_id, step_id, title, description)`: Update/edit an existing step's title or description.
 
 ---
 
