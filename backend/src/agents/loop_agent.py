@@ -17,6 +17,7 @@ from agents.prompts import (
     BROWSER_AGENT_PROMPT,
     SALES_MANAGER_PROMPT,
 )
+from .token_counter import get_messages_token_count_
 from langchain_core.messages.utils import count_tokens_approximately
 from langchain.messages import AIMessage
 from langgraph.store.base import BaseStore
@@ -87,28 +88,16 @@ def create_loop_agent(
     config = get_settings()
 
     def token_calculator(messages: list[BaseMessage]) -> int:
-        token = 0
-        pred_token_count = count_tokens_approximately(messages)
+        approximate_token_count = count_tokens_approximately(messages)
 
         token_calc = ChatOllama(
             model=config.model_name,
             base_url=config.model_base_url,
-            num_ctx=256000,
-            num_predict=1
         )
-        for attempt in range(3):
-            logger.info(f"Token Calculation Attempt: {attempt}, Predicted Count:{pred_token_count}")
-            try:
-                res = token_calc.invoke(messages)
-                if hasattr(res, "usage_metadata") and res.usage_metadata:
-                    token = res.usage_metadata.get("input_tokens", 0)
-                break
-            except Exception as exc:
-                logger.warning("token_calculation_failed", error=str(exc))
-                token = sum(len(str(getattr(m, "content", ""))) // 4 for m in messages)
+        actual_token_count = get_messages_token_count_(token_calc,messages)
 
-        logger.info("tokens_calculated", input_tokens=token)
-        return token
+        logger.info("Token Count", approximate=approximate_token_count,actual=actual_token_count)
+        return actual_token_count if actual_token_count else approximate_token_count
 
 
     middleware_list = [
