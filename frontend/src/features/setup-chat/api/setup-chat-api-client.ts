@@ -4,23 +4,26 @@ export interface ChatHistoryRead {
   can_resume: boolean
 }
 
-export interface StateSnapshotRead {
-  step_index: number
-  checkpoint_id?: string | null
-  checkpoint_ns?: string | null
-  parent_checkpoint_id?: string | null
-  values: Record<string, any>
-  next: string[]
+export interface StateSnapshot extends Record<string, any> {
+  step_index?: number
+  config?: Record<string, any>
+  checkpoint?: Record<string, any>
   metadata?: Record<string, any>
+  parent_config?: Record<string, any>
+  pending_writes?: any[]
 }
+
+export type StateSnapshotRead = StateSnapshot
 
 
 export interface ChatStreamRequest {
-  message: string
-  mode: 'ask' | 'act'
+  message?: string
+  mode?: 'ask' | 'act'
   retry?: boolean
   redo_last?: boolean
   thread_id?: string | null
+  is_planner?: boolean
+  config?: Record<string, any>
 }
 
 export type ChatStreamEvent = 

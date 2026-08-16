@@ -371,23 +371,13 @@ class ChatStreamRequest(BaseModel):
     redo_last: bool = False
     thread_id: str | None = None
     is_planner: bool = False
-
+    config: dict[str, Any] | None = None
 
 
 class ChatHistoryRead(BaseModel):
     thread_id: str
     messages: list[dict[str, Any]]
     can_resume: bool = False
-
-
-class StateSnapshotRead(BaseModel):
-    step_index: int
-    checkpoint_id: str | None = None
-    checkpoint_ns: str | None = None
-    parent_checkpoint_id: str | None = None
-    values: dict[str, Any]
-    next: list[str] = Field(default_factory=list)
-    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 

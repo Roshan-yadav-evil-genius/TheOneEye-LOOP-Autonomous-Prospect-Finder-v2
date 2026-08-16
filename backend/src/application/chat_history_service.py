@@ -1,13 +1,13 @@
 import json
 import os
-from typing import Any
+from typing import Any, List
 
 from langchain_core.messages import RemoveMessage, message_to_dict
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from deepagents import create_deep_agent
-
+from langgraph.checkpoint.base import CheckpointTuple
 from agents.model_provider import resolve_chat_model
-from contracts.domain import ChatHistoryRead, StateSnapshotRead
+from contracts.domain import ChatHistoryRead
 from core.config import get_settings
 
 from langchain_core.language_models import FakeListChatModel
@@ -118,58 +118,32 @@ class ThreadChatHistoryService:
     @staticmethod
     async def get_state_history(
         thread_id: str, checkpoint_ns: str | None = None
-    ) -> list[StateSnapshotRead]:
+    ) -> list[dict[str, Any]]:
         conn_string = get_settings().resolved_threads_database_url
         if not conn_string:
             return []
 
-        snapshots: list[StateSnapshotRead] = []
+        snapshots: list[dict[str, Any]] = []
         try:
             async with AsyncPostgresSaver.from_conn_string(conn_string) as checkpointer:
                 config: dict[str, Any] = {"configurable": {"thread_id": thread_id}}
                 if checkpoint_ns is not None:
+                    # want to see the chat of sub agent
                     config["configurable"]["checkpoint_ns"] = checkpoint_ns
 
-                raw_tuples = []
+                raw_tuples:List[CheckpointTuple] = []
                 async for tuple_val in checkpointer.alist(config):
                     raw_tuples.append(tuple_val)
 
                 raw_tuples.reverse()
 
                 for idx, tuple_val in enumerate(raw_tuples, start=1):
-                    cp = tuple_val.checkpoint or {}
-                    meta = tuple_val.metadata or {}
-                    cfg = tuple_val.config or {}
-                    parent_cfg = tuple_val.parent_config or {}
+                    raw_dict = tuple_val._asdict()
+                    clean_dict = _clean_value(raw_dict)
 
-                    configurable = cfg.get("configurable", {})
-                    parent_configurable = parent_cfg.get("configurable", {})
+                    clean_dict["step_index"] = idx
 
-                    cp_id = configurable.get("checkpoint_id")
-                    cp_ns = configurable.get("checkpoint_ns")
-                    parent_cp_id = parent_configurable.get("checkpoint_id")
-
-                    channel_values = cp.get("channel_values", {})
-                    clean_values = {str(k): _clean_value(v) for k, v in channel_values.items()}
-
-                    next_raw = list(tuple_val.next) if hasattr(tuple_val, "next") and tuple_val.next else []
-                    next_nodes = [item if isinstance(item, str) else str(item) for item in next_raw]
-
-                    clean_metadata = _clean_value(meta)
-                    if not isinstance(clean_metadata, dict):
-                        clean_metadata = {}
-
-                    snapshots.append(
-                        StateSnapshotRead(
-                            step_index=idx,
-                            checkpoint_id=cp_id,
-                            checkpoint_ns=cp_ns,
-                            parent_checkpoint_id=parent_cp_id,
-                            values=clean_values,
-                            next=next_nodes,
-                            metadata=clean_metadata,
-                        )
-                    )
+                    snapshots.append(clean_dict)
             return snapshots
         except Exception as exc:
             import logging

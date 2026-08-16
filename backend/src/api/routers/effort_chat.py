@@ -16,7 +16,7 @@ from agents.runtime import allocate_next_setup_thread_id
 from agents.planner_graph import stream_planner_graph
 from application.chat_history_service import ThreadChatHistoryService
 from application.planner_service import PlannerService
-from contracts.domain import ChatHistoryRead, ChatStreamRequest, NewThreadResponse, StateSnapshotRead
+from contracts.domain import ChatHistoryRead, ChatStreamRequest, NewThreadResponse
 from core.config import get_settings
 from persistence import models
 from persistence.database import SessionFactory, get_session
@@ -158,7 +158,23 @@ async def stream_chat(
                     },
                 }
 
-                if data.retry:
+                if data.config:
+                    try:
+                        target_config = dict(data.config)
+                        if "recursion_limit" not in target_config:
+                            target_config["recursion_limit"] = get_settings().agent_recursion_limit
+
+                        fork_config = await graph.aupdate_state(target_config, values=None)
+                        config = fork_config or target_config
+                    except Exception as exc:
+                        import logging
+                        logging.warning(f"Failed to fork checkpoint state via aupdate_state: {exc}", exc_info=True)
+                        config = dict(data.config)
+                        if "recursion_limit" not in config:
+                            config["recursion_limit"] = get_settings().agent_recursion_limit
+
+                    input_data = None
+                elif data.retry:
                     try:
                         state = await graph.aget_state(config)
                         can_resume = bool(getattr(state, "next", None))
@@ -179,7 +195,7 @@ async def stream_chat(
                         except Exception:
                             pass
 
-                if data.retry and can_resume:
+                if data.config or (data.retry and can_resume):
                     input_data = None
                 elif is_planner:
                     input_data = {"planner_chat": [data.message]} if data.message else {}
@@ -336,12 +352,12 @@ async def get_history(
     return await ThreadChatHistoryService.get_history(target_thread_id, checkpoint_ns=checkpoint_ns)
 
 
-@router.get("/{effort_prefix}/chat/state-history", response_model=list[StateSnapshotRead])
+@router.get("/{effort_prefix}/chat/state-history", response_model=list[dict[str, Any]])
 async def get_state_history(
     effort_prefix: str,
     thread_id: str | None = None,
     checkpoint_ns: str | None = None,
-) -> list[StateSnapshotRead]:
+) -> list[dict[str, Any]]:
     target_thread_id = thread_id or f"{effort_prefix}_planner_1"
     return await ThreadChatHistoryService.get_state_history(target_thread_id, checkpoint_ns=checkpoint_ns)
 
