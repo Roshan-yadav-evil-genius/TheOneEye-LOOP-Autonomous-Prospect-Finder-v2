@@ -1,4 +1,5 @@
 import json
+import logging
 from collections.abc import AsyncGenerator
 
 from agents.checkpoint_runtime import checkpoint_scope
@@ -9,6 +10,8 @@ from application.loop_service import LoopService
 from contracts.domain import ChatStreamRequest, ChatHistoryRead
 from core.config import get_settings
 from langchain_core.messages import message_to_dict
+
+logger = logging.getLogger(__name__)
 
 
 class OrgChatService:
@@ -85,24 +88,52 @@ class OrgChatService:
                 # verify org exists
                 await self.loop_service.get_organization(organization_id)
                 
-                if request.retry:
+                if request.retry and request.config:
+                    logger.info(f"Retrying from checkpoint: {request.config}")
+                    fork_config = await agent.aupdate_state(request.config, values=None)
+                    stream_config = fork_config or request.config
+                    if isinstance(stream_config, dict):
+                        if "configurable" in stream_config and isinstance(stream_config["configurable"], dict):
+                            stream_config["configurable"].setdefault(
+                                "tool_context",
+                                OrgChatToolContext(
+                                    organization_id=organization_id,
+                                    mode=request.mode,
+                                    service=self.loop_service,
+                                ),
+                            )
+                        else:
+                            stream_config["configurable"] = {
+                                "thread_id": thread_id,
+                                "tool_context": OrgChatToolContext(
+                                    organization_id=organization_id,
+                                    mode=request.mode,
+                                    service=self.loop_service,
+                                ),
+                            }
+                        stream_config.setdefault("recursion_limit", get_settings().agent_recursion_limit)
+                    input_data = None
+                elif request.retry:
                     state = await agent.aget_state(config)
                     can_resume = bool(state.next)
                     if not can_resume:
                         if request.redo_last and request.message:
                             input_data = {"messages": [("user", request.message)]}
+                            stream_config = config
                         else:
                             yield f"event: error\ndata: {json.dumps({'message': 'No pending actions to retry.', 'can_resume': False})}\n\n"
                             return
                     else:
                         input_data = None
+                        stream_config = config
                 else:
                     input_data = {"messages": [("user", request.message)]}
+                    stream_config = config
                 
                 disconnected = False
                 async for event in agent.astream_events(
                     input_data,
-                    config,
+                    stream_config,
                     version="v2"
                 ):
                     if fastapi_request and await fastapi_request.is_disconnected():

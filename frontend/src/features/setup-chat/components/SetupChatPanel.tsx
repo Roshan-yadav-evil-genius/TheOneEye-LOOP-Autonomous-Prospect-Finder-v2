@@ -172,6 +172,9 @@ export function SetupChatPanel({ title: _title, threadId: _threadId, entityId, a
             snapshots={store.stateSnapshots}
             loading={store.loadingSnapshots}
             onRefresh={() => void store.loadStateHistory(entityId)}
+            onRetryCheckpoint={(config) => {
+              void store.retry(entityId, config)
+            }}
           />
         </div>
       ) : (

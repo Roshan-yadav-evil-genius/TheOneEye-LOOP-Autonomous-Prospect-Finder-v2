@@ -1,4 +1,5 @@
 import json
+import logging
 from collections.abc import AsyncGenerator, Callable, Awaitable
 from typing import Any
 
@@ -6,6 +7,8 @@ from agents.checkpoint_runtime import checkpoint_scope
 from contracts.domain import ChatStreamRequest, ChatHistoryRead
 from core.config import get_settings
 from langchain_core.messages import message_to_dict
+
+logger = logging.getLogger(__name__)
 
 
 class SetupChatService:
@@ -69,19 +72,36 @@ class SetupChatService:
             try:
                 await self.verify_entity()
                 
-                if request.retry:
+                if request.retry and request.config:
+                    logger.info(f"Retrying from checkpoint: {request.config}")
+                    fork_config = await agent.aupdate_state(request.config, values=None)
+                    stream_config = fork_config or request.config
+                    if isinstance(stream_config, dict):
+                        if "configurable" in stream_config and isinstance(stream_config["configurable"], dict):
+                            stream_config["configurable"].setdefault("tool_context", self.tool_context)
+                        else:
+                            stream_config["configurable"] = {
+                                "thread_id": self.thread_id,
+                                "tool_context": self.tool_context
+                            }
+                        stream_config.setdefault("recursion_limit", get_settings().agent_recursion_limit)
+                    input_data = None
+                elif request.retry:
                     state = await agent.aget_state(config)
                     can_resume = bool(state.next)
                     if not can_resume:
                         if request.redo_last and request.message:
                             input_data = {"messages": [("user", request.message)]}
+                            stream_config = config
                         else:
                             yield f"event: error\ndata: {json.dumps({'message': 'No pending actions to retry.', 'can_resume': False})}\n\n"
                             return
                     else:
                         input_data = None
+                        stream_config = config
                 else:
                     input_data = {"messages": [("user", request.message)]}
+                    stream_config = config
                 
                 disconnected = False
                 emitted_tool_call_ids: set[str] = set()
@@ -90,7 +110,7 @@ class SetupChatService:
 
                 async for event in agent.astream_events(
                     input_data,
-                    config,
+                    stream_config,
                     version="v2",
                     subgraphs=True
                 ):
@@ -230,11 +250,11 @@ class SetupChatService:
                                 yield f"event: tool_result\ndata: {json.dumps({'id': tool_id, 'name': t_name, 'content': content})}\n\n"
 
                 if disconnected:
-                    state = await agent.aget_state(config)
+                    state = await agent.aget_state(stream_config)
                     yield f"event: incomplete\ndata: {json.dumps({'can_resume': bool(state.next)})}\n\n"
                 else:
                     yield f"event: done\ndata: {json.dumps({'thread_id': self.thread_id})}\n\n"
                 
             except Exception as e:
-                state = await agent.aget_state(config)
+                state = await agent.aget_state(stream_config)
                 yield f"event: error\ndata: {json.dumps({'message': str(e), 'can_resume': bool(state.next)})}\n\n"

@@ -326,6 +326,7 @@ export function StateSnapshotList({ snapshots, loading, onRefresh, onRetryCheckp
                         checkpoint_ns: getCheckpointNs(snapshot) || '',
                       },
                     }
+                    console.log('Retrying from checkpoint:', targetConfig)
                     onRetryCheckpoint(targetConfig)
                   }}
                   title="Fork & Retry execution from this checkpoint snapshot"

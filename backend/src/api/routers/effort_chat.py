@@ -159,6 +159,8 @@ async def stream_chat(
                 }
 
                 if data.config:
+                    import logging
+                    logging.getLogger(__name__).info(f"Retrying from checkpoint: {data.config}")
                     try:
                         target_config = dict(data.config)
                         if "recursion_limit" not in target_config:

@@ -40,7 +40,7 @@ export interface SetupChatStoreState {
   clearHistory: (entityId: string) => Promise<void>
   deleteMessage: (entityId: string, messageId: string) => Promise<void>
   send: (entityId: string, message: string) => Promise<void>
-  retry: (entityId: string) => Promise<void>
+  retry: (entityId: string, config?: Record<string, any>) => Promise<void>
   reset: () => void
   clearDirtyFlag: () => void
   fetchThreads: (entityId: string) => Promise<void>
@@ -329,15 +329,19 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
       await get()._runStream(entityId, { message, mode: modeArg, thread_id: activeThreadId })
     },
     
-    retry: async (entityId: string) => {
+    retry: async (entityId: string, config?: Record<string, any>) => {
       const { mode, canResume, lastUserMessage, activeThreadId } = get()
-      set({ streaming: true, error: null })
+      if (config) {
+        console.log('Retrying from checkpoint:', config)
+      }
+      const targetMode = mode === 'state' || mode === 'history' ? 'ask' : mode
+      set({ mode: targetMode, streaming: true, error: null })
       
-      const redo_last = !canResume
+      const redo_last = !config && !canResume
       const message = (redo_last && lastUserMessage) ? lastUserMessage : ''
       
-      const modeArg: 'ask' | 'act' = mode === 'act' ? 'act' : 'ask'
-      await get()._runStream(entityId, { message, mode: modeArg, retry: true, redo_last, thread_id: activeThreadId })
+      const modeArg: 'ask' | 'act' = targetMode === 'act' ? 'act' : 'ask'
+      await get()._runStream(entityId, { message, mode: modeArg, retry: true, redo_last, config, thread_id: activeThreadId })
     },
 
     _runStream: async (entityId: string, request: ChatStreamRequest) => {
@@ -356,6 +360,10 @@ export function createSetupChatStore(api: SetupChatApi, storageKey = 'setup_chat
               break
             }
           }
+        } else if (request.config) {
+          activeAiTurnId = `turn-${Date.now()}`
+          activeAssistantMsgId = `ast-${Date.now()}`
+          activeReasoningId = `rsn-${Date.now()}`
         } else {
           const reversed = [...currentMessages].reverse()
           const lastAiMsg = reversed.find(m => (m.kind === 'assistant' || m.kind === 'reasoning' || m.kind === 'tool_call') && m.aiMessageId)
