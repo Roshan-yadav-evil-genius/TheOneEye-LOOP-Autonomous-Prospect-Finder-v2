@@ -16,6 +16,8 @@ from agents.model_provider import resolve_chat_model
 from agents.nested_checkpointing import to_checkpointed_compiled_subagent
 from agents.parent_state import ParentSubagentStateStore, make_parent_state_callbacks
 from agents.runtime import LoopAgentToolContext, build_role_thread_id
+from agents.company_finder_graph import create_company_finder_graph
+from agents.contact_finder_graph import create_contact_finder_graph
 from agents.planner_graph import create_planner_graph
 from agents.stack_builders import (
     _render_company_responsibility,
@@ -155,12 +157,11 @@ async def company_finder_agent_scope(
     *,
     lease_owner: str | None = None,
 ) -> AsyncIterator[tuple[Any, dict[str, Any], ParentSubagentStateStore]]:
-    """Build Company Finder execution agent stack with Browser and Brain compiled subagents.
+    """Build Company Finder StateGraph workflow agent scope.
 
-    ``lease_owner`` documents exclusive ownership of the shared operator MCP session.
-    The caller must hold a BrowserPool lease before entering this scope.
+    Operates strictly on state graph workflow compiled with checkpointer.
     """
-    _ = lease_owner  # exclusive lock is enforced by BrowserPool; retained for API clarity
+    _ = lease_owner
     parent_thread = build_role_thread_id(
         effort_prefix=effort_prefix, role_suffix="company_finder"
     )
@@ -174,53 +175,15 @@ async def company_finder_agent_scope(
     store = ParentSubagentStateStore(session)
     initial = await store.load(parent_thread)
     store.bind(parent_thread, initial)
-    list_existing, load_state, save_state = make_parent_state_callbacks(store, parent_thread)
-    loop_context = LoopAgentToolContext(
-        sales_strategy_id=strategy_id,
-        company_id=None,
-        effort_prefix=effort_prefix,
-    )
-    bundle = (await LoopService(session).bundle(strategy_id)).model_dump(mode="json")
 
-    def wrap(name: str, description: str, child: Any, role_suffix: str, allocation_mode: str = "incremental") -> Any:
-        return _child_subagent(
-            name=name,
-            description=description,
-            child_graph=child,
-            effort_prefix=effort_prefix,
-            role_suffix=role_suffix,
-            parent_role_thread=parent_thread,
-            list_existing=list_existing,
-            load_state=load_state,
-            save_state=save_state,
-            allocation_mode=allocation_mode,
-        )
-
-    log.info(
-        "company_finder_scope.browser_mcp_connect",
-        strategy_id=strategy_id,
-        browser_mcp_url=get_settings().browser_mcp_url,
-    )
-    async with checkpoint_and_store_scope() as (checkpointer, mem_store), _browser_client().session(
-        "playwright"
-    ) as browser_session:
-        log.info("company_finder_scope.stack_build", strategy_id=strategy_id, parent_thread=parent_thread)
-        company_tools_list = get_register_company_tool(session, strategy_id, parent_thread)
-
-        stack = build_company_finder_stack(
-            effort_prefix=effort_prefix,
-            loop_context=loop_context,
-            company_tools=company_tools_list,
-            browser_tools=await _browser_tools(browser_session),
-            brain_tools=[],
-            checkpointer=checkpointer,
+    async with checkpoint_and_store_scope() as (checkpointer, mem_store):
+        company_graph = create_company_finder_graph(
             model=model,
-            company_middlewares=orchestrator_middlewares(),
-            browser_middlewares=browser_middlewares(),
-            wrap_subagent=wrap,
-            backend=default_filesystem_backend(),
-            permissions=default_filesystem_permissions(),
-            strategy_bundle=bundle,
+            checkpointer=checkpointer,
+            store=mem_store,
+            effort_prefix=effort_prefix,
+            strategy_id=strategy_id,
+            session=session,
         )
         try:
             log.info(
@@ -228,7 +191,7 @@ async def company_finder_agent_scope(
                 strategy_id=strategy_id,
                 parent_thread=parent_thread,
             )
-            yield stack.company_finder, _config(parent_thread), store
+            yield company_graph, _config(parent_thread), store
         finally:
             await store.flush()
             log.info("company_finder_scope.closed", strategy_id=strategy_id, parent_thread=parent_thread)
@@ -243,64 +206,41 @@ async def contact_finder_agent_scope(
     *,
     lease_owner: str | None = None,
 ) -> AsyncIterator[tuple[Any, dict[str, Any], ParentSubagentStateStore]]:
-    """Build Contact Finder via stack builders with Browser and Brain compiled subagents."""
+    """Build Contact Finder StateGraph workflow agent scope."""
     _ = lease_owner
-    model = resolve_chat_model()
     parent_thread = build_role_thread_id(
         effort_prefix=effort_prefix, role_suffix="contact_finder"
     )
+    log.info(
+        "contact_finder_scope.build_start",
+        strategy_id=strategy_id,
+        company_id=company_id,
+        effort_prefix=effort_prefix,
+        parent_thread=parent_thread,
+    )
+    model = resolve_chat_model()
     store = ParentSubagentStateStore(session)
     initial = await store.load(parent_thread)
     store.bind(parent_thread, initial)
-    list_existing, load_state, save_state = make_parent_state_callbacks(store, parent_thread)
-    loop_context = LoopAgentToolContext(
-        sales_strategy_id=strategy_id,
-        company_id=company_id,
-        effort_prefix=effort_prefix,
-    )
-    service = LoopService(session)
-    bundle = (await service.bundle(strategy_id)).model_dump(mode="json")
-    company_payload = (await service.company_detail(strategy_id, company_id)).model_dump(
-        mode="json"
-    )
 
-    def wrap(name: str, description: str, child: Any, role_suffix: str, allocation_mode: str = "incremental") -> Any:
-        return _child_subagent(
-            name=name,
-            description=description,
-            child_graph=child,
-            effort_prefix=effort_prefix,
-            role_suffix=role_suffix,
-            parent_role_thread=parent_thread,
-            list_existing=list_existing,
-            load_state=load_state,
-            save_state=save_state,
-            allocation_mode=allocation_mode,
-        )
-
-    async with checkpoint_scope() as checkpointer, _browser_client().session(
-        "playwright"
-    ) as browser_session:
-        stack = build_contact_finder_stack(
-            effort_prefix=effort_prefix,
-            company_id=company_id,
-            loop_context=loop_context,
-            contact_tools=contact_finder_tools(
-                session, strategy_id, company_id, parent_thread
-            ),
-            browser_tools=await _browser_tools(browser_session),
-            brain_tools=[],
-            checkpointer=checkpointer,
+    async with checkpoint_and_store_scope() as (checkpointer, mem_store):
+        contact_graph = create_contact_finder_graph(
             model=model,
-            contact_middlewares=orchestrator_middlewares(),
-            browser_middlewares=browser_middlewares(),
-            wrap_subagent=wrap,
-            backend=default_filesystem_backend(),
-            permissions=default_filesystem_permissions(),
-            strategy_bundle=bundle,
-            company_payload=company_payload,
+            checkpointer=checkpointer,
+            store=mem_store,
+            effort_prefix=effort_prefix,
+            strategy_id=strategy_id,
+            company_id=company_id,
+            session=session,
         )
         try:
-            yield stack.contact_finder, _config(parent_thread), store
+            log.info(
+                "contact_finder_scope.ready",
+                strategy_id=strategy_id,
+                company_id=company_id,
+                parent_thread=parent_thread,
+            )
+            yield contact_graph, _config(parent_thread), store
         finally:
             await store.flush()
+            log.info("contact_finder_scope.closed", strategy_id=strategy_id, parent_thread=parent_thread)
