@@ -45,7 +45,9 @@ Before constructing or mutating the plan (`add_task`, `add_step`, `update_phase`
 * The `sales_manager` subagent is the SOLE authority for strategy parameters. You MUST NOT guess or invent ICP criteria.
 
 ### Step 3: Historical Memory Briefing (`brain_agent` subagent) — MANDATORY THIRD ACTION
-* Subagents are **STATELESS** and receive NO parent conversation history or workspace state automatically.
+
+{% include "stateless_subagent_protocol.md" %}
+
 * Query `brain_agent` using a **context-enriched prompt** embedding the specific strategy, product, target vertical, and ICP parameters retrieved in Step 2 from `sales_manager`.
 * **EXPLICIT PROHIBITION:** NEVER send vague or generic prompts to `brain_agent` (such as *"Search for similar campaigns"*, *"What failed in this type of activity?"*, or *"Find past tactics"*).
 * **CONCRETE EXAMPLE:** You MUST explicitly format your prompt like:

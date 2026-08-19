@@ -1,24 +1,34 @@
 from pathlib import Path
+from jinja2 import Environment, FileSystemLoader
 
 PROMPTS_ROOT = Path(__file__).resolve().parent / "prompt_files"
 
-COMPANY_FINDER_PROMPT = (PROMPTS_ROOT / "company_finder.md").read_text(encoding="utf-8")
-COMPANY_FINDER_PLANNER_PROMPT = (PROMPTS_ROOT / "company_finder_planner.md").read_text(
-    encoding="utf-8"
+_jinja_env = Environment(
+    loader=FileSystemLoader(PROMPTS_ROOT),
+    autoescape=False,
+    trim_blocks=True,
+    lstrip_blocks=True,
 )
-PLANNER_V1_PROMPT = COMPANY_FINDER_PLANNER_PROMPT
-PLANNER_V2_PROMPT = (PROMPTS_ROOT / "planner.md").read_text(encoding="utf-8")
 
-EVALUATOR_V1_PROMPT = (PROMPTS_ROOT / "company_finder_planner_evaluator.md").read_text(
-    encoding="utf-8"
-)
-EVALUATOR_V2_PROMPT = (PROMPTS_ROOT / "evaluator.md").read_text(encoding="utf-8")
+
+def load_prompt(filename: str) -> str:
+    """Load and render prompt template file using Jinja2 FileSystemLoader."""
+    return _jinja_env.get_template(filename).render()
+
+
+COMPANY_FINDER_PROMPT = load_prompt("company_finder.md")
+COMPANY_FINDER_PLANNER_PROMPT = load_prompt("company_finder_planner.md")
+PLANNER_V1_PROMPT = COMPANY_FINDER_PLANNER_PROMPT
+PLANNER_V2_PROMPT = load_prompt("planner.md")
+
+EVALUATOR_V1_PROMPT = load_prompt("company_finder_planner_evaluator.md")
+EVALUATOR_V2_PROMPT = load_prompt("evaluator.md")
 EVALUATOR_PROMPT = EVALUATOR_V2_PROMPT
 COMPANY_FINDER_PLANNER_EVALUATOR_PROMPT = EVALUATOR_V1_PROMPT
-CONTACT_FINDER_PROMPT = (PROMPTS_ROOT / "contact_finder.md").read_text(encoding="utf-8")
-BROWSER_AGENT_PROMPT = (PROMPTS_ROOT / "browser.md").read_text(encoding="utf-8")
-BRAIN_AGENT_PROMPT = (PROMPTS_ROOT / "brain.md").read_text(encoding="utf-8")
-SALES_MANAGER_PROMPT = (PROMPTS_ROOT / "sales_manager.md").read_text(encoding="utf-8")
+CONTACT_FINDER_PROMPT = load_prompt("contact_finder.md")
+BROWSER_AGENT_PROMPT = load_prompt("browser.md")
+BRAIN_AGENT_PROMPT = load_prompt("brain.md")
+SALES_MANAGER_PROMPT = load_prompt("sales_manager.md")
 
 
 def get_planner_prompt(version: str | None = None) -> str:
