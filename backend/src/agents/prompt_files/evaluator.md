@@ -26,7 +26,7 @@ Do not approve a plan merely because it looks detailed.
 
 ## Mandatory Evaluator Subagent Consultation Protocol
 
-{% include "stateless_subagent_protocol.md" %}
+{% include "partials/stateless_subagent_protocol.md" %}
 
 Before rendering your final evaluation decision (`accept` or `retry`), you MUST consult subagents to audit and verify plan validity:
 
@@ -48,13 +48,7 @@ Verify that:
 * No major required work is missing.
 * No unnecessary work materially increases execution cost.
 
-### 🚫 STRICT ZERO OUTREACH BOUNDARY AUDIT:
-* The effort scope terminates **STRICTLY upon candidate identification, ICP validation, and database registration**.
-* **MANDATORY REJECTION:** You MUST reject any plan (`decision: "retry"`) that contains tasks or phases for:
-  - Outreach preparation or sales playbooks
-  - Email sequence drafting or messaging templates
-  - Timing cadences, demo booking workflows, or cold outreach campaigns
-* **Required Feedback:** Indicate clearly: *"Phase X / Task Y contains out-of-scope outreach activities (email sequence drafting / outreach playbooks). The effort scope is strictly limited to candidate discovery, validation, and database registration. Remove all outreach tasks."*
+{% include "partials/zero_outreach_boundary.md" %}
 
 Reject plans containing substantial irrelevant work, out-of-scope outreach activities, or missing essential work.
 
@@ -62,53 +56,13 @@ Reject plans containing substantial irrelevant work, out-of-scope outreach activ
 
 ## 2. Evaluate Self-Containment
 
-This is one of the highest-priority checks.
-
-Every executable task must be self-contained.
-
-Ask:
-
-> Could an execution agent receive this task independently and execute it correctly without access to the Planner's hidden reasoning?
-
-Check whether the task contains:
-
-* Target.
-* Scope.
-* Relevant criteria.
-* Required parameters.
-* Constraints.
-* Required resources.
-* Expected output.
-* Completion criteria.
-* Necessary dependencies.
-* Relevant context.
-
-Flag tasks containing implicit context such as:
-
-* "Use the strategy."
-* "Use previous results."
-* "Find suitable candidates."
-* "Continue the research."
-* "Analyze the collected data."
-
-unless the referenced information is explicitly available through a defined dependency or included in the task.
+{% include "partials/self_contained_plan_requirement.md" %}
 
 ---
 
 ## 3. Evaluate Resource Feasibility & Tool Existence
 
-Inspect the tools listed under each task in the provided plan.
-
-Compare every tool string against the tools and subagents available in your own environment and toolset.
-
-Verify for each planned resource usage:
-
-* **Dynamic Tool Existence Check:** Does the tool listed in your toolset and actually exist in the available environment? If a task lists a tool or subagent that is NOT present in the available toolset, it is an **imaginary / non-existent tool**.
-* **Appropriateness:** Is the tool appropriate for the specified task operation?
-* **Input/Output Feasibility:** Are required inputs available and expected outputs realistic?
-* **Capability Limitations:** Is the plan assuming hypothetical functionality that the tool does not provide?
-
-A plan MUST NEVER depend on an imaginary, hypothetical, or unavailable tool. If any task contains an imaginary tool, you MUST reject the plan with `decision: "retry"`.
+{% include "partials/tool_existence_verification.md" %}
 
 ---
 
@@ -116,28 +70,7 @@ A plan MUST NEVER depend on an imaginary, hypothetical, or unavailable tool. If 
 
 Determine whether the plan makes effective use of available resources in the environment.
 
-Check for:
-
-* Use of imaginary or non-existent tools (reject immediately).
-* Better-suited available tools or subagents.
-* Unnecessary duplicate work.
-* Incorrect resource assignment.
-* Opportunities for parallel execution.
-* Opportunities to reuse existing results.
-* Unnecessary duplicate work.
-* Missing specialized resources.
-* Incorrect resource assignment.
-* Opportunities for parallel execution.
-* Opportunities to reuse existing results.
-
-Do not require every available tool or subagent to be used.
-
-Only require appropriate resources to be used where they improve execution.
-
-### 🚫 PROHIBITION ON PLANNING REFERENCES IN PLAN CONTENT:
-* `sales_manager` and `brain_agent` are queried by the Planner *during planning* to gather strategy context and past learnings.
-* However, the generated plan itself (task titles, task descriptions, step descriptions, and `tools` arrays) MUST NOT contain any references to `sales_manager`, `brain_agent`, `Planner`, or planning tools.
-* If any task or step contains references to `sales_manager`, `brain_agent`, `Planner`, or planning tools, you MUST flag it to be removed and reject the plan (`decision: "retry"`).
+{% include "partials/planning_only_resources_boundary.md" %}
 
 ## 5. Evaluate Hierarchical Correctness
 
@@ -378,19 +311,5 @@ Do not reject a plan for minor stylistic preferences that do not affect executio
 
 ---
 
-## Evaluation Decision Output Protocol
-
-You MUST return a structured response conforming to the `Evaluation` model containing `feedback` (str) and `decision` ("accept" or "retry"):
-
-### `retry`
-
-Use when one or more issues (unverified claims, missing context, invalid tools, structural ambiguity) could materially affect execution.
-
-Provide actionable feedback detailing the exact location, unverified claim/problem, impact, and required correction for the Planner.
-
-### `accept`
-
-Use ONLY when the plan is 100% complete, fully verified against `sales_manager` and `brain_agent`, self-contained, feasible, risk-aware, and executable.
-
-Once marked `accept`, do not request additional improvements merely for stylistic or theoretical reasons.
+{% include "partials/structured_evaluation_decision_protocol.md" %}
 
