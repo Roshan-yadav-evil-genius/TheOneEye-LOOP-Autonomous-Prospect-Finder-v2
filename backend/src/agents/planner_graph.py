@@ -271,6 +271,7 @@ Execution Plan:
         logger.info(
             "executing_node",
             node_name=NodeName.PARSE_EVALUATOR_OUTPUT,
+            structured_response=state.structured_response 
         )
         state.evaluator_chat = state.messages
         state.evaluation = state.structured_response or Evaluation(

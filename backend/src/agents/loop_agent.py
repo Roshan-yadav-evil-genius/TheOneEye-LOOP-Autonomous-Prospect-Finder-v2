@@ -17,11 +17,12 @@ from agents.prompts import (
     BROWSER_AGENT_PROMPT,
     SALES_MANAGER_PROMPT,
 )
+from deepagents.middleware.subagents import SubAgentMiddleware
 from .token_counter import get_messages_token_count_
 from langchain_core.messages.utils import count_tokens_approximately
 from langchain.messages import AIMessage
 from langgraph.store.base import BaseStore
-from deepagents.middleware.subagents import SubAgentMiddleware
+from agents.structured_subagent_middleware import StructuredSubAgentMiddleware
 from langchain_core.messages import BaseMessage
 import structlog
 from core.config import Settings, get_settings
@@ -110,7 +111,7 @@ def create_loop_agent(
     ]
     if effective_subagents:
         middleware_list.append(
-            SubAgentMiddleware(
+            StructuredSubAgentMiddleware(
                 backend=effective_backend,
                 subagents=effective_subagents,
             )
